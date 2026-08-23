@@ -144,39 +144,19 @@ html.dark {
 }
 
 /* =========================================================
- * Hero 3D / 2D 背景容器
- * 两种用法：
- *   1) 内嵌在 relative 父容器里（首页 Hero 区）→ 用 .hero-bg-vanta / .hero-bg-fallback
- *      position: absolute; inset: 0; z-index: -1 覆盖父容器
- *   2) 全屏固定背景（AppLayout 持久层）→ 用 .hero-bg-vanta-fixed / .hero-bg-fallback-fixed
- *      父元素已经是 fixed inset-0，不需要再次 absolute 覆盖
+ * Hero 3D / 2D 背景容器（首页 Hero 区专属）
  * Vanta.js canvas 会自动插到容器里并设为 position: absolute; inset: 0; z-index: -1
  * =======================================================*/
 
-/* 通用：两种模式都共享的视觉样式 */
-.hero-bg-vanta,
-.hero-bg-vanta-fixed,
-.hero-bg-fallback,
-.hero-bg-fallback-fixed {
-  pointer-events: none;
-  overflow: hidden;
-  isolation: isolate;
-}
-
-/* 内嵌模式（relative 父容器内的子元素） */
+/* 通用：共享的视觉样式 */
 .hero-bg-vanta,
 .hero-bg-fallback {
   position: absolute;
   inset: 0;
   z-index: -1;
-}
-
-/* 全屏固定模式（父元素已是 fixed inset-0） */
-.hero-bg-vanta-fixed,
-.hero-bg-fallback-fixed {
-  position: fixed;
-  inset: 0;
-  z-index: -1;
+  pointer-events: none;
+  overflow: hidden;
+  isolation: isolate;
 }
 
 /* 2D 降级 fallback —— 内嵌模式 */
@@ -191,25 +171,13 @@ html.dark {
   border-radius: inherit;
 }
 
-/* 2D 降级 fallback —— 全屏固定模式（无 border-radius，全屏覆盖） */
-.hero-bg-fallback-fixed {
-  background-color: hsl(var(--color-bg));
-  background-image:
-    radial-gradient(circle at 18% 22%, hsl(263 70% 63% / 0.18), transparent 52%),
-    radial-gradient(circle at 82% 78%, hsl(330 81% 60% / 0.14), transparent 56%),
-    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'><circle cx='2' cy='2' r='1' fill='hsl(263 70% 63% / 0.16)'/></svg>");
-  background-repeat: no-repeat, no-repeat, repeat;
-  background-size: auto, auto, 24px 24px;
-}
-
-/* Vanta 模式：仅额外保证 border-radius 跟随父 */
+/* Vanta 模式：border-radius 跟随父 */
 .hero-bg-vanta {
   border-radius: inherit;
 }
 
 /* 主题切换：2D fallback 的深浅色变体 */
-html.dark .hero-bg-fallback,
-html.dark .hero-bg-fallback-fixed {
+html.dark .hero-bg-fallback {
   background-image:
     radial-gradient(circle at 18% 22%, hsl(263 85% 68% / 0.22), transparent 52%),
     radial-gradient(circle at 82% 78%, hsl(330 90% 65% / 0.18), transparent 56%),
