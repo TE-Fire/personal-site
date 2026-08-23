@@ -3,5 +3,13 @@
   "references": [
     { "path": "./tsconfig.app.json" },
     { "path": "./tsconfig.node.json" }
-  ]
+  ],
+  "compilerOptions": {
+    /* 重复声明仅用于 shadcn-vue CLI 的静态扫描（CLI 不递归 references 子配置）；
+       实际编译仍以 tsconfig.app.json / tsconfig.node.json 中各自的 paths 为准。 */
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  }
 }
