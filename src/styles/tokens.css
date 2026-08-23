@@ -142,3 +142,46 @@ html.dark {
     scroll-behavior: auto !important;
   }
 }
+
+/* =========================================================
+ * Hero 3D / 2D 背景容器（首页专属）
+ * 注意：Vanta.js 效果 canvas 会自动插到容器里并设为 position: absolute; inset: 0; z-index: -1
+ *       降级 fallback 直接用 radial-gradient + 点阵 SVG 模拟紫雾质感。
+ * =======================================================*/
+.hero-bg-vanta,
+.hero-bg-fallback {
+  position: absolute;
+  inset: 0;
+  /* 确保比任何 sibling 背景低；父容器需要 relative + z-0 建立层叠上下文 */
+  z-index: -1;
+  pointer-events: none;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+/* 2D 降级 fallback（与 Vanta 紫色风对齐）
+ *   两团径向紫雾 + 点阵 SVG
+ *   hsl 值对应 Tailwind 里 brand=263°70%63% / accent=330°81%60%
+ */
+.hero-bg-fallback {
+  background-color: hsl(var(--color-bg));
+  background-image:
+    radial-gradient(circle at 18% 22%, hsl(263 70% 63% / 0.18), transparent 52%),
+    radial-gradient(circle at 82% 78%, hsl(330 81% 60% / 0.14), transparent 56%),
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'><circle cx='2' cy='2' r='1' fill='hsl(263 70% 63% / 0.16)'/></svg>");
+  background-repeat: no-repeat, no-repeat, repeat;
+  background-size: auto, auto, 24px 24px;
+  border-radius: inherit;
+}
+html.dark .hero-bg-fallback {
+  background-image:
+    radial-gradient(circle at 18% 22%, hsl(263 85% 68% / 0.22), transparent 52%),
+    radial-gradient(circle at 82% 78%, hsl(330 90% 65% / 0.18), transparent 56%),
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'><circle cx='2' cy='2' r='1' fill='hsl(263 85% 75% / 0.20)'/></svg>");
+}
+
+/* Vanta 容器：仅额外保证 border-radius 跟随父 */
+.hero-bg-vanta {
+  border-radius: inherit;
+}
+

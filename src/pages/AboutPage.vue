@@ -1,23 +1,21 @@
 <script setup lang="ts">
 /**
- * AboutPage · 关于我（完整填充）。
- * 结构：
- *   1) 页头：标题 + 简短自我介绍（可扩展头像）
- *   2) 4 个数字统计 chip
- *   3) 2 段长文介绍
- *   4) 「现在在做什么」Card
- *   5) 3 组技能 Badge（熟练 / 熟悉 / 协作工具）
- *   6) 兴趣标签 cloud
+ * AboutPage · 关于我（完整填充 + 滚动进入揭示动画）。
  */
+import { ref } from 'vue'
 import { Badge, Card, CardContent, CardHeader, CardTitle, CardDescription, Separator } from '@/components/ui'
 import { aboutMe, skillGroups } from '@/data'
 import { MapPin, Briefcase, Coffee, Heart } from 'lucide-vue-next'
+import { useScrollReveal } from '@/composables/useScrollReveal'
+
+const rootRef = ref<HTMLElement | null>(null)
+useScrollReveal(rootRef)
 </script>
 
 <template>
-  <article class="max-w-4xl mx-auto space-y-14">
+  <article ref="rootRef" class="max-w-4xl mx-auto space-y-14">
     <!-- 1. 页头 -->
-    <header class="space-y-5">
+    <header class="space-y-5" data-reveal>
       <p class="m-0 text-xs font-mono text-brand uppercase tracking-wider">/ about</p>
       <div class="flex flex-col md:flex-row md:items-start md:gap-8 gap-6">
         <!-- 头像占位（T05 用占位 SVG 渐变圆形，后续可替换真实照片） -->
@@ -46,7 +44,7 @@ import { MapPin, Briefcase, Coffee, Heart } from 'lucide-vue-next'
     </header>
 
     <!-- 2. 数字统计 chip -->
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4" data-reveal="0.06">
       <div
         v-for="s in aboutMe.highlightStats"
         :key="s.label"
@@ -60,7 +58,7 @@ import { MapPin, Briefcase, Coffee, Heart } from 'lucide-vue-next'
     <Separator />
 
     <!-- 3. 长文介绍（两段） -->
-    <section class="space-y-4">
+    <section class="space-y-4" data-reveal="0.1">
       <h2 class="m-0 text-xl font-semibold tracking-tight">关于我</h2>
       <div class="space-y-3 text-[15px] md:text-base text-text leading-[1.85]">
         <p v-for="(para, idx) in aboutMe.longBio" :key="idx" class="m-0">{{ para }}</p>
@@ -68,7 +66,7 @@ import { MapPin, Briefcase, Coffee, Heart } from 'lucide-vue-next'
     </section>
 
     <!-- 4. 现在在做什么 -->
-    <Card>
+    <Card data-reveal="0.1">
       <CardHeader>
         <CardTitle class="flex items-center gap-2">现在 <span class="inline-block size-2 rounded-full bg-success animate-pulse" /></CardTitle>
         <CardDescription>2026 年下半年的核心方向（每半年更新一次）。</CardDescription>
@@ -82,7 +80,7 @@ import { MapPin, Briefcase, Coffee, Heart } from 'lucide-vue-next'
     </Card>
 
     <!-- 5. 技能栈（3 组） -->
-    <section class="space-y-6">
+    <section class="space-y-6" data-reveal="0.14">
       <h2 class="m-0 text-xl font-semibold tracking-tight">技能 &amp; 工具</h2>
       <div class="space-y-6">
         <div v-for="group in skillGroups" :key="group.id" class="space-y-3">
@@ -97,7 +95,7 @@ import { MapPin, Briefcase, Coffee, Heart } from 'lucide-vue-next'
     </section>
 
     <!-- 6. 兴趣标签 -->
-    <section class="space-y-3">
+    <section class="space-y-3" data-reveal="0.18">
       <h2 class="m-0 text-xl font-semibold tracking-tight">最近感兴趣</h2>
       <div class="flex flex-wrap gap-2">
         <span

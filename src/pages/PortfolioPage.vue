@@ -19,11 +19,15 @@ import {
   listProjectTags
 } from '@/data'
 import { Github, ExternalLink, X } from 'lucide-vue-next'
+import { useScrollReveal } from '@/composables/useScrollReveal'
 
 /** 分类筛选（空串或「全部」= 不过滤） */
 const activeCategory = ref<ProjectCategory>('全部')
 /** 标签筛选（null = 不筛选；点击某个 tag 启用） */
 const activeTag = ref<string | null>(null)
+
+const rootRef = ref<HTMLElement | null>(null)
+useScrollReveal(rootRef)
 
 const allTags = listProjectTags()
 
@@ -46,9 +50,9 @@ const hasActiveFilter = computed(() => activeCategory.value !== '全部' || acti
 </script>
 
 <template>
-  <article class="space-y-8">
+  <article ref="rootRef" class="space-y-8">
     <!-- 头部 -->
-    <header class="space-y-3 max-w-3xl">
+    <header class="space-y-3 max-w-3xl" data-reveal>
       <p class="m-0 text-xs font-mono text-brand uppercase tracking-wider">/ portfolio</p>
       <h1 class="m-0 text-3xl md:text-4xl font-bold tracking-tight">作品集</h1>
       <p class="m-0 text-base md:text-lg text-text-muted leading-relaxed">
@@ -57,7 +61,7 @@ const hasActiveFilter = computed(() => activeCategory.value !== '全部' || acti
     </header>
 
     <!-- 筛选器 -->
-    <section class="space-y-4 border-y border-border/50 py-5">
+    <section class="space-y-4 border-y border-border/50 py-5" data-reveal="0.06">
       <div class="flex flex-wrap items-center gap-x-6 gap-y-3 justify-between">
         <!-- 分类 tab -->
         <div class="flex flex-wrap gap-1.5">
@@ -113,16 +117,18 @@ const hasActiveFilter = computed(() => activeCategory.value !== '全部' || acti
     <div
       v-if="filtered.length === 0"
       class="rounded-lg border border-dashed border-border/70 bg-surface-muted/20 py-16 flex flex-col items-center justify-center gap-3 text-center"
+      data-reveal="0.1"
     >
       <p class="m-0 text-text-muted text-sm">没有匹配的项目。</p>
       <Button size="sm" variant="outline" @click="resetAll">重置筛选条件</Button>
     </div>
 
     <!-- 项目卡片网格 -->
-    <div v-else class="grid gap-5 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+    <div v-else class="grid gap-5 grid-cols-1 md:grid-cols-2 lg:grid-cols-3" data-reveal="0.1">
       <Card
-        v-for="p in filtered"
+        v-for="(p, i) in filtered"
         :key="p.id"
+        :data-reveal="String(0.05 * i)"
         class="group overflow-hidden flex flex-col hover:-translate-y-0.5 hover:shadow-md transition"
       >
         <div

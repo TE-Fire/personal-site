@@ -1,7 +1,8 @@
 <script setup lang="ts">
 /**
- * TimelinePage · 经历时间线（真实条目 + 节点类型染色）。
+ * TimelinePage · 经历时间线（真实条目 + 节点类型染色 + 滚动揭示动画）。
  */
+import { ref } from 'vue'
 import {
   Badge,
   Separator
@@ -10,6 +11,7 @@ import { timelineNodes, nodeKindMeta } from '@/data'
 import { History, Briefcase, GraduationCap, Rocket, GitPullRequestArrow } from 'lucide-vue-next'
 import type { Component } from 'vue'
 import type { TimelineNodeKind } from '@/data'
+import { useScrollReveal } from '@/composables/useScrollReveal'
 
 /** 每个节点 kind 对应的 icon 展示 */
 const kindIcon: Record<TimelineNodeKind, Component> = {
@@ -18,12 +20,15 @@ const kindIcon: Record<TimelineNodeKind, Component> = {
   'open-source': GitPullRequestArrow,
   milestone: Rocket
 }
+
+const rootRef = ref<HTMLElement | null>(null)
+useScrollReveal(rootRef)
 </script>
 
 <template>
-  <article class="space-y-10 max-w-4xl mx-auto">
+  <article ref="rootRef" class="space-y-10 max-w-4xl mx-auto">
     <!-- 头部 -->
-    <header class="space-y-3">
+    <header class="space-y-3" data-reveal>
       <p class="m-0 text-xs font-mono text-brand uppercase tracking-wider">/ timeline</p>
       <h1 class="m-0 text-3xl md:text-4xl font-bold tracking-tight flex items-center gap-2">
         <History class="size-7 text-brand" />
@@ -42,6 +47,7 @@ const kindIcon: Record<TimelineNodeKind, Component> = {
         v-for="(node, index) in timelineNodes"
         :key="node.id"
         class="relative"
+        :data-reveal="String(0.06 * index)"
       >
         <!-- 左侧节点圆圈（根据 kind 染色） -->
         <span

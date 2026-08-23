@@ -1,9 +1,8 @@
 <script setup lang="ts">
 /**
- * HomePage · 首页（Hero 终端 + 数字统计 + 最近作品 + 最近博客 + CTA 行动区）。
- * Hero 终端使用 useTerminal composable 驱动打字机。
+ * HomePage · 首页（Hero 终端 + 3D/2D 背景 + 滚动揭示动效 + 数字统计 + 最近作品 + 最近博客）。
  */
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import {
   ArrowRight,
   BookOpen,
@@ -31,6 +30,10 @@ import {
   type Project
 } from '@/data'
 import { useTerminal, type TerminalStep } from '@/composables/useTerminal'
+import { useVantaBackground } from '@/composables/useVantaBackground'
+import { useScrollReveal } from '@/composables/useScrollReveal'
+
+/* ---------------- 数据 ---------------- */
 
 const featuredProjects = computed<Project[]>(() =>
   projects.filter((p) => p.highlight).slice(0, 3)
@@ -39,7 +42,6 @@ const featuredPosts = computed<BlogPost[]>(() =>
   posts.filter((p) => p.featured).slice(0, 3)
 )
 const stats = aboutMe.highlightStats
-
 const firstLocation = computed(() => aboutMe.location.split(' · ')[0] ?? aboutMe.location)
 
 /* ---------------- 终端脚本 ---------------- */
@@ -62,14 +64,12 @@ const script = computed<TerminalStep[]>(() => {
       ],
       pauseMs: 360
     },
-
     { type: 'command', text: 'cat ./motto.txt' },
     {
       type: 'output',
       lines: ['把「设计感」和「工程化」拧在一起，做长期有用的事。'],
       pauseMs: 360
     },
-
     { type: 'command', text: 'ls ./projects --only-highlight' },
     {
       type: 'output',
@@ -78,7 +78,6 @@ const script = computed<TerminalStep[]>(() => {
         : ['  (nothing here yet, go build something ✨)'],
       pauseMs: 360
     },
-
     { type: 'command', text: 'head -n 3 ./blog/latest.md' },
     {
       type: 'output',
@@ -86,7 +85,6 @@ const script = computed<TerminalStep[]>(() => {
       muted: true,
       pauseMs: 360
     },
-
     { type: 'command', text: './ai --intro --vibe --color=purple' },
     {
       type: 'output',
@@ -96,138 +94,152 @@ const script = computed<TerminalStep[]>(() => {
       ],
       pauseMs: 280
     },
-
     { type: 'blank', count: 1, pauseMs: 160 }
   ]
 })
 
+/* ---------------- Refs（Vanta / ScrollReveal）---------------- */
+
+const pageRoot = ref<HTMLElement | null>(null)
+const heroBgEl = ref<HTMLElement | null>(null)
+
 const { lines, isTyping, isDone, restart, skipToEnd } = useTerminal(script, {
   autoStart: true
 })
+const { mode: bgMode, error: bgError } = useVantaBackground(heroBgEl)
+// 调试提示：如果走了 fallback 又好奇原因？可以 console.log('bg mode=', bgMode.value, bgError.value)
+void bgMode
+void bgError
+useScrollReveal(pageRoot)
 </script>
 
 <template>
-  <section class="space-y-24">
-    <!-- 1. Hero 双栏 -->
-    <div class="grid grid-cols-1 lg:grid-cols-[1.05fr_0.95fr] gap-10 items-center py-4 md:py-10">
-      <div class="flex flex-col gap-5 max-w-xl">
-        <span class="inline-flex items-center gap-2 rounded-full border border-brand/30 bg-brand/5 px-3 py-1 text-xs font-medium text-brand self-start">
-          <Sparkles class="size-3.5" />
-          <span>欢迎来到我的数字花园 🌱</span>
-        </span>
+  <section ref="pageRoot" class="space-y-20 md:space-y-24">
+    <!-- 1. Hero 容器（relative + overflow:hidden，内层挂 Vanta/fallback 背景层） -->
+    <div class="relative overflow-hidden rounded-2xl -mx-2 md:mx-0 z-0 bg-gradient-to-b from-transparent via-transparent to-transparent" data-reveal>
+      <!-- 背景层（Vanta canvas 或 2D fallback） -->
+      <div ref="heroBgEl" aria-hidden="true" />
 
-        <h1 class="font-sans text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight leading-[1.1] m-0">
-          你好，我是
-          <span class="bg-gradient-to-r from-brand via-accent to-brand bg-clip-text text-transparent bg-[length:200%_auto] animate-[shimmer_6s_linear_infinite]">
-            Trae
+      <div class="grid grid-cols-1 lg:grid-cols-[1.05fr_0.95fr] gap-10 items-center px-2 md:px-0 py-6 md:py-10 lg:py-14">
+        <div class="flex flex-col gap-5 max-w-xl relative z-[1]">
+          <span class="inline-flex items-center gap-2 rounded-full border border-brand/30 bg-brand/5 px-3 py-1 text-xs font-medium text-brand self-start">
+            <Sparkles class="size-3.5" />
+            <span>欢迎来到我的数字花园 🌱</span>
           </span>
-          <br />
-          <span class="text-text-muted text-2xl md:text-3xl lg:text-4xl font-medium">
-            <span class="font-mono text-brand">// </span>
-            热爱构建的前端工程师
-          </span>
-        </h1>
 
-        <p class="text-base md:text-lg text-text-muted leading-relaxed m-0">
-          {{ aboutMe.shortBio }}
-        </p>
+          <h1 class="font-sans text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight leading-[1.1] m-0">
+            你好，我是
+            <span class="bg-gradient-to-r from-brand via-accent to-brand bg-clip-text text-transparent bg-[length:200%_auto] animate-[shimmer_6s_linear_infinite]">
+              Trae
+            </span>
+            <br />
+            <span class="text-text-muted text-2xl md:text-3xl lg:text-4xl font-medium">
+              <span class="font-mono text-brand">// </span>
+              热爱构建的前端工程师
+            </span>
+          </h1>
 
-        <div class="flex flex-wrap items-center gap-3 pt-2">
-          <Button as="router-link" :to="'/portfolio'" size="lg">
-            <span>看作品</span>
-            <ArrowRight class="size-4" />
-          </Button>
-          <Button as="router-link" :to="'/contact'" size="lg" variant="outline">
-            <Mail class="size-4" />
-            <span>联系我</span>
-          </Button>
-          <Button as="a" href="#" size="lg" variant="ghost" class="gap-1.5">
-            <Download class="size-4" />
-            <span>简历 PDF</span>
-          </Button>
-        </div>
+          <p class="text-base md:text-lg text-text-muted leading-relaxed m-0">
+            {{ aboutMe.shortBio }}
+          </p>
 
-        <div class="pt-2 flex items-center gap-2 text-xs text-text-muted">
-          <span
-            v-if="aboutMe.available"
-            class="inline-block size-2 rounded-full bg-success/90 shadow-[0_0_0_3px_rgba(34,197,94,0.12)] animate-pulse"
-          />
-          <span>{{ aboutMe.available ? '目前可接单 · 远程协作友好 · UTC+8' : '暂不接项目' }} · {{ aboutMe.location }}</span>
-        </div>
-      </div>
-
-      <!-- 终端块（打字机驱动） -->
-      <div class="rounded-xl border border-border glass-panel shadow-card overflow-hidden flex flex-col">
-        <div class="h-9 flex items-center gap-2 px-3 border-b border-border/60 bg-surface-muted/40 select-none">
-          <span class="size-3 rounded-full bg-danger/80" />
-          <span class="size-3 rounded-full bg-warning/80" />
-          <span class="size-3 rounded-full bg-success/80" />
-          <span class="ml-3 font-mono text-xs text-text-muted truncate">~/personal-site — zsh — 80×24</span>
-          <span class="ml-auto flex items-center gap-1">
-            <button
-              type="button"
-              class="inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] text-text-muted hover:text-text hover:bg-surface-muted/60 transition disabled:opacity-50"
-              :disabled="isTyping"
-              @click="restart"
-              title="重新播放"
-            >
-              <RefreshCcw class="size-3" />
-              replay
-            </button>
-            <button
-              v-if="isTyping"
-              type="button"
-              class="px-2 py-1 rounded text-[11px] text-text-muted hover:text-text hover:bg-surface-muted/60 transition"
-              @click="skipToEnd"
-              title="跳到结果"
-            >
-              skip ▸
-            </button>
-          </span>
-        </div>
-
-        <pre class="m-0 p-5 font-mono text-[13px] leading-relaxed overflow-x-auto whitespace-pre-wrap break-words min-h-[320px] md:min-h-[360px]"><code><template v-for="(ln, idx) in lines" :key="ln.id"><span v-if="ln.type === 'cmd'" class="text-success select-none">$ </span><span
-            :class="[
-              ln.type === 'cmd' ? 'text-brand' : '',
-              ln.type === 'output' ? 'text-text' : '',
-              ln.type === 'info' ? 'text-text-muted' : ''
-            ]"
-          >{{ ln.visible }}</span><span
-            v-if="idx === lines.length - 1 && (isTyping || isDone) && (ln.type === 'cmd' ? ln.done : true)"
-            class="ml-[1px] inline-block w-[0.55em] translate-y-[0.06em] text-brand"
-            :class="isTyping ? 'animate-pulse' : 'opacity-80'"
-            aria-hidden="true"
-          >▌</span>
-<br /></template></code></pre>
-
-        <!-- 终端底部 CTA：打字完成后淡入 -->
-        <div
-          class="border-t border-border/60 bg-surface-muted/20 px-4 py-3 flex items-center justify-between gap-3 transition-all"
-          :class="isDone ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-1 pointer-events-none'"
-        >
-          <div class="text-[11px] text-text-muted">
-            <span class="font-mono text-brand">ready.</span>
-            <span class="ml-1.5 hidden sm:inline">下一步去哪里？</span>
-          </div>
-          <div class="flex flex-wrap items-center gap-2">
-            <Button as="router-link" :to="'/portfolio'" size="sm" class="gap-1.5">
-              <span>查看作品</span>
-              <ArrowRight class="size-3.5" />
+          <div class="flex flex-wrap items-center gap-3 pt-2">
+            <Button as="router-link" :to="'/portfolio'" size="lg">
+              <span>看作品</span>
+              <ArrowRight class="size-4" />
             </Button>
-            <Button as="router-link" :to="'/blog'" size="sm" variant="outline" class="gap-1.5">
-              <BookOpen class="size-3.5" />
-              <span>阅读博客</span>
-            </Button>
-            <Button as="router-link" :to="'/contact'" size="sm" variant="ghost">
+            <Button as="router-link" :to="'/contact'" size="lg" variant="outline">
+              <Mail class="size-4" />
               <span>联系我</span>
             </Button>
+            <Button as="a" href="#" size="lg" variant="ghost" class="gap-1.5">
+              <Download class="size-4" />
+              <span>简历 PDF</span>
+            </Button>
+          </div>
+
+          <div class="pt-2 flex items-center gap-2 text-xs text-text-muted">
+            <span
+              v-if="aboutMe.available"
+              class="inline-block size-2 rounded-full bg-success/90 shadow-[0_0_0_3px_rgba(34,197,94,0.12)] animate-pulse"
+            />
+            <span>{{ aboutMe.available ? '目前可接单 · 远程协作友好 · UTC+8' : '暂不接项目' }} · {{ aboutMe.location }}</span>
+          </div>
+        </div>
+
+        <!-- 终端块（打字机驱动） -->
+        <div class="rounded-xl border border-border glass-panel shadow-card overflow-hidden flex flex-col relative z-[1]">
+          <div class="h-9 flex items-center gap-2 px-3 border-b border-border/60 bg-surface-muted/40 select-none">
+            <span class="size-3 rounded-full bg-danger/80" />
+            <span class="size-3 rounded-full bg-warning/80" />
+            <span class="size-3 rounded-full bg-success/80" />
+            <span class="ml-3 font-mono text-xs text-text-muted truncate">~/personal-site — zsh — 80×24</span>
+            <span class="ml-auto flex items-center gap-1">
+              <button
+                type="button"
+                class="inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] text-text-muted hover:text-text hover:bg-surface-muted/60 transition disabled:opacity-50"
+                :disabled="isTyping"
+                @click="restart"
+                title="重新播放"
+              >
+                <RefreshCcw class="size-3" />
+                replay
+              </button>
+              <button
+                v-if="isTyping"
+                type="button"
+                class="px-2 py-1 rounded text-[11px] text-text-muted hover:text-text hover:bg-surface-muted/60 transition"
+                @click="skipToEnd"
+                title="跳到结果"
+              >
+                skip ▸
+              </button>
+            </span>
+          </div>
+
+          <pre class="m-0 p-5 font-mono text-[13px] leading-relaxed overflow-x-auto whitespace-pre-wrap break-words min-h-[320px] md:min-h-[360px]"><code><template v-for="(ln, idx) in lines" :key="ln.id"><span v-if="ln.type === 'cmd'" class="text-success select-none">$ </span><span
+              :class="[
+                ln.type === 'cmd' ? 'text-brand' : '',
+                ln.type === 'output' ? 'text-text' : '',
+                ln.type === 'info' ? 'text-text-muted' : ''
+              ]"
+            >{{ ln.visible }}</span><span
+              v-if="idx === lines.length - 1 && (isTyping || isDone) && (ln.type === 'cmd' ? ln.done : true)"
+              class="ml-[1px] inline-block w-[0.55em] translate-y-[0.06em] text-brand"
+              :class="isTyping ? 'animate-pulse' : 'opacity-80'"
+              aria-hidden="true"
+            >▌</span>
+<br /></template></code></pre>
+
+          <!-- 终端底部 CTA：打字完成后淡入 -->
+          <div
+            class="border-t border-border/60 bg-surface-muted/20 px-4 py-3 flex items-center justify-between gap-3 transition-all duration-300"
+            :class="isDone ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-1 pointer-events-none'"
+          >
+            <div class="text-[11px] text-text-muted">
+              <span class="font-mono text-brand">ready.</span>
+              <span class="ml-1.5 hidden sm:inline">下一步去哪里？</span>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+              <Button as="router-link" :to="'/portfolio'" size="sm" class="gap-1.5">
+                <span>查看作品</span>
+                <ArrowRight class="size-3.5" />
+              </Button>
+              <Button as="router-link" :to="'/blog'" size="sm" variant="outline" class="gap-1.5">
+                <BookOpen class="size-3.5" />
+                <span>阅读博客</span>
+              </Button>
+              <Button as="router-link" :to="'/contact'" size="sm" variant="ghost">
+                <span>联系我</span>
+              </Button>
+            </div>
           </div>
         </div>
       </div>
     </div>
 
     <!-- 2. 数字统计 4 chip -->
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4" data-reveal="0.04">
       <div
         v-for="s in stats"
         :key="s.label"
@@ -239,7 +251,7 @@ const { lines, isTyping, isDone, restart, skipToEnd } = useTerminal(script, {
     </div>
 
     <!-- 3. 最近作品 3 条 -->
-    <section aria-labelledby="section-recent-work" class="space-y-5">
+    <section aria-labelledby="section-recent-work" class="space-y-5" data-reveal="0.08">
       <header class="flex items-end justify-between flex-wrap gap-4">
         <div>
           <h2 id="section-recent-work" class="m-0 text-2xl md:text-3xl font-bold tracking-tight flex items-center gap-2">
@@ -255,7 +267,12 @@ const { lines, isTyping, isDone, restart, skipToEnd } = useTerminal(script, {
       </header>
 
       <div class="grid gap-5 grid-cols-1 md:grid-cols-3">
-        <Card v-for="p in featuredProjects" :key="p.id" class="group overflow-hidden flex flex-col hover:-translate-y-0.5 hover:shadow-md transition">
+        <Card
+          v-for="(p, i) in featuredProjects"
+          :key="p.id"
+          :data-reveal="String(0.04 * i)"
+          class="group overflow-hidden flex flex-col hover:-translate-y-0.5 hover:shadow-md transition"
+        >
           <div :class="['aspect-[16/10] bg-gradient-to-br border-b border-border/60 relative', p.cover]">
             <div class="absolute top-3 left-3">
               <Badge variant="outline" class="backdrop-blur bg-surface-elevated/70">{{ p.category }}</Badge>
@@ -277,7 +294,7 @@ const { lines, isTyping, isDone, restart, skipToEnd } = useTerminal(script, {
     </section>
 
     <!-- 4. 最近博文 3 条 -->
-    <section aria-labelledby="section-recent-posts" class="space-y-5">
+    <section aria-labelledby="section-recent-posts" class="space-y-5" data-reveal="0.08">
       <header class="flex items-end justify-between flex-wrap gap-4">
         <div>
           <h2 id="section-recent-posts" class="m-0 text-2xl md:text-3xl font-bold tracking-tight flex items-center gap-2">
@@ -293,7 +310,11 @@ const { lines, isTyping, isDone, restart, skipToEnd } = useTerminal(script, {
       </header>
 
       <ol class="space-y-3 p-0 m-0 list-none">
-        <li v-for="post in featuredPosts" :key="post.slug">
+        <li
+          v-for="(post, i) in featuredPosts"
+          :key="post.slug"
+          :data-reveal="String(0.05 * i)"
+        >
           <RouterLink
             :to="`/blog/${post.slug}`"
             class="group block rounded-lg border border-transparent hover:border-border/60 hover:bg-surface-muted/30 transition px-4 py-3.5 flex flex-col md:flex-row md:items-center md:justify-between gap-3 no-underline"
