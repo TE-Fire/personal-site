@@ -21,18 +21,18 @@ useVantaBackground(vantaBgRef, { fixed: true })
 </script>
 
 <template>
-  <div class="relative min-h-screen flex flex-col text-text bg-surface">
+  <div class="relative min-h-screen flex flex-col text-text bg-transparent">
     <!-- Vanta.js 3D 背景（持久层，所有页面共享，切换不会闪） -->
     <div
       ref="vantaBgRef"
       aria-hidden
-      class="pointer-events-none fixed inset-0 -z-10 transition-opacity"
+      class="pointer-events-none fixed inset-0 z-0"
     />
 
-    <Header />
+    <Header class="relative z-20" />
 
     <!-- 主内容区：flex-1 + min-h-0 保证整体 footer 贴底 -->
-    <main class="flex-1 w-full">
+    <main class="flex-1 w-full relative z-10 bg-surface/80 backdrop-blur-md">
       <div class="mx-auto w-full max-w-6xl px-6 md:px-10 lg:px-14 py-8 md:py-12">
         <RouterView v-slot="{ Component, route }">
           <Transition name="page" mode="out-in">
