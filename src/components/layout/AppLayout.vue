@@ -13,6 +13,7 @@
  */
 import Header from './Header.vue'
 import Footer from './Footer.vue'
+import DraggableCharacter from '@/components/DraggableCharacter.vue'
 </script>
 
 <template>
@@ -28,7 +29,7 @@ import Footer from './Footer.vue'
 
     <!-- 主内容区：flex-1 + min-h-0 保证整体 footer 贴底 -->
     <main class="flex-1 w-full">
-      <div class="mx-auto w-full max-w-screen-2xl px-4 md:px-8 py-8 md:py-12">
+      <div class="mx-auto w-full max-w-screen-2xl px-6 md:px-12 lg:px-16 py-8 md:py-12">
         <RouterView v-slot="{ Component, route }">
           <Transition name="page" mode="out-in">
             <component :is="Component" :key="route.fullPath" />
@@ -38,6 +39,9 @@ import Footer from './Footer.vue'
     </main>
 
     <Footer />
+
+    <!-- 右下角可拖动的虚拟形象（全局，所有页面可见） -->
+    <DraggableCharacter />
   </div>
 </template>
 

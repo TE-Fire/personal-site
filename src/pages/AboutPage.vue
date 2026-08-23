@@ -7,7 +7,6 @@ import { Badge, Card, CardContent, CardHeader, CardTitle, CardDescription, Separ
 import { aboutMe, skillGroups } from '@/data'
 import { MapPin, Briefcase, Coffee, Heart } from 'lucide-vue-next'
 import { useScrollReveal } from '@/composables/useScrollReveal'
-import InteractiveAvatar from '@/components/InteractiveAvatar.vue'
 
 const rootRef = ref<HTMLElement | null>(null)
 useScrollReveal(rootRef)
@@ -19,8 +18,10 @@ useScrollReveal(rootRef)
     <header class="space-y-5" data-reveal>
       <p class="m-0 text-xs font-mono text-brand uppercase tracking-wider">/ about</p>
       <div class="flex flex-col md:flex-row md:items-start md:gap-8 gap-6">
-        <!-- 可交互虚拟形象 -->
-        <InteractiveAvatar />
+        <!-- 头像占位 -->
+        <div class="shrink-0 size-24 md:size-28 rounded-full ring-4 ring-brand/15 bg-gradient-to-br from-brand via-accent to-chart-c2 text-white flex items-center justify-center shadow-card">
+          <span class="font-sans font-bold text-3xl md:text-4xl tracking-tight">{{ aboutMe.name.charAt(0) }}</span>
+        </div>
         <div class="space-y-4 min-w-0">
           <h1 class="m-0 text-3xl md:text-4xl font-bold tracking-tight leading-tight">
             Hi, I&apos;m <span class="text-brand">{{ aboutMe.name }}</span>
