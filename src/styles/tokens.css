@@ -216,3 +216,24 @@ html.dark .hero-bg-fallback-fixed {
     url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'><circle cx='2' cy='2' r='1' fill='hsl(263 85% 75% / 0.20)'/></svg>");
 }
 
+/* =========================================================
+ * 全站 2D 渐变背景（非 Hero 区的优雅底色，深浅色自适应）
+ * 两团柔和紫雾 + 细微点阵纹理
+ * =======================================================*/
+.site-bg {
+  background-color: hsl(var(--color-bg));
+  background-image:
+    radial-gradient(ellipse 80% 60% at 15% 10%, hsl(263 70% 63% / 0.08), transparent 55%),
+    radial-gradient(ellipse 70% 50% at 88% 92%, hsl(330 81% 60% / 0.06), transparent 55%),
+    radial-gradient(ellipse 50% 40% at 50% 50%, hsl(190 75% 50% / 0.04), transparent 60%),
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'><circle cx='2' cy='2' r='1' fill='hsl(263 70% 63% / 0.08)'/></svg>");
+  background-attachment: fixed;
+}
+html.dark .site-bg {
+  background-image:
+    radial-gradient(ellipse 80% 60% at 15% 10%, hsl(263 85% 68% / 0.14), transparent 55%),
+    radial-gradient(ellipse 70% 50% at 88% 92%, hsl(330 90% 65% / 0.12), transparent 55%),
+    radial-gradient(ellipse 50% 40% at 50% 50%, hsl(190 80% 55% / 0.06), transparent 60%),
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'><circle cx='2' cy='2' r='1' fill='hsl(263 85% 75% / 0.10)'/></svg>");
+}
+

@@ -30,13 +30,14 @@ type VantaLike = {
 
 /**
  * 十六进制 brand / accent / 背景常量 —— 与设计系统 tokens 对齐：
- * brand=紫罗兰 #8B5CF6，accent=品红 #EC4899，dark bg=#0B0716，light bg=#FBFAFF
+ * brand=紫罗兰 #8B5CF6，accent=品红 #EC4899
+ * 深色 bg=#0B0716，浅色 bg=#F5F2FF（微紫，避免纯白导致线条看不见）
  */
 const COLOR_HEX = {
   brand: 0x8b5cf6,
   accent: 0xec4899,
   bgDark: 0x0b0716,
-  bgLight: 0xfbfaff,
+  bgLight: 0xf5f2ff,
   highlight: 0xa78bfa
 }
 
@@ -128,9 +129,9 @@ export function useVantaBackground(
       scaleMobile: 1.0,
       color: COLOR_HEX.brand,
       backgroundColor: theme === 'dark' ? COLOR_HEX.bgDark : COLOR_HEX.bgLight,
-      points: 10,
-      maxDistance: 22,
-      spacing: 18
+      points: theme === 'dark' ? 10 : 12,
+      maxDistance: theme === 'dark' ? 22 : 26,
+      spacing: theme === 'dark' ? 18 : 16
     }
   }
 

@@ -11,28 +11,23 @@
  *   • z-0  页面内容（relative，建立层叠上下文但不盖背景）
  *   • z-40 Header（已在子组件 sticky）
  */
-import { ref } from 'vue'
 import Header from './Header.vue'
 import Footer from './Footer.vue'
 import DraggableCharacter from '@/components/DraggableCharacter.vue'
-import { useVantaBackground } from '@/composables/useVantaBackground'
-const vantaBgRef = ref<HTMLElement | null>(null)
-useVantaBackground(vantaBgRef, { fixed: true })
 </script>
 
 <template>
-  <div class="relative min-h-screen flex flex-col text-text bg-transparent">
-    <!-- Vanta.js 3D 背景（持久层，所有页面共享，切换不会闪） -->
+  <div class="relative min-h-screen flex flex-col text-text">
+    <!-- 全站 2D 渐变背景（深浅色自适应） -->
     <div
-      ref="vantaBgRef"
       aria-hidden
-      class="pointer-events-none fixed inset-0 z-0"
+      class="pointer-events-none fixed inset-0 -z-10 site-bg"
     />
 
     <Header class="relative z-20" />
 
     <!-- 主内容区：flex-1 + min-h-0 保证整体 footer 贴底 -->
-    <main class="flex-1 w-full relative z-10 bg-surface/80 backdrop-blur-md">
+    <main class="flex-1 w-full relative z-10">
       <div class="mx-auto w-full max-w-6xl px-6 md:px-10 lg:px-14 py-8 md:py-12">
         <RouterView v-slot="{ Component, route }">
           <Transition name="page" mode="out-in">

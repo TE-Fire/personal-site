@@ -36,7 +36,7 @@ function scrollTop() {
 </script>
 
 <template>
-  <footer class="mt-24 border-t border-border/60 bg-surface/70 backdrop-blur-md relative z-10">
+  <footer class="mt-24 border-t border-border/60 bg-surface">
     <div class="mx-auto w-full max-w-screen-2xl px-4 md:px-8 py-10 flex flex-col gap-6 md:gap-4 md:flex-row md:items-center md:justify-between">
       <!-- 版权 -->
       <div class="flex flex-col gap-1 text-sm text-text-muted">

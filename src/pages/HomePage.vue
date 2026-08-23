@@ -30,6 +30,7 @@ import {
   type Project
 } from '@/data'
 import { useTerminal, type TerminalStep } from '@/composables/useTerminal'
+import { useVantaBackground } from '@/composables/useVantaBackground'
 import { useScrollReveal } from '@/composables/useScrollReveal'
 
 /* ---------------- 数据 ---------------- */
@@ -100,17 +101,22 @@ const script = computed<TerminalStep[]>(() => {
 /* ---------------- Refs ---------------- */
 
 const pageRoot = ref<HTMLElement | null>(null)
+const heroBgEl = ref<HTMLElement | null>(null)
 
 const { lines, isTyping, isDone, restart, skipToEnd } = useTerminal(script, {
   autoStart: true
 })
+useVantaBackground(heroBgEl)
 useScrollReveal(pageRoot)
 </script>
 
 <template>
   <section ref="pageRoot" class="space-y-20 md:space-y-24">
     <!-- 1. Hero 容器 -->
-    <div class="relative overflow-hidden rounded-2xl z-0" data-reveal>
+    <div class="relative overflow-hidden rounded-2xl z-0 bg-gradient-to-b from-brand/5 via-accent/3 to-transparent" data-reveal>
+      <!-- Vanta 3D 背景挂载点 -->
+      <div ref="heroBgEl" aria-hidden="true" />
+
       <div class="grid grid-cols-1 lg:grid-cols-[1.05fr_0.95fr] gap-10 items-center px-2 md:px-0 py-6 md:py-10 lg:py-14">
         <div class="flex flex-col gap-5 max-w-xl relative z-[1]">
           <span class="inline-flex items-center gap-2 rounded-full border border-brand/30 bg-brand/5 px-3 py-1 text-xs font-medium text-brand self-start">
