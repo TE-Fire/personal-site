@@ -50,16 +50,16 @@ function resetFilter() { activeCategory.value = '全部' }
 
     <!-- 分类筛选 tab -->
     <section class="flex flex-wrap items-center gap-3 justify-between border-y border-border/50 py-4">
-      <div class="flex flex-wrap gap-1.5">
+      <div class="flex flex-wrap gap-2">
         <Button
           v-for="c in postCategories"
           :key="c"
-          size="sm"
+          size="default"
           :variant="activeCategory === c ? 'default' : 'ghost'"
           @click="activeCategory = c"
         >
           {{ c }}
-          <span class="ml-1 text-[10px] opacity-80">
+          <span class="ml-1 text-xs opacity-80">
             ({{ c === '全部' ? posts.length : posts.filter(p => p.category === c).length }})
           </span>
         </Button>

@@ -64,20 +64,20 @@ const hasActiveFilter = computed(() => activeCategory.value !== '全部' || acti
     <section class="space-y-4 border-y border-border/50 py-5" data-reveal="0.06">
       <div class="flex flex-wrap items-center gap-x-6 gap-y-3 justify-between">
         <!-- 分类 tab -->
-        <div class="flex flex-wrap gap-1.5">
+        <div class="flex flex-wrap gap-2">
           <Button
             v-for="c in projectCategories"
             :key="c"
-            size="sm"
+            size="default"
             :variant="activeCategory === c ? 'default' : 'ghost'"
             @click="activeCategory = c"
           >
             {{ c }}
             <span
               v-if="c !== '全部'"
-              class="ml-1 text-[10px] opacity-80"
+              class="ml-1 text-xs opacity-80"
             >({{ projects.filter(p => p.category === c).length }})</span>
-            <span v-else class="ml-1 text-[10px] opacity-80">({{ projects.length }})</span>
+            <span v-else class="ml-1 text-xs opacity-80">({{ projects.length }})</span>
           </Button>
         </div>
         <Button
@@ -93,12 +93,12 @@ const hasActiveFilter = computed(() => activeCategory.value !== '全部' || acti
       </div>
 
       <!-- 标签 chips -->
-      <div class="flex flex-wrap gap-1.5">
+      <div class="flex flex-wrap gap-2">
         <button
           v-for="tag in allTags"
           :key="tag"
           type="button"
-          class="text-xs inline-flex items-center gap-1 rounded-full border transition px-2.5 py-1"
+          class="text-sm inline-flex items-center gap-1 rounded-full border transition px-3 py-1.5"
           :class="activeTag === tag
             ? 'border-brand/40 bg-brand/10 text-brand hover:bg-brand/15'
             : 'border-border/60 bg-surface-muted/20 text-text-muted hover:border-border hover:text-text hover:bg-surface-muted/40'"
