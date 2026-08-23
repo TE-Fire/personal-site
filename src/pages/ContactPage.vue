@@ -94,12 +94,12 @@ const formHasAnyError = computed(() => Object.keys(errors.value).length > 0)
 </script>
 
 <template>
-  <article class="grid grid-cols-1 lg:grid-cols-[0.9fr_1.1fr] gap-8 max-w-5xl mx-auto">
+  <article class="grid grid-cols-1 md:grid-cols-[1fr_1.2fr] gap-10 lg:gap-14 max-w-6xl mx-auto">
     <!-- 左：联系方式 + 社交渠道 -->
-    <section class="space-y-5">
-      <header class="space-y-3">
+    <section class="space-y-6">
+      <header class="space-y-4">
         <p class="m-0 text-xs font-mono text-brand uppercase tracking-wider">/ contact</p>
-        <h1 class="m-0 text-3xl md:text-4xl font-bold tracking-tight">联系我</h1>
+        <h1 class="m-0 text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight leading-tight">联系我</h1>
         <p class="m-0 text-base md:text-lg text-text-muted leading-relaxed">
           不管是合作、约稿、技术咨询、或者单纯想交个朋友，都欢迎。下面是几种最容易找到我的方式。
         </p>
@@ -116,22 +116,22 @@ const formHasAnyError = computed(() => Object.keys(errors.value).length > 0)
             :rel="ch.href ? 'noopener noreferrer' : undefined"
             @click="handleChannelClick(ch, $event)"
             :class="[
-              'group flex items-center gap-4 no-underline px-5 py-4 text-text transition-colors',
+              'group flex items-center gap-4 no-underline px-6 py-5 text-text transition-colors',
               idx !== contactChannels.length - 1 ? 'border-b border-border/60' : '',
               ch.href ? 'hover:bg-surface-muted/50' : 'cursor-pointer hover:bg-surface-muted/50'
             ]"
           >
-            <span class="inline-flex size-10 items-center justify-center rounded-full bg-surface-muted/60 text-text-muted group-hover:text-brand group-hover:bg-brand/5 transition">
-              <component :is="ch.icon" class="size-[18px]" />
+            <span class="inline-flex size-11 items-center justify-center rounded-xl bg-surface-muted/60 text-text-muted group-hover:text-brand group-hover:bg-brand/10 transition">
+              <component :is="ch.icon" class="size-[20px]" />
             </span>
-            <div class="flex-1 min-w-0 space-y-0.5">
+            <div class="flex-1 min-w-0 space-y-1">
               <div class="flex items-center gap-2">
-                <span class="font-medium text-sm">{{ ch.label }}</span>
+                <span class="font-semibold text-base">{{ ch.label }}</span>
                 <Badge v-if="ch.copyValue" variant="outline" class="text-[10px] !py-0 opacity-80 group-hover:opacity-100">
                   点击复制
                 </Badge>
               </div>
-              <div class="text-xs md:text-sm text-text-muted truncate">{{ ch.hint }}</div>
+              <div class="text-sm text-text-muted truncate">{{ ch.hint }}</div>
             </div>
 
             <!-- 复制反馈：已复制 -->
@@ -155,9 +155,9 @@ const formHasAnyError = computed(() => Object.keys(errors.value).length > 0)
       </Card>
 
       <!-- 温馨提示 -->
-      <div class="rounded-lg border border-brand/20 bg-brand/[0.04] p-4 flex gap-3">
+      <div class="rounded-xl border border-brand/20 bg-brand/[0.04] p-5 flex gap-4">
         <Lightbulb class="size-5 text-brand shrink-0 mt-0.5" />
-        <div class="space-y-1 text-sm text-text-muted leading-relaxed">
+        <div class="space-y-1.5 text-sm text-text-muted leading-relaxed">
           <p class="m-0">
             <strong class="text-text">响应时间：</strong>
             工作日 24 小时内回复；周末与节假日可能 2-3 天。
@@ -173,14 +173,14 @@ const formHasAnyError = computed(() => Object.keys(errors.value).length > 0)
     <!-- 右：留言表单 -->
     <section>
       <form novalidate class="h-full flex flex-col" @submit.prevent="onSubmit">
-        <Card class="flex flex-col flex-1">
+        <Card class="flex flex-col flex-1 h-full">
           <CardHeader>
-            <CardTitle>给我留个言</CardTitle>
-            <CardDescription>
+            <CardTitle class="text-xl">给我留个言</CardTitle>
+            <CardDescription class="text-sm">
               目前还在纠结接哪个邮件服务（T05 规划），所以表单先保留在前端校验。填完后直接发我邮箱也行～
             </CardDescription>
           </CardHeader>
-          <CardContent class="p-6 pt-0 space-y-5 flex-1">
+          <CardContent class="p-6 pt-2 space-y-5 flex-1">
             <!-- 姓名 -->
             <div class="space-y-1.5">
               <div class="flex items-center justify-between">

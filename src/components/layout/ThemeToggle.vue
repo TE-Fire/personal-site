@@ -26,14 +26,25 @@ const title = computed(() => {
 </script>
 
 <template>
-  <Button
-    variant="ghost"
-    size="icon"
-    :title="title"
-    aria-label="切换主题"
-    @click="toggle"
-    class="!rounded-full"
-  >
-    <component :is="Icon" class="size-[18px] text-text" />
-  </Button>
+  <div class="relative flex items-center">
+    <Button
+      variant="outline"
+      size="icon"
+      :title="title"
+      aria-label="切换主题"
+      @click="toggle"
+      class="!rounded-full !bg-surface-elevated/60 hover:!bg-brand/10 hover:!text-brand hover:!border-brand/40 transition-all"
+    >
+      <component :is="Icon" class="size-[18px]" />
+    </Button>
+    <span
+      class="absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full border-2 border-surface"
+      :class="{
+        'bg-amber-400': mode === 'light',
+        'bg-indigo-500': mode === 'dark',
+        'bg-emerald-500': mode === 'system'
+      }"
+      :aria-hidden="true"
+    />
+  </div>
 </template>
