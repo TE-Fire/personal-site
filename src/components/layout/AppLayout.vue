@@ -46,18 +46,18 @@ import DraggableCharacter from '@/components/DraggableCharacter.vue'
 </template>
 
 <style scoped>
-/* 页面切换：轻淡淡出淡入 + 12px 纵向位移，视觉更顺（prefers-reduced-motion 自动关） */
+/* 页面切换：平滑淡入淡出 + 纵向位移，过渡更柔和（prefers-reduced-motion 自动关） */
 .page-enter-active,
 .page-leave-active {
-  transition: opacity 0.22s ease, transform 0.22s ease;
+  transition: opacity 0.45s ease, transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
 }
 .page-enter-from {
   opacity: 0;
-  transform: translateY(10px);
+  transform: translateY(16px);
 }
 .page-leave-to {
   opacity: 0;
-  transform: translateY(-6px);
+  transform: translateY(-10px);
 }
 @media (prefers-reduced-motion: reduce) {
   .page-enter-active,
