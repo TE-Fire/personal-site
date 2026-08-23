@@ -1,27 +1,22 @@
 <script setup lang="ts">
 /**
- * 全局主题切换按钮（三段式：浅色 / 深色 / 跟随系统）。
- * 尺寸 size=icon；变体 variant=ghost（匹配 Header 的玻璃感 + 不抢视觉重心）
- * 点击一下循环切换：light → dark → system → light ...
+ * 全局主题切换按钮（两段式：浅色 ☀️ / 深色 🌙）。
+ * 点击一下循环切换：light ⇄ dark（不暴露"跟随系统"选项，视觉更直觉）
  */
-import { Sun, Moon, Monitor } from 'lucide-vue-next'
+import { Sun, Moon } from 'lucide-vue-next'
 import { useTheme } from '@/composables/useTheme'
 import { Button } from '@/components/ui'
 import { computed } from 'vue'
 
-const { mode, toggle } = useTheme()
+const { mode, resolved, toggle } = useTheme()
 
-/** 与当前 mode 对应的显示 SVG（让按钮有反馈） */
-const Icon = computed(() => {
-  if (mode.value === 'light') return Sun
-  if (mode.value === 'dark') return Moon
-  return Monitor
-})
+/** 太阳/月亮图标按"当前解析出的实际主题"切换（跟随系统时，会显示系统实际对应的图标） */
+const Icon = computed(() => resolved.value === 'light' ? Sun : Moon)
 
 const title = computed(() => {
-  if (mode.value === 'light') return '浅色模式（点击切换到深色）'
-  if (mode.value === 'dark') return '深色模式（点击跟随系统）'
-  return '跟随系统（点击切换到浅色）'
+  if (mode.value === 'light') return '切换到深色模式'
+  if (mode.value === 'dark') return '切换到浅色模式'
+  return resolved.value === 'light' ? '切换到深色模式' : '切换到浅色模式'
 })
 </script>
 
@@ -40,9 +35,8 @@ const title = computed(() => {
     <span
       class="absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full border-2 border-surface"
       :class="{
-        'bg-amber-400': mode === 'light',
-        'bg-indigo-500': mode === 'dark',
-        'bg-emerald-500': mode === 'system'
+        'bg-amber-400': resolved === 'light',
+        'bg-indigo-500': resolved === 'dark'
       }"
       :aria-hidden="true"
     />
