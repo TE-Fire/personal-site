@@ -17,8 +17,10 @@
 7. ✅ T02 设计系统落地（CLI 404 → 回退手动 token，npm run build 通过 + 预览页可切换主题）
 8. ✅ T03 核心依赖安装（VueUse/Lucide/GSAP/Vanta/Three/shadcn 底层依赖 33 包 + 手动落地 6 个兼容组件 + components.json）
 9. ✅ T04 全局布局 & 路由（Vue Router Hash 模式 + AppLayout/Header/Footer/ThemeToggle + 7 Pages Skeleton）
-10. 🚧 T05 页面内容填充 + Mock 数据（替换 6 个页面骨架占位为真实业务卡片/技能/项目条目/时间线 + 抽 src/data/*.ts）
-11. ⏳ …（后续 Todo 推进时追加）
+10. ✅ T05 页面内容填充 + Mock 数据（11 张数据文件 @/data、6 个 Page 占位替换真实卡片/时间线/技能矩阵/表单、筛选器 UI、Contact 表单 8 字段校验）
+11. 🚧 T06 Hero 区终端模拟器 + 打字机效果 + CTA + AI 引入文案
+12. ⏳ T07 Vanta.js 3D 背景 + GSAP 滚动动效（降级策略 + prefers-reduced-motion）
+13. ⏳ T08 整体验收：typecheck/build/devserver/OpenPreview 交付
 
 ---
 
@@ -31,6 +33,7 @@
 | D3 · 类型系统 | TypeScript（vue-ts 模板） | T01-T08 全量 |
 | D4 · shadcn-vue 初始化方式 | 由于 CLI 在阻塞 shell 下卡在 Reka UI 选型问答 → **手动 components.json + 手动实现 6 个 API 兼容组件**（Button/Card 六件套/Input/Label/Badge/Separator + barrel index + cn 工具），风格 vega，颜色 base=slate，icon=lucide，保持与官方 CLI 生成的目录/aliases 100% 对齐 | T03、T04 组件消费端 import 路径 |
 | D5 · 路由实现（vue-router 4） | Hash 模式（免 Nginx/GitHub Pages/Caddy 任何 rewrite，部署即插即用）；scrollBehavior 支持 hash 锚点 + savedPosition 前进后退；meta.title 经 afterEach 钩子自动同步 document.title（站点名前缀统一）；组件路由懒加载（6 个 Page + 404 全部独立 chunk，首屏 JS 降 50%+） | T04 路由表 / 所有 Page / SEO / 部署 |
+| D6 · 数据层与 Mock 组织 | 抽 `src/data/*.ts` 作为集中数据真源（projects / posts / timeline / skills / techStack / interests / aboutMe / contactChannels / links 等 11 张文件，集中 barrel export 于 `src/data/index.ts`）；每表配类型定义 + 过滤/工具函数（readingMinutes/listProjectTags/postCategories/projectCategories）；所有 Page **完全不内嵌业务数据**，import { … } from '@/data'，后续接 API 时只要把 @/data/*.ts 里数组改成 fetch 或 composable 即可 | T05 全量 Page 模板 / 后续 T09+ 接口接入 |
 
 ---
 
@@ -78,8 +81,25 @@
 - 处理：直接删除 Header.vue 顶部对 cn 的无用 import（保留未使用声明只会在后续引入变量时又忘记触发 error）
 - 结果：`npm run build` 第二次执行通过，主包 148KB + 6 个 Page 代码分片，构建 50.49s
 
+### T05 · 6 个 Page 重构与数据抽离的 build 期 TS 问题（4 条）
+- 现象：`npm run typecheck` 通过但 `npm run build`（含 `vue-tsc -b`）时报 4 条错误：① `posts.ts` category 联合类型漏了「设计系统」（其中 1 篇真实文章标注了该 category）；② BlogPage.vue 中 `CardContent/CardHeader` 两个组件 import 但未使用（TS6133）；③ PortfolioPage.vue 中 `ArrowUpRight` icon import 但改用 Github/ExternalLink 后未清理（TS6133）
+- 根因：
+  1. `BlogPost.category` 联合类型最初列了 5 种，但实际 postCategories 包含 7 种（多了「全部」「设计系统」），写真实文章时遗漏把「设计系统」加入类型
+  2. `vue-tsc --noEmit`（typecheck 脚本）与 `vue-tsc -b`（build 脚本）对 TS6133 严格度不一致，typecheck 对未使用的 import 更宽松不报错
+  3. PortfolioPage 在重构时把 CTA 的图标从 ArrowUpRight 替换为 Github+ExternalLink，但 import 未清理
+- 处理：
+  1. 在 `src/data/posts.ts` 的 `BlogPost.category` 联合类型中追加 `'设计系统'`（保留了 const tuple `postCategories` 与类型的一致性）
+  2. 移除 BlogPage.vue 顶部未用的 `CardContent` / `CardHeader` import
+  3. 移除 PortfolioPage.vue 顶部未用的 `ArrowUpRight` import
+- 结果：`npm run build` 立即通过（主包 151.49 KB gzip 55.99 KB + 6 Page 代码分片，构建 11.34s，首屏 chunk 与字体资源 ~200KB 级）
+
 ---
 
 ## 下一步
 
-推进 T05：① 新建 `src/data/*.ts` 集中存放 Mock 数据（projects / posts / skills / timelineNodes / aboutMe / contactChannels）；② 分别把 6 个 Page 中所有 🦴 占位替换为 Card / 列表 / Badge / 时间线等真实组件渲染；③ Blog / Portfolio 增加 filter 过滤标签 UI；④ typecheck + build 零错误。
+推进 T06：在首页 Hero 区落地终端模拟器 + 打字机效果。方案：
+- 封装 `useTypewriter` composable（支持多行 script、逐字符/逐行速度控制、loop=false、cursor 闪烁、onComplete 回调、prefers-reduced-motion 跳过直接显示）
+- 首页 Terminal block 内以固定 6 条 command → output 序列模拟：whoami → stack overview → featured projects 概览 → 博客最新 3 篇 → motto → AI 引入 prompt → CTA 按钮组在打字完成后 fade-in
+- CTA 按钮组：「查看作品」→ `/portfolio`，「阅读博客」→ `/blog`，「联系我」→ `/contact`，右侧配一个小的「下载简历」Ghost Button（PDF 占位链接）
+
+完成 T06 后推进 T07：接入 Vanta.js NET 3D 背景（在 Hero 区作为玻璃卡片下的 background layer），并通过 GSAP 做各板块 ScrollTrigger 进入动画（fade-in-up + 轻微 blur-to-clear）；GPU 降级策略：`navigator.hardwareConcurrency <= 2` 或低电量或 prefers-reduced-motion → Vanta 跳过，改用紫色渐变 + 点阵 SVG 作为 2D 背景 fallback。

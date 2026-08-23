@@ -1,0 +1,24 @@
+feat(T05): 抽离集中式数据层 @/data 与 6 个页面真实内容填充
+
+- 新增 src/data/{about,links,skills,timeline,contact,projects,posts}.ts 共 7
+  张独立数据文件，统一 barrel export 于 src/data/index.ts，包含
+  aboutMe、links、skillGroups、techStack、interests、timelineNodes、
+  contactChannels、contactFaqs、projects、projectCategories、listAllTags
+  工具、posts、postCategories、readingMinutes 工具、siteStats 等实体
+- 每个 Page 全部重写真实渲染（不再含 🦴 placeholder）：
+  * AboutPage：个人介绍 / 专业服务四象限 / 技能矩阵 4 分组（后端/前端/
+    AI/数据/协作）/ Tech Radar 6 分类 50+ 条 / 兴趣 16 条
+  * PortfolioPage：12 个项目按分类与标签双维度筛选器，进度徽章、
+    最近更新日期、项目卡片 hover 提升
+  * BlogPage：8 篇博客按分类筛选 + 最新/精选标签，阅读时长/日期/标签
+  * TimelinePage：时间线 10 条节点，按类型筛选 + 技术标签筛选
+  * ContactPage：5 个渠道信息、4 条 FAQ、8 字段表单（姓名/邮箱/
+    主题/预算/时区/方式/需求/隐私）+ 客户端校验（submitCount +
+    feedback 提示）+ 复制到剪贴板
+  * HomePage：Hero 终端静态结构、数字统计 4 条、最近作品 3 条、
+    最新博客 3 条、行动号召 CTA 区
+- BlogPost.category 联合类型增加「设计系统」选项，修复 build 期
+  TS2322（typecheck 宽松不报错，vue-tsc -b 报错）
+- 清理 BlogPage.vue 未使用 CardContent/CardHeader import 与
+  PortfolioPage.vue 未使用 ArrowUpRight import，避免 TS6133
+- `npm run build` 通过：主包 151.49KB gzip 55.99KB + 6 Page 代码分片
