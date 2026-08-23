@@ -1,18 +1,137 @@
+/* 设计系统 CSS 入口：Token → Typography → Tailwind 基础层 */
+@import './tokens.css';
+@import './typography.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* T01 最小全局：保证页面无默认外边距，主题色跟随 html.class 切换 */
+/* ---------- 基础层（引用设计系统变量，不写死色值） ---------- */
 @layer base {
   html {
     scroll-behavior: smooth;
   }
   body {
-    @apply bg-white text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100;
-    @apply font-sans antialiased;
+    background-color: var(--surface);
+    color: var(--text);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    min-height: 100vh;
+    /* 防止 iOS Safari 弹性滚动时露出的底色与设计系统不一致 */
+    background-attachment: fixed;
   }
   *, *::before, *::after {
-    @apply border-neutral-200 dark:border-neutral-800;
+    border-color: var(--border);
   }
+  /* 统一焦点环（可访问性） */
+  :focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+  /* 替换默认 hr */
+  hr {
+    border: 0;
+    border-top: 1px solid var(--border);
+    margin: 24px 0;
+  }
+}
+
+/* ---------- 组件层（可被 utilities 覆盖的通用模式） ---------- */
+@layer components {
+  /* 玻璃拟态面板（用于 Hero 终端卡 / 模态遮罩等，后续复用） */
+  .glass-panel {
+    background: var(--surface-overlay);
+    backdrop-filter: saturate(180%) blur(12px);
+    -webkit-backdrop-filter: saturate(180%) blur(12px);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-md);
+  }
+
+  /* 卡片默认外观 */
+  .card {
+    background: var(--surface-elevated);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: var(--shadow-sm);
+    transition: transform 180ms var(--ease-out-cubic), box-shadow 180ms var(--ease-out-cubic), border-color 120ms;
+  }
+  .card:hover {
+    border-color: var(--border-strong);
+    box-shadow: var(--shadow-md);
+  }
+
+  /* 内联标签（技能 / 技术栈） */
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 10px;
+    font-size: var(--text-caption);
+    line-height: 1.5;
+    color: var(--text-muted);
+    background: var(--surface-muted);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    transition: color 120ms, border-color 120ms, background 120ms;
+  }
+  .chip:hover {
+    color: var(--brand-700);
+    border-color: var(--brand-200);
+    background: var(--brand-soft);
+  }
+  html.dark .chip:hover {
+    color: var(--brand-300);
+    border-color: var(--brand-700);
+  }
+
+  /* CTA 按钮外观（后续 shadcn-vue Button 会覆盖样式；此处先提供最小可用品） */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 18px;
+    font-size: var(--text-body);
+    font-weight: 500;
+    line-height: 1;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    user-select: none;
+    transition: background 120ms, color 120ms, border-color 120ms, transform 120ms, box-shadow 120ms;
+  }
+  .btn:active { transform: translateY(1px); }
+  .btn-primary {
+    background: var(--brand);
+    color: var(--text-on-brand);
+    box-shadow: 0 1px 2px 0 rgba(75, 63, 227, 0.25), 0 0 0 1px rgba(75, 63, 227, 0.08) inset;
+  }
+  .btn-primary:hover { background: var(--brand-700); }
+  .btn-outline {
+    background: transparent;
+    color: var(--text);
+    border-color: var(--border-strong);
+  }
+  .btn-outline:hover {
+    background: var(--surface-muted);
+    border-color: var(--brand-200);
+    color: var(--brand-700);
+  }
+  html.dark .btn-outline:hover { color: var(--brand-300); }
+  .btn-ghost {
+    background: transparent;
+    color: var(--text-muted);
+  }
+  .btn-ghost:hover { background: var(--surface-muted); color: var(--text); }
+}
+
+/* ---------- 工具层（Tailwind 默认 utilities 已足够，此处仅做少量补充） ---------- */
+@layer utilities {
+  .content-auto { content-visibility: auto; }
+  .tabular-nums { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" on, "lnum" on; }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 }

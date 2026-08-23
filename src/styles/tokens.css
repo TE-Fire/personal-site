@@ -1,0 +1,144 @@
+/* =========================================================
+ * 设计系统 · 核心 CSS 变量（双主题）
+ * 对齐 PROJECT_PLAN.md §3 · 紫色风配色
+ * 使用方式：Tailwind 中通过 theme.extend 引用这些变量
+ *          非 Tailwind 场景通过 var(--brand) 直接引用
+ * =======================================================*/
+
+/* ---------- 浅色主题（默认） ---------- */
+:root {
+  color-scheme: light;
+
+  /* 背景层 */
+  --surface: #F7F7F8;
+  --surface-muted: #EFEFF2;
+  --surface-elevated: #FFFFFF;
+  --surface-overlay: rgba(255, 255, 255, 0.72);
+
+  /* 文字层 */
+  --text: #171717;
+  --text-muted: #52525B;
+  --text-subtle: #71717A;
+  --text-on-brand: #FFFFFF;
+
+  /* 边框 & 分割线 */
+  --border: rgba(23, 23, 23, 0.12);
+  --border-strong: rgba(23, 23, 23, 0.20);
+  --ring: rgba(75, 63, 227, 0.35);
+
+  /* 品牌色（紫色系） */
+  --brand-50:  #F2F7FF;
+  --brand-100: #E5EAFF;
+  --brand-200: #C7CCFF;
+  --brand-300: #A9AEFF;
+  --brand-400: #8B8FFF;
+  --brand-500: #6F6FFF;
+  --brand:     #4B3FE3;   /* 主色 = 600 */
+  --brand-700: #3C2ECA;
+  --brand-800: #2D238E;
+  --brand-900: #1A1759;
+
+  /* 快速语义别名 */
+  --brand-soft: var(--brand-50);
+  --brand-soft-strong: var(--brand-100);
+  --brand-text: var(--brand-900);
+  --brand-on: var(--text-on-brand);
+
+  /* 次强调色（青绿）—— 用于 "健康/完成" 类的差异化视觉，不是常规 A/B 分类 */
+  --accent:      #27D2BF;
+  --accent-soft: #EAFBF8;
+  --accent-text: #0F766E;
+
+  /* 语义色（仅用于明确状态） */
+  --success: #1DC981;
+  --warning: #EFAA17;
+  --danger:  #E8463A;
+
+  /* 图表序列（同维度 A/B/C/D 对比用） */
+  --chart-series-1: #3C2ECA;
+  --chart-series-2: #A9AEFF;
+  --chart-series-3: #6F6FFF;
+  --chart-series-4: #22A5F7;
+  --chart-other:    #D3D4DA;
+
+  /* 投影（克制使用，仅用于悬浮弹出态） */
+  --shadow-sm: 0 1px 2px 0 rgba(15, 23, 42, 0.05);
+  --shadow-md: 0 4px 8px -2px rgba(15, 23, 42, 0.06), 0 2px 4px -2px rgba(15, 23, 42, 0.04);
+  --shadow-lg: 0 16px 32px -8px rgba(15, 23, 42, 0.08), 0 6px 12px -4px rgba(15, 23, 42, 0.05);
+  --shadow-ring: 0 0 0 4px var(--ring);
+}
+
+/* ---------- 深色主题（通过 html.dark 切换） ---------- */
+html.dark {
+  color-scheme: dark;
+
+  --surface: #0F0F10;
+  --surface-muted: #1A1A1D;
+  --surface-elevated: #17171A;
+  --surface-overlay: rgba(15, 15, 16, 0.72);
+
+  --text: #E5E5E5;
+  --text-muted: #A1A1AA;
+  --text-subtle: #71717A;
+  --text-on-brand: #FFFFFF;
+
+  --border: rgba(229, 229, 229, 0.12);
+  --border-strong: rgba(229, 229, 229, 0.22);
+  --ring: rgba(96, 84, 241, 0.45);
+
+  /* 深色下品牌色做了对比度增强 */
+  --brand:     #6054F1;   /* 主色：略提亮，保证深色可读性 */
+  --brand-50:  #1A1759;
+  --brand-100: #3C2ECA;
+  --brand-200: #4B3FE3;
+  --brand-300: #6F6FFF;
+  --brand-400: #8B8FFF;
+  --brand-500: #A9AEFF;
+  --brand-700: #B6B9FF;
+  --brand-800: #C7CCFF;
+  --brand-900: #CFD8FF;
+
+  --brand-soft: var(--brand-50);
+  --brand-soft-strong: var(--brand-100);
+  --brand-text: var(--brand-900);
+
+  --accent:      #27D2BF;
+  --accent-soft: #123F3C;
+  --accent-text: #CCFBF1;
+
+  /* 语义色保持不变（对比度本身足够） */
+
+  --chart-series-1: #4B3FE3;
+  --chart-series-2: #A9AEFF;
+  --chart-series-3: #6F6FFF;
+  --chart-series-4: #22A5F7;
+  --chart-other:    #52525B;
+
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 4px 12px -2px rgba(0, 0, 0, 0.45), 0 2px 4px -2px rgba(0, 0, 0, 0.30);
+  --shadow-lg: 0 24px 48px -12px rgba(0, 0, 0, 0.55), 0 8px 16px -6px rgba(0, 0, 0, 0.40);
+}
+
+/* ---------- 跟随系统（用户未手动设置时） ---------- */
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme-mode]) {
+    color-scheme: dark;
+    /* 变量内容与 html.dark 完全一致的逻辑在 useTheme composable 里处理，
+       这里仅声明 color-scheme 让表单控件/滚动条更贴合 */
+  }
+}
+
+/* ---------- 动效兜底（用户偏好减弱动效） ---------- */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

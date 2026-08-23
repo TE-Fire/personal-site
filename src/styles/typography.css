@@ -1,0 +1,149 @@
+/* =========================================================
+ * 排版系统 · 字体栈 + 字号层级 + 代码块
+ * 对齐 PROJECT_PLAN.md §3.2 / §3.3
+ * =======================================================*/
+
+/* ---------- 字体栈定义（三处 Tailwind fontFamily 会引用它们） ---------- */
+:root {
+  --font-sans: "Inter Variable",
+               "Inter",
+               "SF Pro Text",
+               "PingFang SC",
+               "Hiragino Sans GB",
+               "Microsoft YaHei",
+               system-ui,
+               -apple-system,
+               "Segoe UI",
+               Roboto,
+               sans-serif;
+
+  --font-metric: "Inter Variable",
+                 "Inter",
+                 "SF Pro Text",
+                 "PingFang SC",
+                 system-ui,
+                 -apple-system,
+                 "Segoe UI",
+                 Roboto,
+                 sans-serif;
+
+  --font-mono: "JetBrains Mono",
+               ui-monospace,
+               "SF Mono",
+               Menlo,
+               Consolas,
+               monospace;
+}
+
+/* ---------- 基础字体应用 ---------- */
+html {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+code, kbd, samp, pre, .font-mono {
+  font-family: var(--font-mono);
+}
+
+/* ---------- 字号层级（与 inline-widget token 同构，最大 body 标题 16px） ----------
+ * 规则：
+ *   - 正文基准 14px/20px（--text-body）
+ *   - 辅助/标签 12px/18px（--text-caption）
+ *   - 代码/ID 13px/20px（--text-code）
+ *   - 卡片标题/段落标题 16px/24px（--text-title —— 页面内允许的最大常规字号）
+ *   - Hero 标题单独用 clamp() 做响应式放大，但 CSS 内写清下限/默认/上限避免失控
+ */
+:root {
+  --text-caption: 0.75rem;       /* 12px / 18px */
+  --text-caption-leading: 1.5;
+  --text-body: 0.875rem;         /* 14px / 20px */
+  --text-body-leading: 1.5;
+  --text-code: 0.8125rem;        /* 13px / 20px */
+  --text-code-leading: 1.6;
+  --text-title: 1rem;            /* 16px / 24px */
+  --text-title-leading: 1.5;
+}
+
+html {
+  font-size: 16px; /* 基准：1rem = 16px，不缩放根字号 */
+  line-height: var(--text-body-leading);
+  color: var(--text);
+}
+
+.caption, .text-caption {
+  font-size: var(--text-caption);
+  line-height: var(--text-caption-leading);
+  color: var(--text-muted);
+  letter-spacing: 0.01em;
+}
+
+.text-body {
+  font-size: var(--text-body);
+  line-height: var(--text-body-leading);
+}
+
+.text-code {
+  font-family: var(--font-mono);
+  font-size: var(--text-code);
+  line-height: var(--text-code-leading);
+}
+
+.text-title {
+  font-size: var(--text-title);
+  line-height: var(--text-title-leading);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+/* ---------- Hero 级标题（仅首页使用，用 clamp 放大） ---------- */
+.hero-title {
+  font-size: clamp(1.5rem, 2.6vw + 1rem, 2.5rem); /* 24~40px */
+  line-height: 1.2;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.hero-subtitle {
+  font-size: clamp(0.875rem, 0.6vw + 0.8rem, 1.0625rem); /* 14~17px */
+  line-height: 1.7;
+  color: var(--text-muted);
+}
+
+/* ---------- 数字/指标 tabular 等宽 ---------- */
+.tabular {
+  font-family: var(--font-metric);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" on, "lnum" on;
+}
+
+/* ---------- 列表重置（Tailwind preflight 之外的补充） ---------- */
+.prose-custom p + p { margin-top: 1em; }
+.prose-custom h1, .prose-custom h2, .prose-custom h3 {
+  letter-spacing: -0.01em;
+}
+
+/* ---------- 代码块/内联代码基础样式 ---------- */
+.inline-code {
+  display: inline-block;
+  padding: 0.1em 0.4em;
+  border-radius: 4px;
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  font-size: 0.85em;
+  font-family: var(--font-mono);
+  color: var(--brand-700);
+}
+html.dark .inline-code {
+  color: var(--brand-400);
+}
+
+/* ---------- 选中文字高亮色 ---------- */
+::selection {
+  background: var(--brand-200);
+  color: var(--brand-900);
+}
+html.dark ::selection {
+  background: var(--brand-700);
+  color: var(--brand-50);
+}

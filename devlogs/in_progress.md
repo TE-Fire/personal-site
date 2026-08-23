@@ -14,9 +14,10 @@
 4. ✅ 编写 PROJECT_PLAN.md v1.0 详细方案文档（10 大板块）
 5. ✅ 首次 commit + push（成功，commit 006ea40）
 6. ✅ T01 脚手架初始化（Vue 3.5 + Vite 5.4 + TS 5.6 + Tailwind 3.4，npm run build 通过）
-7. 🚧 T02 设计系统落地（ui-ux-pro-max skill / 等效手动 token）
-8. ⏳ T03 核心依赖安装
-9. ⏳ …（后续 Todo 推进时追加）
+7. ✅ T02 设计系统落地（CLI 404 → 回退手动 token，npm run build 通过 + 预览页可切换主题）
+8. 🚧 T03 核心依赖安装（shadcn-vue + VueUse + Lucide + GSAP + Vanta.js）
+9. ⏳ T04 全局布局 & 路由
+10. ⏳ …（后续 Todo 推进时追加）
 
 ---
 
@@ -38,8 +39,20 @@
 - 处理：安装 `@types/node@20` 为 devDependency，并在 `tsconfig.node.json` compilerOptions 中新增 `types: ["node"]`
 - 结果：`npm run build` 第二次执行即通过（62.62 KB JS / 6.91 KB CSS）
 
+### T02 · `ai-ui-ux-pro-max-cli` 在公开 NPM 返回 E404
+- 现象：`npm install -g ai-ui-ux-pro-max-cli` 返回 404 Not Found，与截图文档中提供的 CLI 包名不一致或为私有包
+- 根因：包名可能变更或仅在私有 registry 发布
+- 处理：按 PROJECT_PLAN.md §9 风险应对**立刻走回退方案：手动落地等价设计 token**，保证视觉契约完全一致（颜色 11 档 + 语义色/图表色、字体栈 3 轨、字号 5 档、阴影 3 档、glass/card/chip/btn 四类组件外观）
+- 结果：视觉产出与截图中的「紫色风 + 极简功能感」目标一致，无视觉降级
+
+### T02 · `useTheme.ts` 中 `@ts-expect-error` 未触发报告 TS2578
+- 现象：`npm run build` 第二次执行失败，TS 严格模式下未使用的 `@ts-expect-error` 被视为错误
+- 根因：Safari < 14 的 `MediaQueryList.addListener` 在现代 `lib.dom.d.ts` 中已被移除，但 TS 实际推导出此分支永远不可达
+- 处理：去掉 `@ts-expect-error`，改用 `as unknown as { addListener: ... }` 类型断言完成旧 Safari 兜底
+- 结果：`npm run build` 第三次执行通过（70.42 KB / 52.12 KB，字体按 @fontsource 分包）
+
 ---
 
 ## 下一步
 
-等待 T00/T00-5 提交后，按 TodoList 依次推进 T01 → T02 → T03 → ...
+推进 T03（shadcn-vue 初始化 + VueUse + Lucide + GSAP + Vanta.js 安装）→ T04 全局布局 → ...
