@@ -33,27 +33,29 @@ function closeMenu() { menuOpen.value = false }
 
 <template>
   <header
-    class="sticky top-0 z-40 w-full transition-all"
+    class="sticky top-0 z-50 w-full transition-all duration-200 isolation: isolate"
     :class="[
       scrolled
-        ? 'backdrop-blur-xl bg-surface/75 border-b border-border/60 shadow-sm'
-        : 'bg-transparent border-b border-transparent'
+        ? 'backdrop-blur-xl bg-surface/85 border-b border-border/60 shadow-sm'
+        : 'backdrop-blur-md bg-surface/70 border-b border-border/40'
     ]"
   >
-    <div class="mx-auto h-16 w-full max-w-screen-2xl px-4 md:px-8 flex items-center justify-between gap-4">
+    <div class="mx-auto h-[68px] w-full max-w-screen-2xl px-4 md:px-8 flex items-center justify-between gap-4">
       <!-- LOGO 区 -->
       <RouterLink
         to="/"
-        class="flex items-center gap-2 select-none group no-underline"
+        class="flex items-center gap-2.5 select-none group no-underline"
         aria-label="返回首页"
       >
         <span
-          class="inline-flex size-9 items-center justify-center rounded-lg bg-brand/10 text-brand ring-1 ring-brand/30 transition-transform group-hover:scale-105"
+          class="inline-flex size-10 items-center justify-center rounded-lg bg-brand/10 text-brand ring-1 ring-brand/30 transition-transform group-hover:scale-105"
         >
           <Sparkles class="size-5" :stroke-width="2" />
         </span>
-        <span class="font-semibold tracking-tight text-text leading-none">
-          <span class="text-brand">T</span>rae<span class="text-text-muted text-[13px] font-normal ml-1.5">/ portfolio</span>
+        <span class="font-semibold tracking-tight text-[17px] leading-none">
+          <span class="text-brand text-[18px]">T</span>
+          <span class="text-text">rae</span>
+          <span class="text-text-muted text-[13px] font-normal ml-1.5">/ portfolio</span>
         </span>
       </RouterLink>
 
@@ -63,7 +65,7 @@ function closeMenu() { menuOpen.value = false }
           v-for="link in navItems"
           :key="link.name"
           :to="link.href"
-          class="relative px-3 py-2 rounded-md text-sm font-medium no-underline transition-colors"
+          class="relative px-3.5 py-2.5 rounded-lg text-[15px] font-medium no-underline transition-colors"
           :class="[
             route.path === link.href
               ? 'text-text bg-surface-muted/60'
@@ -85,7 +87,7 @@ function closeMenu() { menuOpen.value = false }
         <!-- 移动端汉堡按钮（md 以下显示） -->
         <button
           type="button"
-          class="md:hidden inline-flex items-center justify-center size-9 rounded-full text-text-muted hover:text-text hover:bg-surface-muted/40 transition"
+          class="md:hidden inline-flex items-center justify-center size-10 rounded-full text-text-muted hover:text-text hover:bg-surface-muted/40 transition"
           aria-label="切换导航菜单"
           :aria-expanded="menuOpen"
           @click="toggleMenu"
@@ -107,7 +109,7 @@ function closeMenu() { menuOpen.value = false }
             v-for="link in navItems"
             :key="link.name"
             :to="link.href"
-            class="px-3 py-2.5 rounded-md text-sm font-medium no-underline"
+            class="px-4 py-3 rounded-lg text-[15px] font-medium no-underline"
             :class="[
               route.path === link.href
                 ? 'text-brand bg-brand/5'
