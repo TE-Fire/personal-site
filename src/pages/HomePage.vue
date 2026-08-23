@@ -116,7 +116,7 @@ useScrollReveal(pageRoot)
 <template>
   <section ref="pageRoot" class="space-y-20 md:space-y-24">
     <!-- 1. Hero 容器（relative + overflow:hidden，内层挂 Vanta/fallback 背景层） -->
-    <div class="relative overflow-hidden rounded-2xl -mx-2 md:mx-0 z-0 bg-gradient-to-b from-transparent via-transparent to-transparent" data-reveal>
+    <div class="relative overflow-hidden rounded-2xl z-0" data-reveal>
       <!-- 背景层（Vanta canvas 或 2D fallback） -->
       <div ref="heroBgEl" aria-hidden="true" />
 

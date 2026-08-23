@@ -29,7 +29,7 @@ import DraggableCharacter from '@/components/DraggableCharacter.vue'
 
     <!-- 主内容区：flex-1 + min-h-0 保证整体 footer 贴底 -->
     <main class="flex-1 w-full">
-      <div class="mx-auto w-full max-w-screen-2xl px-6 md:px-12 lg:px-16 py-8 md:py-12">
+      <div class="mx-auto w-full max-w-6xl px-6 md:px-10 lg:px-14 py-8 md:py-12">
         <RouterView v-slot="{ Component, route }">
           <Transition name="page" mode="out-in">
             <component :is="Component" :key="route.fullPath" />
