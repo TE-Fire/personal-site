@@ -18,8 +18,8 @@
 8. ✅ T03 核心依赖安装（VueUse/Lucide/GSAP/Vanta/Three/shadcn 底层依赖 33 包 + 手动落地 6 个兼容组件 + components.json）
 9. ✅ T04 全局布局 & 路由（Vue Router Hash 模式 + AppLayout/Header/Footer/ThemeToggle + 7 Pages Skeleton）
 10. ✅ T05 页面内容填充 + Mock 数据（11 张数据文件 @/data、6 个 Page 占位替换真实卡片/时间线/技能矩阵/表单、筛选器 UI、Contact 表单 8 字段校验）
-11. 🚧 T06 Hero 区终端模拟器 + 打字机效果 + CTA + AI 引入文案
-12. ⏳ T07 Vanta.js 3D 背景 + GSAP 滚动动效（降级策略 + prefers-reduced-motion）
+11. ✅ T06 Hero 终端模拟器 + 打字机效果 + CTA + AI 引入文案（useTerminal composable + whoami/motto/ls/head 命令流 + skip/replay 按钮 + 终端 CTA 淡入）
+12. 🚧 T07 Vanta.js 3D 背景 + GSAP 滚动动效（降级策略 + prefers-reduced-motion）
 13. ⏳ T08 整体验收：typecheck/build/devserver/OpenPreview 交付
 
 ---
@@ -34,6 +34,7 @@
 | D4 · shadcn-vue 初始化方式 | 由于 CLI 在阻塞 shell 下卡在 Reka UI 选型问答 → **手动 components.json + 手动实现 6 个 API 兼容组件**（Button/Card 六件套/Input/Label/Badge/Separator + barrel index + cn 工具），风格 vega，颜色 base=slate，icon=lucide，保持与官方 CLI 生成的目录/aliases 100% 对齐 | T03、T04 组件消费端 import 路径 |
 | D5 · 路由实现（vue-router 4） | Hash 模式（免 Nginx/GitHub Pages/Caddy 任何 rewrite，部署即插即用）；scrollBehavior 支持 hash 锚点 + savedPosition 前进后退；meta.title 经 afterEach 钩子自动同步 document.title（站点名前缀统一）；组件路由懒加载（6 个 Page + 404 全部独立 chunk，首屏 JS 降 50%+） | T04 路由表 / 所有 Page / SEO / 部署 |
 | D6 · 数据层与 Mock 组织 | 抽 `src/data/*.ts` 作为集中数据真源（projects / posts / timeline / skills / techStack / interests / aboutMe / contactChannels / links 等 11 张文件，集中 barrel export 于 `src/data/index.ts`）；每表配类型定义 + 过滤/工具函数（readingMinutes/listProjectTags/postCategories/projectCategories）；所有 Page **完全不内嵌业务数据**，import { … } from '@/data'，后续接 API 时只要把 @/data/*.ts 里数组改成 fetch 或 composable 即可 | T05 全量 Page 模板 / 后续 T09+ 接口接入 |
+| D7 · 终端模拟器实现方式 | 纯展示模式 + 共享步进协程：封装 `src/composables/useTerminal.ts`，输入 `TerminalStep[]`（command/output/blank/pause），输出响应式 `lines[] + status`；command 用 jittered setTimeout 逐字打字，output 逐行瞬时输出；全局单条 cursor 显示在最后一行；prefers-reduced-motion 命中时 mount 直接 skipToEnd；提供 `skipToEnd` + `restart`（replay 按钮）；Hero 终端 CTA 栏在 `status='done'` 时经 translate-y+opacity fade-in 呈现；脚本内容：whoami → motto → ls --only-highlight → head -n 3 ./blog → ./ai --intro | T06 HomePage Hero / 未来复用场景（如 About 侧栏、博客 Code Diff 块）
 
 ---
 
@@ -93,13 +94,32 @@
   3. 移除 PortfolioPage.vue 顶部未用的 `ArrowUpRight` import
 - 结果：`npm run build` 立即通过（主包 151.49 KB gzip 55.99 KB + 6 Page 代码分片，构建 11.34s，首屏 chunk 与字体资源 ~200KB 级）
 
+### T06 · HomePage 用 computed script 传 useTerminal 以及 aboutMe.tags 缺失（2 条 build 错误）
+- 现象：`npm run build` 报错：① `src/pages/HomePage.vue(61,25) Property 'tags' does not exist on aboutMe`；② `Argument of type 'ComputedRef<TerminalStep[]>' is not assignable to parameter of type 'TerminalStep[]'`
+- 根因：
+  1. Hero 终端命令「whoami」的 output 想展示 4 条方向 tag（如 Vue 3 生态 / 设计系统 / AI Agent 工作流），但 about.ts 的 `aboutMe` 对象初版只有 `interests`，没有独立的「职业方向 tags」字段
+  2. `useTerminal` 最初参数类型只接受 `TerminalStep[]`，但 HomePage 为了让脚本内容随 featuredProjects/featuredPosts 动态生成使用了 `computed(...)`，传给 composable 的是 `ComputedRef<T[]>` 而不是裸数组
+- 处理：
+  1. 在 `aboutMe` 中新增 `tags: [...] as const`（4 条方向），Hero 端 output 取 `aboutMe.tags`
+  2. 改造 `useTerminal` 第一个参数接受 `MaybeRef<TerminalStep[]>`（Vue 内置类型别名，覆盖 `T | Ref<T> | ComputedRef<T>`），内部用 `const scriptRef = computed(() => unref(scriptInput))` 解包；runLoop / skipToEnd / watch 全部改为从 `scriptRef.value` 取当前脚本；外部仍可直接传裸数组（unref 会原样返回）
+- 结果：`npm run build` 立即通过（主包 151.51 KB / HomePage chunk 14.42 KB gzip 5.84 KB，构建 11.48s，打字机逻辑 gzip 仅 0.8KB 增量）
+
 ---
 
 ## 下一步
 
-推进 T06：在首页 Hero 区落地终端模拟器 + 打字机效果。方案：
-- 封装 `useTypewriter` composable（支持多行 script、逐字符/逐行速度控制、loop=false、cursor 闪烁、onComplete 回调、prefers-reduced-motion 跳过直接显示）
-- 首页 Terminal block 内以固定 6 条 command → output 序列模拟：whoami → stack overview → featured projects 概览 → 博客最新 3 篇 → motto → AI 引入 prompt → CTA 按钮组在打字完成后 fade-in
-- CTA 按钮组：「查看作品」→ `/portfolio`，「阅读博客」→ `/blog`，「联系我」→ `/contact`，右侧配一个小的「下载简历」Ghost Button（PDF 占位链接）
+推进 T07：接入 Vanta.js NET 3D 背景 + GSAP 滚动动效（ScrollTrigger）。详细方案：
+- 3D 背景作用域：仅首页 Hero 双栏区作为最底层 layer（z-index: -1，fixed 但仅在 Hero 父容器中可视，通过父容器 `overflow: hidden` 控制 3D 粒子不溢出至其他板块）；其他页面全局不启用 Vanta（避免低性能设备每个路由都创建 WebGL 上下文）
+- Vanta 初始化入口：封装 `useVantaBackground` composable，通过 `shallowRef` + onMounted 动态 import `vanta/dist/vanta.net.min` 与 `three`（避免 vite 构建时把 three 打进所有页面 chunk；用 `defineAsyncComponent` 的异步 composable 模式）
+- GPU 降级策略（命中任一即**完全跳过 WebGL**）：
+  1. `window.matchMedia('(prefers-reduced-motion: reduce)')` 命中
+  2. `navigator.hardwareConcurrency <= 2`（低核 CPU）
+  3. `navigator.deviceMemory != null && navigator.deviceMemory <= 2`（低内存设备，Chromium-only，缺失时忽略）
+  4. `window.matchMedia('(max-width: 767px)')` 移动端：改为 2D fallback
+  5. Vanta init 抛出异常（如 WebGL2 不可用）→ catch 后 fallback
+- **2D  fallback**：紫色径向渐变（brand→accent）+ 半透明点阵 SVG 背景（16px 圆点，opacity 0.12），视觉风格与 WebGL 版本对齐但不消耗 GPU
+- GSAP 滚动动效：仅首页的 4 个主 section + About/Portfolio/Timeline 页面的板块接入（Contact/Blog 不 ScrollTrigger 保持朴素）：对 section 容器添加 `data-reveal` 属性，封装 `useScrollReveal` composable，在 onMounted 时遍历该节点，用 GSAP `from()` + ScrollTrigger 做 fade-in-up 0.4s（0.6 opacity→1, y 24→0, blur 4px→0）
+- prefers-reduced-motion 命中 GSAP 动效**全部跳过**（直接 clearProps：transform/opacity/filter）
+- Vanta destroy 正确时机：`onBeforeUnmount` + 路由切换 onBeforeRouteLeave（用 `vantaRef.value?.destroy()` 清理 WebGL context）
+- 实现优先级：先做 2D fallback 保证所有降级路径都好看；再加 Vanta 能力层；最后叠加 GSAP ScrollTrigger
 
-完成 T06 后推进 T07：接入 Vanta.js NET 3D 背景（在 Hero 区作为玻璃卡片下的 background layer），并通过 GSAP 做各板块 ScrollTrigger 进入动画（fade-in-up + 轻微 blur-to-clear）；GPU 降级策略：`navigator.hardwareConcurrency <= 2` 或低电量或 prefers-reduced-motion → Vanta 跳过，改用紫色渐变 + 点阵 SVG 作为 2D 背景 fallback。

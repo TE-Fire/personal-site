@@ -1,28 +1,109 @@
 <script setup lang="ts">
 /**
- * HomePage · 首页 v1.0（T06 替换 Hero 右侧终端为真·打字机）。
- * 结构：
- *   1) Hero 双栏（左：介绍 + CTA / 右：终端 placeholder）
- *   2) 4 个数字统计 chip（主技栈经验、项目数、开源 Star、月博客字数）
- *   3) 最近作品 3 条（projects 中 highlight=true 或前 3）
- *   4) 最近博文 3 条（posts 中 featured=true）
+ * HomePage · 首页（Hero 终端 + 数字统计 + 最近作品 + 最近博客 + CTA 行动区）。
+ * Hero 终端使用 useTerminal composable 驱动打字机。
  */
-import { ArrowRight, BookOpen, Sparkles, Star } from 'lucide-vue-next'
+import { computed } from 'vue'
 import {
+  ArrowRight,
+  BookOpen,
+  Download,
+  Mail,
+  RefreshCcw,
+  Sparkles,
+  Star
+} from 'lucide-vue-next'
+import {
+  Badge,
   Button,
   Card,
   CardContent,
-  CardHeader,
-  CardTitle,
   CardDescription,
-  Badge
+  CardHeader,
+  CardTitle
 } from '@/components/ui'
-import { aboutMe, projects, posts, readingMinutes } from '@/data'
-import { computed } from 'vue'
+import {
+  aboutMe,
+  posts,
+  projects,
+  readingMinutes,
+  type BlogPost,
+  type Project
+} from '@/data'
+import { useTerminal, type TerminalStep } from '@/composables/useTerminal'
 
-const featuredProjects = computed(() => projects.filter(p => p.highlight).slice(0, 3))
-const featuredPosts = computed(() => posts.filter(p => p.featured).slice(0, 3))
+const featuredProjects = computed<Project[]>(() =>
+  projects.filter((p) => p.highlight).slice(0, 3)
+)
+const featuredPosts = computed<BlogPost[]>(() =>
+  posts.filter((p) => p.featured).slice(0, 3)
+)
 const stats = aboutMe.highlightStats
+
+const firstLocation = computed(() => aboutMe.location.split(' · ')[0] ?? aboutMe.location)
+
+/* ---------------- 终端脚本 ---------------- */
+
+const script = computed<TerminalStep[]>(() => {
+  const projLines = featuredProjects.value.map(
+    (p, i) => `  - [${i + 1}] ${p.title}  ·  ${p.category}  ·  ${p.finishedAt}`
+  )
+  const postLines = featuredPosts.value.map((p) => {
+    const mins = readingMinutes(p.wordCount)
+    return `  · ${p.title}  (${p.category} · ${p.publishedAt} · ${mins} min)`
+  })
+  return [
+    { type: 'command', text: 'whoami' },
+    {
+      type: 'output',
+      lines: [
+        `${aboutMe.name} · full-stack vibe coder based in ${firstLocation.value}`,
+        `  方向：${aboutMe.tags.slice(0, 4).join(' / ')}`
+      ],
+      pauseMs: 360
+    },
+
+    { type: 'command', text: 'cat ./motto.txt' },
+    {
+      type: 'output',
+      lines: ['把「设计感」和「工程化」拧在一起，做长期有用的事。'],
+      pauseMs: 360
+    },
+
+    { type: 'command', text: 'ls ./projects --only-highlight' },
+    {
+      type: 'output',
+      lines: projLines.length
+        ? projLines
+        : ['  (nothing here yet, go build something ✨)'],
+      pauseMs: 360
+    },
+
+    { type: 'command', text: 'head -n 3 ./blog/latest.md' },
+    {
+      type: 'output',
+      lines: postLines,
+      muted: true,
+      pauseMs: 360
+    },
+
+    { type: 'command', text: './ai --intro --vibe --color=purple' },
+    {
+      type: 'output',
+      lines: [
+        '>> 欢迎，我是 Trae 的个人站点助手 🤖',
+        '>> 左侧可以直接跳到作品页或发邮件；祝你今天有愉快的 1 分钟浏览 ~'
+      ],
+      pauseMs: 280
+    },
+
+    { type: 'blank', count: 1, pauseMs: 160 }
+  ]
+})
+
+const { lines, isTyping, isDone, restart, skipToEnd } = useTerminal(script, {
+  autoStart: true
+})
 </script>
 
 <template>
@@ -57,7 +138,12 @@ const stats = aboutMe.highlightStats
             <ArrowRight class="size-4" />
           </Button>
           <Button as="router-link" :to="'/contact'" size="lg" variant="outline">
+            <Mail class="size-4" />
             <span>联系我</span>
+          </Button>
+          <Button as="a" href="#" size="lg" variant="ghost" class="gap-1.5">
+            <Download class="size-4" />
+            <span>简历 PDF</span>
           </Button>
         </div>
 
@@ -70,21 +156,73 @@ const stats = aboutMe.highlightStats
         </div>
       </div>
 
-      <!-- 终端占位（T06 替换为真终端 + 打字机） -->
-      <div class="rounded-xl border border-border glass-panel shadow-card overflow-hidden">
-        <div class="h-9 flex items-center gap-2 px-3 border-b border-border/60 bg-surface-muted/40">
+      <!-- 终端块（打字机驱动） -->
+      <div class="rounded-xl border border-border glass-panel shadow-card overflow-hidden flex flex-col">
+        <div class="h-9 flex items-center gap-2 px-3 border-b border-border/60 bg-surface-muted/40 select-none">
           <span class="size-3 rounded-full bg-danger/80" />
           <span class="size-3 rounded-full bg-warning/80" />
           <span class="size-3 rounded-full bg-success/80" />
-          <span class="ml-3 font-mono text-xs text-text-muted">~/personal-site — zsh — 80×24</span>
+          <span class="ml-3 font-mono text-xs text-text-muted truncate">~/personal-site — zsh — 80×24</span>
+          <span class="ml-auto flex items-center gap-1">
+            <button
+              type="button"
+              class="inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] text-text-muted hover:text-text hover:bg-surface-muted/60 transition disabled:opacity-50"
+              :disabled="isTyping"
+              @click="restart"
+              title="重新播放"
+            >
+              <RefreshCcw class="size-3" />
+              replay
+            </button>
+            <button
+              v-if="isTyping"
+              type="button"
+              class="px-2 py-1 rounded text-[11px] text-text-muted hover:text-text hover:bg-surface-muted/60 transition"
+              @click="skipToEnd"
+              title="跳到结果"
+            >
+              skip ▸
+            </button>
+          </span>
         </div>
-        <pre class="m-0 p-5 font-mono text-[13px] leading-relaxed text-text-muted overflow-x-auto whitespace-pre-wrap break-words"><code><span class="text-success">$ </span><span class="text-brand">whoami</span>
-<span class="text-text">{{ aboutMe.name }} · full-stack vibe coder based in {{ aboutMe.location.split(' · ')[0] }}</span>
-<span class="text-success">$ </span><span class="text-brand">cat ./motto.txt</span>
-<span class="text-text">把「设计感」和「工程化」拧在一起，做长期有用的事。</span>
-<span class="text-success">$ </span><span class="text-brand">ls ./projects --only-highlight</span>
-<span class="text-text-muted" v-for="(p, i) in featuredProjects" :key="p.id">{{ '  - [' + (i+1) + '] ' + p.title }}</span>
-<span class="text-success">$ </span><span class="text-brand animate-pulse">▌</span></code></pre>
+
+        <pre class="m-0 p-5 font-mono text-[13px] leading-relaxed overflow-x-auto whitespace-pre-wrap break-words min-h-[320px] md:min-h-[360px]"><code><template v-for="(ln, idx) in lines" :key="ln.id"><span v-if="ln.type === 'cmd'" class="text-success select-none">$ </span><span
+            :class="[
+              ln.type === 'cmd' ? 'text-brand' : '',
+              ln.type === 'output' ? 'text-text' : '',
+              ln.type === 'info' ? 'text-text-muted' : ''
+            ]"
+          >{{ ln.visible }}</span><span
+            v-if="idx === lines.length - 1 && (isTyping || isDone) && (ln.type === 'cmd' ? ln.done : true)"
+            class="ml-[1px] inline-block w-[0.55em] translate-y-[0.06em] text-brand"
+            :class="isTyping ? 'animate-pulse' : 'opacity-80'"
+            aria-hidden="true"
+          >▌</span>
+<br /></template></code></pre>
+
+        <!-- 终端底部 CTA：打字完成后淡入 -->
+        <div
+          class="border-t border-border/60 bg-surface-muted/20 px-4 py-3 flex items-center justify-between gap-3 transition-all"
+          :class="isDone ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-1 pointer-events-none'"
+        >
+          <div class="text-[11px] text-text-muted">
+            <span class="font-mono text-brand">ready.</span>
+            <span class="ml-1.5 hidden sm:inline">下一步去哪里？</span>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <Button as="router-link" :to="'/portfolio'" size="sm" class="gap-1.5">
+              <span>查看作品</span>
+              <ArrowRight class="size-3.5" />
+            </Button>
+            <Button as="router-link" :to="'/blog'" size="sm" variant="outline" class="gap-1.5">
+              <BookOpen class="size-3.5" />
+              <span>阅读博客</span>
+            </Button>
+            <Button as="router-link" :to="'/contact'" size="sm" variant="ghost">
+              <span>联系我</span>
+            </Button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -155,10 +293,7 @@ const stats = aboutMe.highlightStats
       </header>
 
       <ol class="space-y-3 p-0 m-0 list-none">
-        <li
-          v-for="post in featuredPosts"
-          :key="post.slug"
-        >
+        <li v-for="post in featuredPosts" :key="post.slug">
           <RouterLink
             :to="`/blog/${post.slug}`"
             class="group block rounded-lg border border-transparent hover:border-border/60 hover:bg-surface-muted/30 transition px-4 py-3.5 flex flex-col md:flex-row md:items-center md:justify-between gap-3 no-underline"

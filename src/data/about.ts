@@ -11,6 +11,8 @@ export const aboutMe = {
     '过去 5 年主要在 B 端中后台、SaaS 产品、以及个人独立项目之间切换；目前正在探索：如何通过 AI Agent + 设计系统把「从想法到上线」的路径压到极致短。',
     '工作之外喜欢看设计史、写博客、做一些永远也发不了版的独立小游戏。如果你也在关心「什么样的工具能让创作者更自由」这件事——欢迎来聊聊。'
   ] as const,
+  /** Hero 终端「方向：xxx / yyy」展示用，固定 4 条，前 4 条取最能代表方向。 */
+  tags: ['Vue 3 生态', 'TypeScript 工程化', '设计系统与 UI 质感', 'AI Agent 工作流'] as const,
   location: '中国 · 远程协作友好（UTC+8）',
   available: true,
   highlightStats: [
