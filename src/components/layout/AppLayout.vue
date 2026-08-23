@@ -1,0 +1,68 @@
+<script setup lang="ts">
+/**
+ * AppLayout · 全局布局壳。
+ * 职责：
+ *   1) 套 Header + <RouterView> + Footer，固定页面骨架
+ *   2) 提供外层 Vanta.js 3D 背景挂载点（id="vanta-bg"，T07 再注入实例）
+ *   3) 统一的容器最大宽、内边距、内容区最小高度，让 Footer 永远被顶到底（min-h-[calc(100vh-?px)] + flex-col 布局）
+ *
+ * 背景分层（由下至上）：
+ *   • z-0  3D 背景（Vanta）挂载点
+ *   • z-0  页面内容（relative，建立层叠上下文但不盖背景）
+ *   • z-40 Header（已在子组件 sticky）
+ */
+import Header from './Header.vue'
+import Footer from './Footer.vue'
+</script>
+
+<template>
+  <div class="relative min-h-screen flex flex-col text-text bg-surface">
+    <!-- Vanta.js 3D 背景挂载点（T07 再填充实例）；prefers-reduced-motion 用户自动 fallback -->
+    <div
+      id="vanta-bg"
+      aria-hidden
+      class="pointer-events-none fixed inset-0 -z-10 opacity-80 dark:opacity-90 transition-opacity"
+    />
+
+    <Header />
+
+    <!-- 主内容区：flex-1 + min-h-0 保证整体 footer 贴底 -->
+    <main class="flex-1 w-full">
+      <div class="mx-auto w-full max-w-screen-2xl px-4 md:px-8 py-8 md:py-12">
+        <RouterView v-slot="{ Component, route }">
+          <Transition name="page" mode="out-in">
+            <component :is="Component" :key="route.fullPath" />
+          </Transition>
+        </RouterView>
+      </div>
+    </main>
+
+    <Footer />
+  </div>
+</template>
+
+<style scoped>
+/* 页面切换：轻淡淡出淡入 + 12px 纵向位移，视觉更顺（prefers-reduced-motion 自动关） */
+.page-enter-active,
+.page-leave-active {
+  transition: opacity 0.22s ease, transform 0.22s ease;
+}
+.page-enter-from {
+  opacity: 0;
+  transform: translateY(10px);
+}
+.page-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+@media (prefers-reduced-motion: reduce) {
+  .page-enter-active,
+  .page-leave-active {
+    transition: none;
+  }
+  .page-enter-from,
+  .page-leave-to {
+    transform: none;
+  }
+}
+</style>

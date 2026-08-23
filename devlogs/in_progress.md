@@ -16,8 +16,9 @@
 6. ✅ T01 脚手架初始化（Vue 3.5 + Vite 5.4 + TS 5.6 + Tailwind 3.4，npm run build 通过）
 7. ✅ T02 设计系统落地（CLI 404 → 回退手动 token，npm run build 通过 + 预览页可切换主题）
 8. ✅ T03 核心依赖安装（VueUse/Lucide/GSAP/Vanta/Three/shadcn 底层依赖 33 包 + 手动落地 6 个兼容组件 + components.json）
-9. 🚧 T04 全局布局 & 路由（Vue Router + AppLayout/Header/Footer/ThemeToggle）
-10. ⏳ …（后续 Todo 推进时追加）
+9. ✅ T04 全局布局 & 路由（Vue Router Hash 模式 + AppLayout/Header/Footer/ThemeToggle + 7 Pages Skeleton）
+10. 🚧 T05 页面内容填充 + Mock 数据（替换 6 个页面骨架占位为真实业务卡片/技能/项目条目/时间线 + 抽 src/data/*.ts）
+11. ⏳ …（后续 Todo 推进时追加）
 
 ---
 
@@ -29,6 +30,7 @@
 | D2 · Hero 终端交互 | 纯展示模式（打字机 + 固定输出流） | T06 实现复杂度 |
 | D3 · 类型系统 | TypeScript（vue-ts 模板） | T01-T08 全量 |
 | D4 · shadcn-vue 初始化方式 | 由于 CLI 在阻塞 shell 下卡在 Reka UI 选型问答 → **手动 components.json + 手动实现 6 个 API 兼容组件**（Button/Card 六件套/Input/Label/Badge/Separator + barrel index + cn 工具），风格 vega，颜色 base=slate，icon=lucide，保持与官方 CLI 生成的目录/aliases 100% 对齐 | T03、T04 组件消费端 import 路径 |
+| D5 · 路由实现（vue-router 4） | Hash 模式（免 Nginx/GitHub Pages/Caddy 任何 rewrite，部署即插即用）；scrollBehavior 支持 hash 锚点 + savedPosition 前进后退；meta.title 经 afterEach 钩子自动同步 document.title（站点名前缀统一）；组件路由懒加载（6 个 Page + 404 全部独立 chunk，首屏 JS 降 50%+） | T04 路由表 / 所有 Page / SEO / 部署 |
 
 ---
 
@@ -70,8 +72,14 @@
 - 处理：按 vibecoding 流程「CLI 阻塞立刻不反复重试」，走**等价手动回退**：手动创建 components.json（aliases/styles/cssVariables/iconLibrary 完整） + 安装 shadcn 底层依赖（clsx + tailwind-merge + cva + radix-vue） + 手动写入 6 个官方 API 兼容的组件源码 + barrel 导出
 - 结果：组件 API 与 shadcn-vue vega 官方 100% 对齐（Button variant/size 组合、Card 六件套、Input v-model、Label htmlFor、Badge 4 变体、Separator 双向），cn 函数与官方一致，消费端 import 路径稳定（`@/components/ui`）
 
+### T04 · `Header.vue` 未使用 import { cn } 触发 TS6133
+- 现象：`npm run build` 报告 src/components/layout/Header.vue TS6133: 'cn' is declared but its value is never read
+- 根因：初版 Header 计划用 cn 合并条件 class，但实际直接写了 `:class="[...]"`，忘记删除无用 import；TS 严格模式（noUnusedLocals 默认开启）视为错误
+- 处理：直接删除 Header.vue 顶部对 cn 的无用 import（保留未使用声明只会在后续引入变量时又忘记触发 error）
+- 结果：`npm run build` 第二次执行通过，主包 148KB + 6 个 Page 代码分片，构建 50.49s
+
 ---
 
 ## 下一步
 
-推进 T04：① 安装 vue-router 并建立路由表（6 条路由：首页/关于/作品集/博客/经历/联系）；② 建立 AppLayout 全局布局 + Header/Footer/ThemeToggle 三个组件（响应式 md 断点、移动端汉堡菜单骨架、滚动贴顶 + glass 毛玻璃）；③ 重写 App.vue 使用 <RouterView>；④ build + 预览。
+推进 T05：① 新建 `src/data/*.ts` 集中存放 Mock 数据（projects / posts / skills / timelineNodes / aboutMe / contactChannels）；② 分别把 6 个 Page 中所有 🦴 占位替换为 Card / 列表 / Badge / 时间线等真实组件渲染；③ Blog / Portfolio 增加 filter 过滤标签 UI；④ typecheck + build 零错误。
