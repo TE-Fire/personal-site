@@ -30,7 +30,6 @@ import {
   type Project
 } from '@/data'
 import { useTerminal, type TerminalStep } from '@/composables/useTerminal'
-import { useVantaBackground } from '@/composables/useVantaBackground'
 import { useScrollReveal } from '@/composables/useScrollReveal'
 
 /* ---------------- 数据 ---------------- */
@@ -98,28 +97,20 @@ const script = computed<TerminalStep[]>(() => {
   ]
 })
 
-/* ---------------- Refs（Vanta / ScrollReveal）---------------- */
+/* ---------------- Refs ---------------- */
 
 const pageRoot = ref<HTMLElement | null>(null)
-const heroBgEl = ref<HTMLElement | null>(null)
 
 const { lines, isTyping, isDone, restart, skipToEnd } = useTerminal(script, {
   autoStart: true
 })
-const { mode: bgMode, error: bgError } = useVantaBackground(heroBgEl)
-// 调试提示：如果走了 fallback 又好奇原因？可以 console.log('bg mode=', bgMode.value, bgError.value)
-void bgMode
-void bgError
 useScrollReveal(pageRoot)
 </script>
 
 <template>
   <section ref="pageRoot" class="space-y-20 md:space-y-24">
-    <!-- 1. Hero 容器（relative + overflow:hidden，内层挂 Vanta/fallback 背景层） -->
+    <!-- 1. Hero 容器 -->
     <div class="relative overflow-hidden rounded-2xl z-0" data-reveal>
-      <!-- 背景层（Vanta canvas 或 2D fallback） -->
-      <div ref="heroBgEl" aria-hidden="true" />
-
       <div class="grid grid-cols-1 lg:grid-cols-[1.05fr_0.95fr] gap-10 items-center px-2 md:px-0 py-6 md:py-10 lg:py-14">
         <div class="flex flex-col gap-5 max-w-xl relative z-[1]">
           <span class="inline-flex items-center gap-2 rounded-full border border-brand/30 bg-brand/5 px-3 py-1 text-xs font-medium text-brand self-start">

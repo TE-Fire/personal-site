@@ -1,10 +1,15 @@
 /**
- * useVantaBackground.ts · 首页 Hero 区的 Vanta.js NET 3D 背景 + 降级 2D fallback。
+ * useVantaBackground.ts · Vanta.js NET 3D 背景 + 降级 2D fallback。
  *
  * 使用：
  *   const heroBgRef = ref<HTMLElement | null>(null)
  *   const { mode, error } = useVantaBackground(heroBgRef)
  *   // 模式：'vanta'（真实 WebGL） | 'fallback'（2D 渐变+点阵） | 'disabled'（SSR 等）
+ *
+ * 参数：
+ *   target        — 挂载 Vanta 的 DOM 元素 ref
+ *   opts.fixed    — true 时使用全屏固定样式（AppLayout 持久层），
+ *                   false 时使用内嵌 absolute 样式（首页 Hero 区）
  *
  * 降级策略（命中任一立即走 fallback）：
  *   · prefers-reduced-motion
@@ -79,22 +84,30 @@ function shouldUseFallback(): boolean {
 }
 
 /** 给 target 容器切换 fallback 视觉样式 class（2D 渐变+点阵） */
-function applyFallback(target: HTMLElement, theme: 'light' | 'dark') {
-  target.classList.add('hero-bg-fallback')
-  target.classList.remove('hero-bg-vanta')
+function applyFallback(target: HTMLElement, theme: 'light' | 'dark', fixed = false) {
+  const cls = fixed ? 'hero-bg-fallback-fixed' : 'hero-bg-fallback'
+  const removeCls = fixed ? 'hero-bg-fallback' : 'hero-bg-fallback-fixed'
+  target.classList.add(cls)
+  target.classList.remove(removeCls, 'hero-bg-vanta', 'hero-bg-vanta-fixed')
   target.classList.toggle('theme-dark', theme === 'dark')
   target.classList.toggle('theme-light', theme === 'light')
 }
 
 /** 给 target 容器切换 vanta 样式 class（移除 fallback 的渐变+点阵） */
-function applyVantaClass(target: HTMLElement, theme: 'light' | 'dark') {
-  target.classList.remove('hero-bg-fallback')
-  target.classList.add('hero-bg-vanta')
+function applyVantaClass(target: HTMLElement, theme: 'light' | 'dark', fixed = false) {
+  const cls = fixed ? 'hero-bg-vanta-fixed' : 'hero-bg-vanta'
+  const removeCls = fixed ? 'hero-bg-vanta' : 'hero-bg-vanta-fixed'
+  target.classList.remove('hero-bg-fallback', 'hero-bg-fallback-fixed', removeCls)
+  target.classList.add(cls)
   target.classList.toggle('theme-dark', theme === 'dark')
   target.classList.toggle('theme-light', theme === 'light')
 }
 
-export function useVantaBackground(target: MaybeRef<HTMLElement | null>) {
+export function useVantaBackground(
+  target: MaybeRef<HTMLElement | null>,
+  opts: { fixed?: boolean } = {}
+) {
+  const isFixed = opts.fixed ?? false
   const mode = ref<VantaBackgroundMode>('disabled')
   const error = ref<string | null>(null)
   const vantaEffect = shallowRef<VantaLike | null>(null)
@@ -132,7 +145,7 @@ export function useVantaBackground(target: MaybeRef<HTMLElement | null>) {
 
     // 命中降级：直接 2D fallback
     if (shouldUseFallback()) {
-      applyFallback(el, theme)
+      applyFallback(el, theme, isFixed)
       mode.value = 'fallback'
       return
     }
@@ -156,7 +169,7 @@ export function useVantaBackground(target: MaybeRef<HTMLElement | null>) {
         throw new Error('Vanta returned invalid effect (no destroy)')
       }
       vantaEffect.value = effect
-      applyVantaClass(el, theme)
+      applyVantaClass(el, theme, isFixed)
       mode.value = 'vanta'
     } catch (err) {
       // 任何异常：清理 + 降级
@@ -166,7 +179,7 @@ export function useVantaBackground(target: MaybeRef<HTMLElement | null>) {
         // ignore
       }
       error.value = err instanceof Error ? err.message : String(err)
-      applyFallback(el, theme)
+      applyFallback(el, theme, isFixed)
       mode.value = 'fallback'
     }
   }
@@ -182,8 +195,7 @@ export function useVantaBackground(target: MaybeRef<HTMLElement | null>) {
     }
     const el = unref(target)
     if (el) {
-      el.classList.remove('hero-bg-vanta')
-      el.classList.remove('hero-bg-fallback')
+      el.classList.remove('hero-bg-vanta', 'hero-bg-vanta-fixed', 'hero-bg-fallback', 'hero-bg-fallback-fixed')
     }
   }
 
@@ -199,6 +211,13 @@ export function useVantaBackground(target: MaybeRef<HTMLElement | null>) {
         // fallback 由 CSS 变量控制，只需切换 class theme-dark/light
         el.classList.toggle('theme-dark', next === 'dark')
         el.classList.toggle('theme-light', next === 'light')
+        if (isFixed) {
+          el.classList.toggle('hero-bg-fallback-fixed', true)
+          el.classList.remove('hero-bg-fallback')
+        } else {
+          el.classList.toggle('hero-bg-fallback', true)
+          el.classList.remove('hero-bg-fallback-fixed')
+        }
         return
       }
       if (mode.value === 'vanta' && vantaEffect.value) {

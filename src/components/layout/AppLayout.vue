@@ -11,18 +11,22 @@
  *   • z-0  页面内容（relative，建立层叠上下文但不盖背景）
  *   • z-40 Header（已在子组件 sticky）
  */
+import { ref } from 'vue'
 import Header from './Header.vue'
 import Footer from './Footer.vue'
 import DraggableCharacter from '@/components/DraggableCharacter.vue'
+import { useVantaBackground } from '@/composables/useVantaBackground'
+const vantaBgRef = ref<HTMLElement | null>(null)
+useVantaBackground(vantaBgRef, { fixed: true })
 </script>
 
 <template>
   <div class="relative min-h-screen flex flex-col text-text bg-surface">
-    <!-- Vanta.js 3D 背景挂载点（T07 再填充实例）；prefers-reduced-motion 用户自动 fallback -->
+    <!-- Vanta.js 3D 背景（持久层，所有页面共享，切换不会闪） -->
     <div
-      id="vanta-bg"
+      ref="vantaBgRef"
       aria-hidden
-      class="pointer-events-none fixed inset-0 -z-10 opacity-80 dark:opacity-90 transition-opacity"
+      class="pointer-events-none fixed inset-0 -z-10 transition-opacity"
     />
 
     <Header />
