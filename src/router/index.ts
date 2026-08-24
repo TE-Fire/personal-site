@@ -79,6 +79,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '联系方式', icon: 'Mail' }
   },
   {
+    path: '/demo/loading',
+    name: 'LoadingDemo',
+    component: () => import('@/pages/LoadingDemoPage.vue'),
+    meta: { title: '加载动画演示' }
+  },
+  {
     // 404：放最后一条兜底。Vue Router 4 使用 :pathMatch(.*)* 的 POSIX 扩展语法。
     path: '/:pathMatch(.*)*',
     name: 'NotFound',
