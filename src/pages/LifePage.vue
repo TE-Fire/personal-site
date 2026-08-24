@@ -13,6 +13,42 @@ useScrollReveal(rootRef)
 
 type TabKey = 'all' | 'photo' | 'music' | 'essay'
 
+/** 鼠标跟踪：3D 倾斜效果 */
+const hoveredPhoto = ref<string | null>(null)
+const tiltX = ref(0)
+const tiltY = ref(0)
+
+function onPhotoMove(e: MouseEvent, id: string) {
+  if (hoveredPhoto.value !== id) return
+  const el = e.currentTarget as HTMLElement
+  const rect = el.getBoundingClientRect()
+  const cx = rect.left + rect.width / 2
+  const cy = rect.top + rect.height / 2
+  // 鼠标偏移量映射为 -8° ~ 8° 倾斜
+  tiltY.value = ((e.clientX - cx) / (rect.width / 2)) * 6
+  tiltX.value = -((e.clientY - cy) / (rect.height / 2)) * 6
+}
+
+/** 星光粒子位置池（固定位置避免每帧重新计算） */
+const sparkPositions = [
+  { x: 15, y: 20, delay: 0 },
+  { x: 70, y: 15, delay: 0.3 },
+  { x: 40, y: 60, delay: 0.6 },
+  { x: 85, y: 50, delay: 0.15 }
+]
+
+/** 惊喜 emoji：按心情弹出不同表情 */
+const surpriseEmoji: Record<Mood, string> = {
+  '治愈': '🐱',
+  '灵感': '💡',
+  '深夜': '🌙',
+  '日常': '☕',
+  '旅行': '🧳',
+  '美食': '🍜',
+  '释然': '🍃',
+  '兴奋': '🎆'
+}
+
 const activeTab = ref<TabKey>('all')
 
 const tabs: { key: TabKey; label: string; icon: string }[] = [
@@ -112,30 +148,56 @@ const stats = computed(() => ({
         <div
           v-for="(photo, i) in photos"
           :key="photo.id"
-          class="photo-card group relative overflow-hidden rounded-xl cursor-pointer transition-all duration-300"
+          class="photo-card group relative overflow-hidden rounded-xl cursor-pointer"
           :class="[
             photo.span === 2 ? 'col-span-2' : 'col-span-1',
           ]"
           :style="{
             height: heightMap[photo.height] + 'px',
-            transform: `rotate(${tilt(i)}deg)`,
+            '--tilt': tilt(i) + 'deg',
+            '--tilt-x': hoveredPhoto === photo.id ? tiltX + 'deg' : '0deg',
+            '--tilt-y': hoveredPhoto === photo.id ? tiltY + 'deg' : '0deg',
+            '--glow-from': photo.gradient.from,
+            '--glow-to': photo.gradient.to,
             background: `linear-gradient(135deg, ${photo.gradient.from}, ${photo.gradient.to})`
           }"
+          @mousemove="onPhotoMove($event, photo.id)"
+          @mouseenter="hoveredPhoto = photo.id"
+          @mouseleave="hoveredPhoto = null"
         >
           <!-- 暗角遮罩 -->
-          <div class="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-80 group-hover:opacity-90 transition-opacity" />
+          <div class="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-80 group-hover:opacity-90 transition-opacity duration-300" />
+          <!-- 光泽扫过效果 -->
+          <div class="shine-sweep absolute inset-0 pointer-events-none" />
+          <!-- 浮动星光粒子 -->
+          <div class="sparkles absolute inset-0 pointer-events-none">
+            <span
+              v-for="s in 4"
+              :key="s"
+              class="sparkle-dot"
+              :style="{
+                '--sx': sparkPositions[s - 1].x + '%',
+                '--sy': sparkPositions[s - 1].y + '%',
+                '--sd': sparkPositions[s - 1].delay + 's'
+              }"
+            >✨</span>
+          </div>
           <!-- 内容 -->
           <div class="absolute inset-0 flex flex-col justify-end p-4">
-            <div class="flex items-center gap-2 mb-1">
+            <div class="flex items-center gap-2 mb-1 photo-meta">
               <span class="text-xs font-mono text-white/80">{{ photo.date }}</span>
             </div>
-            <p class="m-0 text-sm font-semibold text-white drop-shadow">{{ photo.title }}</p>
-            <span class="mt-1 inline-flex items-center gap-1 text-[11px] text-white/70">
+            <p class="m-0 text-sm font-semibold text-white drop-shadow photo-title">{{ photo.title }}</p>
+            <span class="mt-1 inline-flex items-center gap-1 text-[11px] text-white/70 photo-mood">
               {{ moodEmoji[photo.mood as Mood] }} {{ photo.mood }}
             </span>
           </div>
+          <!-- 惊喜 emoji 弹出 -->
+          <div class="surprise-emoji absolute inset-0 flex items-center justify-center pointer-events-none">
+            <span class="surprise-text">{{ surpriseEmoji[photo.mood as Mood] }}</span>
+          </div>
           <!-- hover 放大提示 -->
-          <div class="absolute top-3 right-3 size-7 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+          <div class="absolute top-3 right-3 size-7 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
             <span class="text-xs text-white">🔍</span>
           </div>
         </div>
@@ -260,15 +322,119 @@ const stats = computed(() => ({
 </template>
 
 <style scoped>
-/* 照片卡片 hover 效果 */
+/* ====== 照片卡片基础 ====== */
 .photo-card {
-  box-shadow: 0 2px 8px -2px rgba(0, 0, 0, 0.1);
-}
-.photo-card:hover {
-  transform: rotate(0deg) scale(1.03) !important;
-  box-shadow: 0 12px 24px -6px rgba(0, 0, 0, 0.2);
-  z-index: 10;
+  transform: rotate(var(--tilt, 0deg));
+  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
+              box-shadow 0.35s ease;
+  box-shadow: 0 2px 8px -2px rgba(0, 0, 0, 0.12);
+  will-change: transform;
 }
 
-/* 随笔卡片 hover 时左侧装饰条加宽 */
+/* hover：归正 + 3D 视差倾斜 + 放大 + 彩色光晕 */
+.photo-card:hover {
+  transform: rotate(0deg) perspective(800px)
+    rotateX(var(--tilt-x, 0deg))
+    rotateY(var(--tilt-y, 0deg))
+    scale(1.05);
+  box-shadow:
+    0 16px 32px -8px rgba(0, 0, 0, 0.25),
+    0 0 24px -4px var(--glow-from, #7c3aed);
+  z-index: 20;
+}
+
+/* ====== 光泽扫过 ====== */
+.shine-sweep::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -60%;
+  width: 40%;
+  height: 200%;
+  background: linear-gradient(
+    100deg,
+    transparent,
+    rgba(255, 255, 255, 0.25),
+    transparent
+  );
+  transform: rotate(25deg) translateX(0);
+  opacity: 0;
+  transition: none;
+}
+.photo-card:hover .shine-sweep::before {
+  animation: shine-sweep 0.7s ease-out;
+}
+@keyframes shine-sweep {
+  0%   { left: -60%; opacity: 0; }
+  20%  { opacity: 1; }
+  80%  { opacity: 1; }
+  100% { left: 120%; opacity: 0; }
+}
+
+/* ====== 浮动星光粒子 ====== */
+.sparkle-dot {
+  position: absolute;
+  left: var(--sx, 50%);
+  top: var(--sy, 50%);
+  font-size: 12px;
+  opacity: 0;
+  transform: scale(0);
+  pointer-events: none;
+}
+.photo-card:hover .sparkle-dot {
+  animation: sparkle-pop 0.9s ease-out var(--sd, 0s) both;
+}
+@keyframes sparkle-pop {
+  0%   { opacity: 0; transform: scale(0) translateY(0); }
+  40%  { opacity: 1; transform: scale(1.3) translateY(-8px); }
+  100% { opacity: 0; transform: scale(0.6) translateY(-20px); }
+}
+
+/* ====== 惊喜 emoji 弹出 ====== */
+.surprise-emoji {
+  z-index: 5;
+}
+.surprise-text {
+  font-size: 2rem;
+  opacity: 0;
+  transform: scale(0) rotate(-30deg);
+  transition: none;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.2));
+}
+.photo-card:hover .surprise-text {
+  animation: surprise-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.15s both;
+}
+@keyframes surprise-pop {
+  0%   { opacity: 0; transform: scale(0) rotate(-30deg); }
+  50%  { opacity: 1; transform: scale(1.2) rotate(8deg); }
+  70%  { transform: scale(1) rotate(-3deg); }
+  100% { opacity: 0; transform: scale(0.8) translateY(-16px) rotate(0deg); }
+}
+
+/* ====== 内容上滑揭示 ====== */
+.photo-meta,
+.photo-title,
+.photo-mood {
+  transform: translateY(6px);
+  opacity: 0.85;
+  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
+              opacity 0.3s ease;
+}
+.photo-card:hover .photo-meta {
+  transform: translateY(0);
+  opacity: 1;
+  transition-delay: 0.05s;
+}
+.photo-card:hover .photo-title {
+  transform: translateY(0);
+  opacity: 1;
+  transition-delay: 0.1s;
+}
+.photo-card:hover .photo-mood {
+  transform: translateY(0);
+  opacity: 1;
+  transition-delay: 0.15s;
+}
+
+/* ====== 随笔卡片 hover 时左侧装饰条加宽 ====== */
 </style>
