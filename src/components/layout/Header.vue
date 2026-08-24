@@ -20,6 +20,7 @@ const navItems = [
   { name: 'About' as const, label: '关于我', href: '/about' },
   { name: 'Portfolio' as const, label: '作品集', href: '/portfolio' },
   { name: 'Blog' as const, label: '博客', href: '/blog' },
+  { name: 'Life' as const, label: '生活', href: '/life' },
   { name: 'Timeline' as const, label: '经历', href: '/timeline' },
   { name: 'Contact' as const, label: '联系我', href: '/contact' }
 ]

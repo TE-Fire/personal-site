@@ -13,9 +13,10 @@ export {
 export {
   posts,
   readingMinutes,
-  postCategories,
+  postArticleCategories,
   listPostTags,
   type BlogPost,
+  type PostArticleCategory,
   type PostCategory
 } from './posts'
 export {
@@ -31,3 +32,18 @@ export {
   type ContactFormField,
   type ContactFormErrors
 } from './contact'
+export {
+  photoMoments,
+  musicMoments,
+  essayMoments,
+  allMoments,
+  getMomentsSorted,
+  getMonths,
+  moodEmoji,
+  type LifeMoment,
+  type PhotoMoment,
+  type MusicMoment,
+  type EssayMoment,
+  type MomentType,
+  type Mood
+} from './life'

@@ -35,6 +35,38 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '博客', icon: 'BookOpen' }
   },
   {
+    path: '/blog/new',
+    name: 'BlogNew',
+    component: () => import('@/pages/BlogEditorPage.vue'),
+    meta: { title: '新建文章' }
+  },
+  {
+    path: '/blog/tags',
+    name: 'BlogTags',
+    component: () => import('@/pages/BlogTagsPage.vue'),
+    meta: { title: '标签管理' }
+  },
+  {
+    path: '/blog/:slug/edit',
+    name: 'BlogEdit',
+    component: () => import('@/pages/BlogEditorPage.vue'),
+    meta: { title: '编辑文章' },
+    props: true
+  },
+  {
+    path: '/blog/:slug',
+    name: 'BlogDetail',
+    component: () => import('@/pages/BlogDetailPage.vue'),
+    meta: { title: '博客详情' },
+    props: true
+  },
+  {
+    path: '/life',
+    name: 'Life',
+    component: () => import('@/pages/LifePage.vue'),
+    meta: { title: '生活碎片', icon: 'Coffee' }
+  },
+  {
     path: '/timeline',
     name: 'Timeline',
     component: () => import('@/pages/TimelinePage.vue'),
