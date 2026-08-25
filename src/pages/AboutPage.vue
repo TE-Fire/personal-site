@@ -7,6 +7,7 @@ import { Badge, Card, CardContent, CardHeader, CardTitle, CardDescription, Separ
 import { aboutMe, skillGroups } from '@/data'
 import { MapPin, Briefcase, Coffee, Heart } from 'lucide-vue-next'
 import { useScrollReveal } from '@/composables/useScrollReveal'
+import ContributionHeatmap from '@/components/ContributionHeatmap.vue'
 
 const rootRef = ref<HTMLElement | null>(null)
 useScrollReveal(rootRef)
@@ -55,9 +56,14 @@ useScrollReveal(rootRef)
       </div>
     </div>
 
+    <!-- 3. 贡献热力图 -->
+    <section data-reveal="0.08">
+      <ContributionHeatmap />
+    </section>
+
     <Separator />
 
-    <!-- 3. 长文介绍（两段） -->
+    <!-- 4. 长文介绍（两段） -->
     <section class="space-y-4" data-reveal="0.1">
       <h2 class="m-0 text-xl font-semibold tracking-tight">关于我</h2>
       <div class="space-y-3 text-[15px] md:text-base text-text leading-[1.85]">
@@ -65,7 +71,7 @@ useScrollReveal(rootRef)
       </div>
     </section>
 
-    <!-- 4. 现在在做什么 -->
+    <!-- 5. 现在在做什么 -->
     <Card data-reveal="0.1">
       <CardHeader>
         <CardTitle class="flex items-center gap-2">现在 <span class="inline-block size-2 rounded-full bg-success animate-pulse" /></CardTitle>
@@ -79,7 +85,7 @@ useScrollReveal(rootRef)
       </CardContent>
     </Card>
 
-    <!-- 5. 技能栈（3 组） -->
+    <!-- 6. 技能栈（3 组） -->
     <section class="space-y-6" data-reveal="0.14">
       <h2 class="m-0 text-xl font-semibold tracking-tight">技能 &amp; 工具</h2>
       <div class="space-y-6">
@@ -94,7 +100,7 @@ useScrollReveal(rootRef)
       </div>
     </section>
 
-    <!-- 6. 兴趣标签 -->
+    <!-- 7. 兴趣标签 -->
     <section class="space-y-3" data-reveal="0.18">
       <h2 class="m-0 text-xl font-semibold tracking-tight">最近感兴趣</h2>
       <div class="flex flex-wrap gap-2">

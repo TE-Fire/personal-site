@@ -382,32 +382,28 @@ function bindEditInput(el: any) {
                       </span>
                     </div>
                     <div class="flex shrink-0 items-center gap-2">
-                      <Button
+                      <button
                         type="button"
-                        size="sm"
-                        variant="ghost"
-                        class="h-8 w-8 p-0 text-text-muted hover:bg-brand/10 hover:text-brand"
+                        class="inline-flex size-9 items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-brand/10 hover:text-brand cursor-pointer"
                         aria-label="重命名"
                         title="重命名"
                         @click="startEdit(cat)"
                       >
-                        <Pencil class="size-[15px]" />
-                      </Button>
+                        <Pencil class="size-5" />
+                      </button>
                       <span
                         :title="!canDeleteAny ? '至少保留 1 个分类' : `删除「${cat}」`"
                         class="inline-flex"
                       >
-                        <Button
+                        <button
                           type="button"
-                          size="sm"
-                          variant="ghost"
-                          class="h-8 w-8 p-0 text-text-muted hover:bg-danger/10 hover:text-danger"
+                          class="inline-flex size-9 items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-danger/10 hover:text-danger cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                           :disabled="!canDeleteAny"
                           :aria-label="!canDeleteAny ? '至少保留 1 个分类' : `删除${cat}`"
                           @click="startDeleteConfirm(cat)"
                         >
-                          <Trash2 class="size-[15px]" />
-                        </Button>
+                          <Trash2 class="size-5" />
+                        </button>
                       </span>
                     </div>
                   </template>

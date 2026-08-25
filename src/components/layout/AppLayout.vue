@@ -14,6 +14,7 @@
 import Header from './Header.vue'
 import Footer from './Footer.vue'
 import DraggableCharacter from '@/components/DraggableCharacter.vue'
+import DraggableStatsWidget from '@/components/DraggableStatsWidget.vue'
 </script>
 
 <template>
@@ -41,6 +42,9 @@ import DraggableCharacter from '@/components/DraggableCharacter.vue'
 
     <!-- 右下角可拖动的虚拟形象（全局，所有页面可见） -->
     <DraggableCharacter />
+
+    <!-- 左上角可拖动的博客数据面板（全局，所有页面可见） -->
+    <DraggableStatsWidget />
   </div>
 </template>
 

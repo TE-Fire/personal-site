@@ -61,6 +61,13 @@
   --chart-series-4: #22A5F7;
   --chart-other:    #D3D4DA;
 
+  /* 贡献热力图 · 5 档色阶（浅色） */
+  --heatmap-0: #EFEFF2;
+  --heatmap-1: #D4D7FF;
+  --heatmap-2: #A9AEFF;
+  --heatmap-3: #6F6FFF;
+  --heatmap-4: #4B3FE3;
+
   /* 投影（克制使用，仅用于悬浮弹出态） */
   --shadow-sm: 0 1px 2px 0 rgba(15, 23, 42, 0.05);
   --shadow-md: 0 4px 8px -2px rgba(15, 23, 42, 0.06), 0 2px 4px -2px rgba(15, 23, 42, 0.04);
@@ -113,6 +120,13 @@ html.dark {
   --chart-series-3: #6F6FFF;
   --chart-series-4: #22A5F7;
   --chart-other:    #52525B;
+
+  /* 贡献热力图 · 5 档色阶（深色） */
+  --heatmap-0: #27272A;
+  --heatmap-1: #2D238E;
+  --heatmap-2: #4B3FE3;
+  --heatmap-3: #6F6FFF;
+  --heatmap-4: #A9AEFF;
 
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.35);
   --shadow-md: 0 4px 12px -2px rgba(0, 0, 0, 0.45), 0 2px 4px -2px rgba(0, 0, 0, 0.30);

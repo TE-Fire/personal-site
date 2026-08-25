@@ -9,7 +9,8 @@ export type BlogPost = {
   /** 正文预估字数（200 字/分钟向上取整 = 阅读时长） */
   wordCount: number
   publishedAt: string
-  category: '工程笔记' | '设计系统' | '读书摘要' | '踩坑复盘' | '产品思考' | '生活随笔'
+  /** 分类（可由用户在管理弹窗中增删改，故用 string 而非联合类型） */
+  category: string
   tags: string[]
   /** 是否首页展示（首页只展示前 3 条 highlight=true 的） */
   featured: boolean
@@ -110,8 +111,12 @@ export function readingMinutes(wordCount: number): number {
   return Math.max(1, Math.ceil(wordCount / 200))
 }
 
-export const postCategories = ['全部', '工程笔记', '读书摘要', '踩坑复盘', '产品思考', '生活随笔', '设计系统'] as const
-export type PostCategory = (typeof postCategories)[number]
+/** 内置默认分类（用户可在管理弹窗中增删改，存储在 localStorage） */
+export const postArticleCategories: string[] = ['工程笔记', '读书摘要', '踩坑复盘', '产品思考', '生活随笔', '设计系统']
+export type PostArticleCategory = string
+
+/** 筛选用分类（含「全部」）—— 动态来源，此处仅为类型导出 */
+export type PostCategory = string
 
 export function listPostTags(): string[] {
   const set = new Set<string>()

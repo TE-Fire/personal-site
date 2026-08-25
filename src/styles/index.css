@@ -126,6 +126,329 @@
     color: var(--text-muted);
   }
   .btn-ghost:hover { background: var(--surface-muted); color: var(--text); }
+
+  /* ============================================================
+   * btn-playful · 便签胶带风趣 CTA（两行主+副文案 / 胶带 / 手绘波浪线 / 笔尖冒星）
+   * 结构：
+   *   <button class="btn-playful">
+   *     <span class="tape" aria-hidden>📎</span>
+   *     <Icon class="icon"/>
+   *     <span class="body">
+   *       <span class="main funny-underline">主文案</span>
+   *       <span class="sub">副文案（俏皮话）</span>
+   *     </span>
+   *     <span class="playful-tail">✍️<em class="spark"/></span>
+   *   </button>
+   * ============================================================ */
+  .btn-playful {
+    --btn-pad-y: 11px;
+    --btn-pad-x: 18px;
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    padding: var(--btn-pad-y) var(--btn-pad-x) var(--btn-pad-y) calc(var(--btn-pad-x) + 6px);
+    min-height: 52px;
+    color: #fff;
+    border-radius: 18px 22px 20px 24px / 22px 20px 24px 18px;
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    background:
+      repeating-linear-gradient(
+        45deg,
+        rgba(255, 255, 255, 0.05) 0 2px,
+        transparent 2px 8px
+      ),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0)) 50% 0 / 100% 52% no-repeat,
+      linear-gradient(135deg, #9C94FF 0%, #7C73FF 30%, #6F6FFF 52%, var(--brand) 80%, var(--brand-700) 100%);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.28) inset,
+      0 -2px 0 rgba(0, 0, 0, 0.18) inset,
+      0 3px 0 rgba(75, 63, 227, 0.12),
+      0 10px 24px -10px rgba(75, 63, 227, 0.62);
+    text-shadow: 0 1px 1px rgba(26, 23, 89, 0.5);
+    cursor: pointer;
+    user-select: none;
+    isolation: isolate;
+    transform: rotate(-0.6deg);
+    transition: transform 180ms var(--ease-out-cubic), box-shadow 220ms, filter 220ms;
+  }
+  .btn-playful .tape {
+    position: absolute;
+    top: -10px;
+    left: 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 46px;
+    height: 22px;
+    font-size: 11px;
+    color: #8a7427;
+    background: rgba(255, 236, 153, 0.72);
+    border-left: 1px dashed rgba(200, 175, 90, 0.45);
+    border-right: 1px dashed rgba(200, 175, 90, 0.45);
+    box-shadow: 0 2px 6px -2px rgba(140, 116, 39, 0.35);
+    transform: rotate(-7deg);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    line-height: 1;
+    z-index: 2;
+  }
+  html.dark .btn-playful .tape { background: rgba(255, 236, 153, 0.55); color: #c7b26a; }
+  .btn-playful > .icon,
+  .btn-playful > svg:first-of-type { width: 18px; height: 18px; flex: none; filter: drop-shadow(0 1px 1px rgba(0,0,0,.25)); }
+
+  .btn-playful .body {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    line-height: 1.1;
+  }
+  .btn-playful .main {
+    position: relative;
+    display: inline-block;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+  }
+  .btn-playful .funny-underline::after {
+    content: '';
+    position: absolute;
+    left: -2px;
+    right: -2px;
+    bottom: -4px;
+    height: 5px;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 100% 100%;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 6' preserveAspectRatio='none'><path d='M1 4 C 8 0.5, 15 5.5, 22 2 S 36 0.2, 43 4 S 57 5.8, 64 2 S 76 0.6, 79 4' fill='none' stroke='%23FFE98A' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+    opacity: 0.95;
+  }
+  .btn-playful .sub {
+    font-size: 10.5px;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    color: rgba(255, 255, 255, 0.82);
+  }
+
+  .btn-playful:hover {
+    filter: brightness(1.07) saturate(1.05);
+    transform: translateY(-1.5px) rotate(-0.2deg);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.34) inset,
+      0 -2px 0 rgba(0, 0, 0, 0.18) inset,
+      0 0 0 1px rgba(139, 143, 255, 0.6),
+      0 16px 34px -12px rgba(139, 143, 255, 0.82);
+  }
+  .btn-playful:active {
+    transform: translateY(1.5px) rotate(-0.9deg) scale(0.99);
+    filter: brightness(0.97);
+    box-shadow:
+      0 3px 6px rgba(0, 0, 0, 0.22) inset,
+      0 0 0 1px rgba(75, 63, 227, 0.42),
+      0 6px 14px -6px rgba(75, 63, 227, 0.5);
+  }
+
+  .btn-playful .playful-tail {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    font-size: 18px;
+    transform-origin: 65% 85%;
+  }
+  .btn-playful:hover .playful-tail {
+    animation: playfulWiggle 700ms ease-in-out infinite;
+  }
+  .btn-playful .playful-tail .spark {
+    position: absolute;
+    top: -2px;
+    right: -6px;
+    width: 6px; height: 6px;
+    border-radius: 999px;
+    background: #FFF1A8;
+    box-shadow: 0 0 8px 2px rgba(255, 230, 120, 0.95);
+    opacity: 0;
+    pointer-events: none;
+  }
+  .btn-playful:hover .playful-tail .spark { animation: sparkleFloat 1.1s ease-in-out infinite; }
+  .btn-playful:hover .playful-tail .spark::before,
+  .btn-playful:hover .playful-tail .spark::after {
+    content: '';
+    position: absolute;
+    border-radius: 999px;
+    background: #FFF1A8;
+    box-shadow: 0 0 6px 1px rgba(255, 230, 120, 0.9);
+    opacity: 0;
+  }
+  .btn-playful:hover .playful-tail .spark::before {
+    width: 4px; height: 4px; top: -8px; right: 8px;
+    animation: sparkleFloat 1.1s ease-in-out infinite;
+    animation-delay: -0.35s;
+  }
+  .btn-playful:hover .playful-tail .spark::after {
+    width: 3px; height: 3px; top: 4px; right: -8px;
+    animation: sparkleFloat 1.1s ease-in-out infinite;
+    animation-delay: -0.7s;
+  }
+  @keyframes playfulWiggle {
+    0%, 100% { transform: rotate(-8deg); }
+    25%      { transform: rotate(10deg) translateY(-1px); }
+    50%      { transform: rotate(-6deg); }
+    75%      { transform: rotate(8deg) translateY(-1px); }
+  }
+  @keyframes sparkleFloat {
+    0%   { transform: translate(0, 0) scale(0.3); opacity: 0; }
+    20%  { transform: translate(2px, -6px) scale(1); opacity: 1; }
+    60%  { transform: translate(-2px, -14px) scale(0.8); opacity: 0.9; }
+    100% { transform: translate(3px, -22px) scale(0.2); opacity: 0; }
+  }
+
+  .btn-playful.sm {
+    --btn-pad-y: 8px;
+    --btn-pad-x: 14px;
+    min-height: 36px;
+    transform: rotate(-0.3deg);
+    gap: 7px;
+    padding-left: calc(var(--btn-pad-x) + 4px);
+  }
+  .btn-playful.sm .tape {
+    width: 34px; height: 18px; font-size: 10px;
+    top: -8px; left: 10px;
+  }
+  .btn-playful.sm > .icon,
+  .btn-playful.sm > svg:first-of-type { width: 14px; height: 14px; }
+  .btn-playful.sm .main { font-size: 12.5px; }
+  .btn-playful.sm .funny-underline::after { bottom: -3px; height: 4px; }
+  .btn-playful.sm .sub { display: none; }
+  .btn-playful.sm .playful-tail { font-size: 14px; }
+
+  /* ============================================================
+   * btn-chip · 风趣紧凑芯片（悬浮数据卡）
+   * - 每个按钮配一个 emoji 图标 + 更短更口语的文案
+   * - hover 时"俏皮抖一下"（rotate ±0.8deg）+ 手绘小短虚线
+   * ============================================================ */
+  .btn-chip {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 5px;
+    height: 28px;
+    padding: 0 8px;
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 1;
+    color: var(--text);
+    border-radius: 8px 10px 9px 11px / 10px 9px 11px 8px;
+    border: 1px solid var(--border-strong);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0)) 0 0 / 100% 50% no-repeat,
+      var(--surface-elevated);
+    cursor: pointer;
+    user-select: none;
+    overflow: hidden;
+    white-space: nowrap;
+    transition: border-color 140ms, background 160ms, color 140ms,
+                transform 120ms var(--ease-out-cubic), box-shadow 160ms;
+  }
+  html.dark .btn-chip {
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0)) 0 0 / 100% 50% no-repeat,
+      var(--surface-elevated);
+  }
+  .btn-chip .chip-emoji {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px; height: 16px;
+    flex: none;
+    font-size: 12px;
+    line-height: 1;
+    border-radius: 5px;
+    background: rgba(139, 143, 255, 0.12);
+    transform: translateY(-0.5px);
+  }
+  html.dark .btn-chip .chip-emoji { background: rgba(139, 143, 255, 0.18); }
+  .btn-chip .chip-text {
+    position: relative;
+  }
+  .btn-chip .chip-text::after {
+    content: '';
+    position: absolute;
+    left: 0; right: 0;
+    bottom: -4px;
+    height: 0;
+    border-top: 1px dashed transparent;
+    transition: border-color 160ms;
+  }
+  .btn-chip:hover .chip-text::after {
+    border-top-color: currentColor;
+    opacity: 0.7;
+  }
+  .btn-chip:hover {
+    border-color: var(--brand-300);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0)) 0 0 / 100% 50% no-repeat,
+      var(--brand-soft);
+    color: var(--brand-700);
+    transform: translateY(-1px) rotate(0.6deg);
+    box-shadow: 0 6px 14px -10px rgba(75, 63, 227, 0.55);
+  }
+  html.dark .btn-chip:hover {
+    border-color: var(--brand-500);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0)) 0 0 / 100% 50% no-repeat,
+      rgba(96, 84, 241, 0.14);
+    color: var(--brand-200);
+    transform: translateY(-1px) rotate(-0.6deg);
+  }
+  .btn-chip:active {
+    transform: translateY(1px) scale(0.99) rotate(0deg);
+    box-shadow: none;
+  }
+  .btn-chip svg { display: none; }
+
+  /* chip 主按钮变体（紫色渐变 + 文字黄波浪下划线） */
+  .btn-chip.primary {
+    color: #fff;
+    border-color: transparent;
+    background:
+      repeating-linear-gradient(
+        45deg,
+        rgba(255, 255, 255, 0.06) 0 2px,
+        transparent 2px 7px
+      ),
+      linear-gradient(135deg, #8B8FFF 0%, #6F6FFF 45%, var(--brand) 100%);
+    text-shadow: 0 1px 1px rgba(26, 23, 89, 0.42);
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.22) inset,
+                0 0 0 1px rgba(75, 63, 227, 0.22),
+                0 6px 14px -10px rgba(75, 63, 227, 0.6);
+  }
+  .btn-chip.primary .chip-emoji { background: rgba(255, 255, 255, 0.18); }
+  .btn-chip.primary .chip-text::after {
+    border-top-style: solid;
+    border-top-width: 1.5px;
+    border-top-color: rgba(255, 233, 138, 0.9);
+    border-radius: 2px;
+    opacity: 0.9;
+    bottom: -4.5px;
+  }
+  .btn-chip.primary:hover {
+    filter: brightness(1.06);
+    color: #fff;
+    background:
+      repeating-linear-gradient(
+        45deg,
+        rgba(255, 255, 255, 0.08) 0 2px,
+        transparent 2px 7px
+      ),
+      linear-gradient(135deg, #9C94FF 0%, #7C73FF 40%, #6F6FFF 65%, var(--brand) 100%);
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.3) inset,
+                0 0 0 1px rgba(139, 143, 255, 0.55),
+                0 12px 24px -12px rgba(139, 143, 255, 0.85);
+    transform: translateY(-1px) rotate(-0.5deg);
+  }
+  .btn-chip.primary:active { filter: brightness(0.97); }
 }
 
 /* ---------- 工具层（Tailwind 默认 utilities 已足够，此处仅做少量补充） ---------- */

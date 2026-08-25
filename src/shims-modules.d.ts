@@ -20,3 +20,17 @@ declare module 'vanta/dist/vanta.net.min.js' {
   const NET: (opts: VantaOptions) => VantaEffect
   export default NET
 }
+
+declare module 'three/examples/jsm/renderers/CSS2DRenderer.js' {
+  export class CSS2DRenderer {
+    domElement: HTMLElement
+    setSize(width: number, height: number): void
+    render(scene: any, camera: any): void
+  }
+  export class CSS2DObject {
+    element: HTMLElement
+    position: any
+    userData: Record<string, any>
+    constructor(element: HTMLElement)
+  }
+}
