@@ -1,11 +1,13 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
 import { AuthService } from '../auth.service';
 
 /**
- * JWT Strategy：解析请求头里的 Bearer Token，取出 userId 注入到 req.user
+ * JWT Strategy：解析 Authorization: Bearer <token>
+ * payload 中的 sub → userId
+ * 验证后注入 req.user = { id, role }
  */
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
@@ -21,6 +23,10 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   }
 
   async validate(payload: any) {
-    return this.authService.validateUser(payload.sub);
+    const user = await this.authService.validateUser(payload.sub);
+    if (user.id === 0) {
+      throw new UnauthorizedException('Token 无效或用户不存在');
+    }
+    return user;
   }
 }

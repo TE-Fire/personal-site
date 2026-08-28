@@ -1,8 +1,8 @@
-import { IsNotEmpty, IsString, MinLength } from 'class-validator';
+import { IsNotEmpty, IsNumber, IsString, MinLength } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 /**
- * 登录请求参数
+ * 登录请求参数（含验证码）
  */
 export class LoginDto {
   @ApiProperty({ description: '用户名', example: 'admin' })
@@ -10,19 +10,19 @@ export class LoginDto {
   @IsNotEmpty({ message: '用户名不能为空' })
   username: string;
 
-  @ApiProperty({ description: '密码', minLength: 6, example: '123456' })
+  @ApiProperty({ description: '密码', minLength: 6, example: 'admin123' })
   @IsString({ message: '密码必须是字符串' })
   @MinLength(6, { message: '密码至少 6 位' })
   password: string;
-}
 
-/**
- * 注册请求参数
- */
-export class RegisterDto extends LoginDto {
-  @ApiProperty({ description: '昵称', example: 'TE-Fire', required: false })
-  @IsString()
-  nickname?: string;
+  @ApiProperty({ description: '验证码 ID', example: 'a1b2c3d4-...' })
+  @IsString({ message: '验证码 ID 必须是字符串' })
+  @IsNotEmpty({ message: '验证码 ID 不能为空' })
+  captchaId: string;
+
+  @ApiProperty({ description: '滑块拖动 x 坐标', example: 127 })
+  @IsNumber({}, { message: '滑块位置必须是数字' })
+  slideX: number;
 }
 
 /**
@@ -32,4 +32,17 @@ export interface TokenPayload {
   accessToken: string;
   expiresIn: number;   // 秒
   tokenType: string;   // Bearer
+}
+
+/**
+ * 用户信息（GET /auth/profile 响应）
+ * 与前端 authStore 字段完全一致
+ */
+export interface UserProfile {
+  id: number;
+  username: string;
+  nickname: string;
+  email: string | null;
+  avatar: string | null;
+  role: string;
 }

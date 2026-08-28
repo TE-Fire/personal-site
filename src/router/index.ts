@@ -3,6 +3,7 @@ import {
   createWebHashHistory,
   type RouteRecordRaw
 } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
 
 /**
  * 路由表（v1.0 · 首版只注册 6 条主路由 + 通配 404）。
@@ -15,6 +16,12 @@ const routes: RouteRecordRaw[] = [
     name: 'Home',
     component: () => import('@/pages/HomePage.vue'),
     meta: { title: '首页', icon: 'Home' }
+  },
+  {
+    path: '/login',
+    name: 'Login',
+    component: () => import('@/pages/LoginPage.vue'),
+    meta: { title: '登录', requiresAuth: false }
   },
   {
     path: '/about',
@@ -38,19 +45,19 @@ const routes: RouteRecordRaw[] = [
     path: '/blog/new',
     name: 'BlogNew',
     component: () => import('@/pages/BlogEditorPage.vue'),
-    meta: { title: '新建文章' }
+    meta: { title: '新建文章', requiresAuth: true }
   },
   {
     path: '/blog/tags',
     name: 'BlogTags',
     component: () => import('@/pages/BlogTagsPage.vue'),
-    meta: { title: '标签管理' }
+    meta: { title: '标签管理', requiresAuth: true }
   },
   {
     path: '/blog/:slug/edit',
     name: 'BlogEdit',
     component: () => import('@/pages/BlogEditorPage.vue'),
-    meta: { title: '编辑文章' },
+    meta: { title: '编辑文章', requiresAuth: true },
     props: true
   },
   {
@@ -114,6 +121,30 @@ const router = createRouter({
     if (savedPosition) return savedPosition
     return { top: 0, left: 0 }
   }
+})
+
+/**
+ * beforeEach 钩子：需要登录的页面检查 Token
+ * meta.requiresAuth = true 的路由，未登录 → 跳转 /login?redirect=原路径
+ */
+router.beforeEach((to, _from, next) => {
+  const authStore = useAuthStore()
+
+  if (to.meta?.requiresAuth && !authStore.isLoggedIn) {
+    next({
+      path: '/login',
+      query: { redirect: to.fullPath },
+    })
+    return
+  }
+
+  // 已登录用户访问登录页 → 重定向首页
+  if (to.path === '/login' && authStore.isLoggedIn) {
+    next({ path: '/' })
+    return
+  }
+
+  next()
 })
 
 /**

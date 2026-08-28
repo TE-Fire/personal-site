@@ -31,6 +31,8 @@ export enum BizCode {
   USER_NOT_FOUND = 1003,
   PASSWORD_INVALID = 1004,
   USER_EXISTS = 1005,
+  CAPTCHA_INVALID = 1006,
+  CAPTCHA_EXPIRED = 1007,
 
   /** 文章/分类/标签相关 2xxx */
   POST_NOT_FOUND = 2001,

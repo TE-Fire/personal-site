@@ -5,15 +5,15 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
+import { CaptchaModule } from '../captcha/captcha.module';
 
 /**
- * Auth 模块：
- *   imports → 注册 JwtModule、PassportModule
- *   controllers → AuthController（公开登录/注册）
- *   providers → AuthService + JwtStrategy
+ * Auth 模块
+ * imports → JwtModule + PassportModule + CaptchaModule
  */
 @Module({
   imports: [
+    CaptchaModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],

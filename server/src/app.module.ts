@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { CommonModule } from './common/common.module';
+import { RedisModule } from './modules/redis/redis.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UserModule } from './modules/user/user.module';
 import { PostModule } from './modules/post/post.module';
@@ -12,7 +13,8 @@ import { AppController } from './app.controller';
  * imports 顺序：
  *   1. ConfigModule —— 环境变量最先加载
  *   2. CommonModule —— 全局基础设施（PrismaService 等）
- *   3. 业务模块 —— Auth / User / Post
+ *   3. RedisModule  —— 全局 Redis（验证码/缓存/Token）
+ *   4. 业务模块 —— Auth / User / Post
  */
 @Module({
   imports: [
@@ -21,6 +23,7 @@ import { AppController } from './app.controller';
       envFilePath: '.env',
     }),
     CommonModule,
+    RedisModule,
     AuthModule,
     UserModule,
     PostModule,
