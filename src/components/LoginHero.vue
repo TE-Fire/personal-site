@@ -227,89 +227,99 @@ watch(
       class="relative z-10 w-full translate-y-[5%] flex items-end justify-center"
     >
       <div class="flex items-end justify-center gap-0" style="width: 540px;">
-        <!-- ====== 角色 1：紫色方块（最高，左1） ====== -->
+        <!-- ====== 角色 1：紫色方块（最高，左1，150×240） ====== -->
         <div
           ref="rolePurple"
           class="shrink-0"
           style="width: 150px; height: 240px; margin-right: -24px; opacity: 0; z-index: 1;"
         >
           <div class="relative size-full rounded-[34px] bg-gradient-to-b from-purple-500 to-purple-700 shadow-2xl shadow-purple-500/40">
-            <!-- 左眼：眼白32px / 瞳孔14px 居中 -->
-            <div class="absolute left-6 top-16 size-8 relative rounded-full bg-white">
+            <!-- 左眼：眼白 32 / 瞳孔 14 居中 -->
+            <div
+              class="absolute relative rounded-full bg-white"
+              style="left: 24px; top: 60px; width: 32px; height: 32px;"
+            >
               <div
                 :ref="registerPupil"
-                class="absolute size-3.5 rounded-full bg-slate-900"
-                style="left: 9px; top: 9px;"
-              />
-              <div
-                class="absolute size-1.5 rounded-full bg-white"
-                style="left: 12px; top: 11px;"
-              />
+                class="absolute rounded-full bg-slate-900"
+                style="left: 9px; top: 9px; width: 14px; height: 14px;"
+              >
+                <div
+                  class="absolute rounded-full bg-white"
+                  style="left: 3px; top: 3px; width: 4px; height: 4px;"
+                />
+              </div>
             </div>
-            <!-- 右眼 -->
-            <div class="absolute right-6 top-16 size-8 relative rounded-full bg-white">
+            <!-- 右眼：眼白 32 / 瞳孔 14 居中 -->
+            <div
+              class="absolute relative rounded-full bg-white"
+              style="left: 94px; top: 60px; width: 32px; height: 32px;"
+            >
               <div
                 :ref="registerPupil"
-                class="absolute size-3.5 rounded-full bg-slate-900"
-                style="left: 9px; top: 9px;"
-              />
-              <div
-                class="absolute size-1.5 rounded-full bg-white"
-                style="left: 12px; top: 11px;"
-              />
+                class="absolute rounded-full bg-slate-900"
+                style="left: 9px; top: 9px; width: 14px; height: 14px;"
+              >
+                <div
+                  class="absolute rounded-full bg-white"
+                  style="left: 3px; top: 3px; width: 4px; height: 4px;"
+                />
+              </div>
             </div>
             <!-- 微笑 -->
             <div
-              class="absolute left-1/2 -translate-x-1/2 rounded-b-full border-b-[3px] border-white/90"
-              style="top: 132px; width: 44px; height: 14px;"
+              class="absolute rounded-b-full border-b-[3px] border-white/90"
+              style="left: 53px; top: 132px; width: 44px; height: 14px;"
             />
           </div>
         </div>
 
-        <!-- ====== 角色 2：橙色半圆（最矮，左2，最前景，带手） ====== -->
+        <!-- ====== 角色 2：橙色半圆（最矮，左2，210×150，最前景带手） ====== -->
         <div
           ref="roleOrange"
           class="shrink-0 relative"
           style="width: 210px; height: 150px; opacity: 0; z-index: 3;"
         >
           <div
-            class="absolute inset-x-0 bottom-0 rounded-t-full rounded-b-[48px] bg-gradient-to-b from-orange-400 via-orange-500 to-red-500 shadow-2xl shadow-orange-500/40 relative"
-            style="height: 140px;"
+            class="absolute bottom-0 rounded-t-full rounded-b-[48px] bg-gradient-to-b from-orange-400 via-orange-500 to-red-500 shadow-2xl shadow-orange-500/40 relative"
+            style="left: 0; right: 0; height: 140px;"
           >
-            <!-- 左眼：眼白40px / 瞳孔18px 居中 -->
+            <!-- 左眼：眼白 40 / 瞳孔 18 居中 -->
             <div
-              class="absolute size-10 relative rounded-full bg-white shadow-inner"
-              style="left: 48px; top: 28px;"
+              class="absolute relative rounded-full bg-white shadow-inner"
+              style="left: 48px; top: 28px; width: 40px; height: 40px;"
             >
               <div
                 :ref="registerPupil"
                 class="absolute rounded-full bg-slate-900"
-                style="width: 18px; height: 18px; left: 11px; top: 11px;"
-              />
-              <div
-                class="absolute size-1.5 rounded-full bg-white"
-                style="left: 15px; top: 13px;"
-              />
+                style="left: 11px; top: 11px; width: 18px; height: 18px;"
+              >
+                <div
+                  class="absolute rounded-full bg-white"
+                  style="left: 4px; top: 4px; width: 5px; height: 5px;"
+                />
+              </div>
             </div>
-            <!-- 右眼 -->
+            <!-- 右眼：眼白 40 / 瞳孔 18 居中 -->
             <div
-              class="absolute size-10 relative rounded-full bg-white shadow-inner"
-              style="right: 48px; top: 28px;"
+              class="absolute relative rounded-full bg-white shadow-inner"
+              style="left: 122px; top: 28px; width: 40px; height: 40px;"
             >
               <div
                 :ref="registerPupil"
                 class="absolute rounded-full bg-slate-900"
-                style="width: 18px; height: 18px; left: 11px; top: 11px;"
-              />
-              <div
-                class="absolute size-1.5 rounded-full bg-white"
-                style="left: 15px; top: 13px;"
-              />
+                style="left: 11px; top: 11px; width: 18px; height: 18px;"
+              >
+                <div
+                  class="absolute rounded-full bg-white"
+                  style="left: 4px; top: 4px; width: 5px; height: 5px;"
+                />
+              </div>
             </div>
             <!-- 微笑 -->
             <div
-              class="absolute left-1/2 -translate-x-1/2 rounded-b-full border-b-[3px] border-slate-900/80"
-              style="top: 82px; width: 56px; height: 16px;"
+              class="absolute rounded-b-full border-b-[3px] border-slate-900/80"
+              style="left: 77px; top: 82px; width: 56px; height: 16px;"
             />
             <!-- 腮红 -->
             <div
@@ -318,10 +328,10 @@ watch(
             />
             <div
               class="absolute rounded-full bg-red-500/50 blur-[2px]"
-              style="right: 20px; top: 64px; width: 20px; height: 20px;"
+              style="left: 170px; top: 64px; width: 20px; height: 20px;"
             />
           </div>
-          <!-- 左手 -->
+          <!-- 左手（遮眼） -->
           <div
             ref="handLeft"
             class="absolute size-11 rounded-full bg-orange-600 shadow-md ring-2 ring-orange-400/40"
@@ -329,85 +339,88 @@ watch(
           >
             <div class="absolute inset-1 rounded-full bg-orange-500" />
           </div>
-          <!-- 右手 -->
+          <!-- 右手（遮眼） -->
           <div
             ref="handRight"
             class="absolute size-11 rounded-full bg-orange-600 shadow-md ring-2 ring-orange-400/40"
-            style="right: 28px; top: 58px; transform: translateY(80px);"
+            style="left: 158px; top: 58px; transform: translateY(80px);"
           >
             <div class="absolute inset-1 rounded-full bg-orange-500" />
           </div>
         </div>
 
-        <!-- ====== 角色 3：深灰长条（次高，右2） ====== -->
+        <!-- ====== 角色 3：深灰长条（次高，右2，120×270） ====== -->
         <div
           ref="roleDark"
           class="shrink-0"
           style="width: 120px; height: 270px; margin-left: -20px; margin-right: -34px; opacity: 0; z-index: 1;"
         >
           <div class="relative size-full rounded-[32px] bg-gradient-to-b from-slate-700 to-slate-900 shadow-2xl shadow-slate-700/40">
-            <!-- 左眼：眼白28px / 瞳孔12px 居中 -->
+            <!-- 左眼：眼白 28 / 瞳孔 12 居中 -->
             <div
-              class="absolute size-7 relative rounded-full bg-white"
-              style="left: 20px; top: 72px;"
+              class="absolute relative rounded-full bg-white"
+              style="left: 20px; top: 72px; width: 28px; height: 28px;"
             >
               <div
                 :ref="registerPupil"
-                class="absolute size-3 rounded-full bg-slate-900"
-                style="left: 8px; top: 8px;"
-              />
-              <div
-                class="absolute size-1 rounded-full bg-white"
-                style="left: 11px; top: 10px;"
-              />
+                class="absolute rounded-full bg-slate-900"
+                style="left: 8px; top: 8px; width: 12px; height: 12px;"
+              >
+                <div
+                  class="absolute rounded-full bg-white"
+                  style="left: 3px; top: 2px; width: 3px; height: 3px;"
+                />
+              </div>
             </div>
-            <!-- 右眼 -->
+            <!-- 右眼：眼白 28 / 瞳孔 12 居中 -->
             <div
-              class="absolute size-7 relative rounded-full bg-white"
-              style="right: 20px; top: 72px;"
+              class="absolute relative rounded-full bg-white"
+              style="left: 72px; top: 72px; width: 28px; height: 28px;"
             >
               <div
                 :ref="registerPupil"
-                class="absolute size-3 rounded-full bg-slate-900"
-                style="left: 8px; top: 8px;"
-              />
-              <div
-                class="absolute size-1 rounded-full bg-white"
-                style="left: 11px; top: 10px;"
-              />
+                class="absolute rounded-full bg-slate-900"
+                style="left: 8px; top: 8px; width: 12px; height: 12px;"
+              >
+                <div
+                  class="absolute rounded-full bg-white"
+                  style="left: 3px; top: 2px; width: 3px; height: 3px;"
+                />
+              </div>
             </div>
             <!-- 严肃嘴 -->
             <div
-              class="absolute left-1/2 -translate-x-1/2 rounded-full bg-white/90"
-              style="top: 130px; width: 32px; height: 4px;"
+              class="absolute rounded-full bg-white/90"
+              style="left: 44px; top: 130px; width: 32px; height: 4px;"
             />
           </div>
         </div>
 
-        <!-- ====== 角色 4：黄色胶囊（中矮，右1） ====== -->
+        <!-- ====== 角色 4：黄色胶囊（中矮，右1，125×210） ====== -->
         <div
           ref="roleYellow"
           class="shrink-0"
           style="width: 125px; height: 210px; opacity: 0; z-index: 2;"
         >
           <div class="relative size-full rounded-[62px] bg-gradient-to-b from-yellow-300 to-yellow-500 shadow-2xl shadow-yellow-400/40">
-            <!-- 小圆点眼睛：眼白14px / 瞳孔14px（即纯黑点，无眼白） -->
+            <!-- 左眼（纯黑点，无眼白） -->
             <div
               class="absolute rounded-full bg-slate-900"
               style="left: 32px; top: 64px; width: 14px; height: 14px;"
             >
               <div :ref="registerPupil" class="size-full" />
             </div>
+            <!-- 右眼（纯黑点，无眼白） -->
             <div
               class="absolute rounded-full bg-slate-900"
-              style="right: 32px; top: 64px; width: 14px; height: 14px;"
+              style="left: 79px; top: 64px; width: 14px; height: 14px;"
             >
               <div :ref="registerPupil" class="size-full" />
             </div>
             <!-- 扁平嘴 -->
             <div
-              class="absolute left-1/2 -translate-x-1/2 rounded-full bg-slate-800"
-              style="top: 100px; width: 28px; height: 6px;"
+              class="absolute rounded-full bg-slate-800"
+              style="left: 48px; top: 100px; width: 28px; height: 6px;"
             />
             <!-- 腮红 -->
             <div
@@ -416,7 +429,7 @@ watch(
             />
             <div
               class="absolute rounded-full bg-orange-400/50 blur-[2px]"
-              style="right: 10px; top: 84px; width: 18px; height: 18px;"
+              style="left: 97px; top: 84px; width: 18px; height: 18px;"
             />
           </div>
         </div>
