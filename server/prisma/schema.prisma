@@ -1,0 +1,45 @@
+// ============================================================
+// Prisma schema
+//
+// 生成 Client：npx prisma generate
+// 数据库已用 prisma/init.sql 初始化（含 admin 账号）
+//
+// 字段映射约定（Prisma → MySQL 实际列名）：
+//   · camelCase 字段名 → @map("snake_case")
+//   · 表名（model 名 PascalCase）→ @@map("lowercase_snake")
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+/// 博主账号表
+model User {
+  /// 主键 id（自增，前端 UserProfile.id）
+  id        Int      @id @default(autoincrement())
+  /// 登录用户名（唯一）
+  username  String   @unique @db.VarChar(50)
+  /// bcrypt 加密的密码（不返回前端）
+  password  String   @db.VarChar(100)
+  /// 昵称
+  nickname  String?  @db.VarChar(50)
+  /// 邮箱
+  email     String?  @db.VarChar(100)
+  /// 头像URL
+  avatar    String?  @db.VarChar(500)
+  /// 角色：admin / guest
+  role      String   @default("admin") @db.VarChar(20)
+  /// 状态：1=正常 0=禁用
+  status    Int      @default(1) @db.TinyInt
+  /// 创建时间
+  createdAt DateTime @default(now()) @map("created_at")
+  /// 更新时间
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("user")
+}

@@ -1,33 +1,26 @@
 import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import * as bcrypt from 'bcrypt';
 import { BizCode, BusinessException } from '@/common/exception';
+import { PrismaService } from '@/common/prisma.service';
 import { CaptchaService } from '../captcha/captcha.service';
 import { LoginDto, TokenPayload, UserProfile } from './dto/auth.dto';
 
 /**
- * 认证 Service
- *
- * 阶段一（当前）：admin 凭据从 .env 读取，不依赖数据库
- * 阶段二（接入 MySQL 后）：替换为 Prisma user.findUnique + bcrypt.compare
+ * 认证 Service（阶段二：真实查数据库 + bcrypt 校验）
  */
 @Injectable()
 export class AuthService {
-  /** 从环境变量读取的博主凭据 */
-  private readonly adminUsername: string;
-  private readonly adminPassword: string;
-
   constructor(
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
     private readonly captchaService: CaptchaService,
-  ) {
-    this.adminUsername = this.config.get('ADMIN_USERNAME') || 'admin';
-    this.adminPassword = this.config.get('ADMIN_PASSWORD') || 'admin123';
-  }
+    private readonly prisma: PrismaService,
+  ) {}
 
   /**
-   * 登录：先校验验证码，再校验凭据，最后签发 JWT
+   * 登录：先校验验证码，再查 user 表 + bcrypt.compare，最后签发 JWT
    */
   async login(dto: LoginDto): Promise<TokenPayload> {
     // 1. 校验滑块验证码
@@ -42,23 +35,32 @@ export class AuthService {
       );
     }
 
-    // 2. 校验用户名密码（阶段一：直接比对 .env）
-    if (
-      dto.username !== this.adminUsername ||
-      dto.password !== this.adminPassword
-    ) {
+    // 2. 查 user 表
+    const user = await this.prisma.user.findUnique({
+      where: { username: dto.username },
+    });
+    if (!user || user.status !== 1) {
       throw new BusinessException(
         '用户名或密码错误',
         BizCode.PASSWORD_INVALID,
       );
     }
 
-    // 3. 签发 JWT
-    const expiresIn = 7 * 24 * 60 * 60; // 7 天
+    // 3. bcrypt 校验密码
+    const ok = await bcrypt.compare(dto.password, user.password);
+    if (!ok) {
+      throw new BusinessException(
+        '用户名或密码错误',
+        BizCode.PASSWORD_INVALID,
+      );
+    }
+
+    // 4. 签发 JWT
+    const expiresIn = 7 * 24 * 60 * 60; // 7 天（秒）
     const payload = {
-      sub: 1, // userId（后续替换为 Prisma user.id）
-      username: this.adminUsername,
-      role: 'admin',
+      sub: user.id,
+      username: user.username,
+      role: user.role,
     };
     const accessToken = this.jwt.sign(payload, {
       expiresIn,
@@ -73,32 +75,41 @@ export class AuthService {
   }
 
   /**
-   * 获取当前登录用户信息
+   * 获取当前登录用户信息（GET /auth/profile）
    * 与前端 authStore.user 字段完全一致
    */
   async profile(userId: number): Promise<UserProfile> {
-    // 阶段一：返回 .env 配置的博主信息
-    if (userId !== 1) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        username: true,
+        nickname: true,
+        email: true,
+        avatar: true,
+        role: true,
+      },
+    });
+
+    if (!user) {
       throw new BusinessException('用户不存在', BizCode.USER_NOT_FOUND);
     }
 
-    return {
-      id: 1,
-      username: this.adminUsername,
-      nickname: this.config.get('ADMIN_NICKNAME') || 'TE-Fire',
-      email: this.config.get('ADMIN_EMAIL') || null,
-      avatar: this.config.get('ADMIN_AVATAR') || null,
-      role: 'admin',
-    };
+    return user;
   }
 
   /**
    * JWT Strategy 回调：校验 Token 中的用户
    */
   async validateUser(userId: number): Promise<{ id: number; role: string }> {
-    if (userId !== 1) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, role: true, status: true },
+    });
+
+    if (!user || user.status !== 1) {
       return { id: 0, role: 'guest' };
     }
-    return { id: userId, role: 'admin' };
+    return { id: user.id, role: user.role };
   }
 }
