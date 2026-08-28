@@ -234,9 +234,9 @@ watch(
           style="width: 150px; height: 240px; margin-right: -24px; opacity: 0; z-index: 1;"
         >
           <div class="relative size-full rounded-[34px] bg-gradient-to-b from-purple-500 to-purple-700 shadow-2xl shadow-purple-500/40">
-            <!-- 左眼：眼白 32 / 瞳孔 14 居中 -->
+            <!-- 左眼：眼白 32 / 瞳孔 14 居中（absolute 自身作为 containing block，不必再加 relative） -->
             <div
-              class="absolute relative rounded-full bg-white"
+              class="absolute rounded-full bg-white"
               style="left: 24px; top: 60px; width: 32px; height: 32px;"
             >
               <div
@@ -250,9 +250,9 @@ watch(
                 />
               </div>
             </div>
-            <!-- 右眼：眼白 32 / 瞳孔 14 居中 -->
+            <!-- 右眼 -->
             <div
-              class="absolute relative rounded-full bg-white"
+              class="absolute rounded-full bg-white"
               style="left: 94px; top: 60px; width: 32px; height: 32px;"
             >
               <div
@@ -281,12 +281,12 @@ watch(
           style="width: 210px; height: 150px; opacity: 0; z-index: 3;"
         >
           <div
-            class="absolute bottom-0 rounded-t-full rounded-b-[48px] bg-gradient-to-b from-orange-400 via-orange-500 to-red-500 shadow-2xl shadow-orange-500/40 relative"
+            class="absolute bottom-0 rounded-t-full rounded-b-[48px] bg-gradient-to-b from-orange-400 via-orange-500 to-red-500 shadow-2xl shadow-orange-500/40"
             style="left: 0; right: 0; height: 140px;"
           >
             <!-- 左眼：眼白 40 / 瞳孔 18 居中 -->
             <div
-              class="absolute relative rounded-full bg-white shadow-inner"
+              class="absolute rounded-full bg-white shadow-inner"
               style="left: 48px; top: 28px; width: 40px; height: 40px;"
             >
               <div
@@ -300,9 +300,9 @@ watch(
                 />
               </div>
             </div>
-            <!-- 右眼：眼白 40 / 瞳孔 18 居中 -->
+            <!-- 右眼 -->
             <div
-              class="absolute relative rounded-full bg-white shadow-inner"
+              class="absolute rounded-full bg-white shadow-inner"
               style="left: 122px; top: 28px; width: 40px; height: 40px;"
             >
               <div
@@ -358,7 +358,7 @@ watch(
           <div class="relative size-full rounded-[32px] bg-gradient-to-b from-slate-700 to-slate-900 shadow-2xl shadow-slate-700/40">
             <!-- 左眼：眼白 28 / 瞳孔 12 居中 -->
             <div
-              class="absolute relative rounded-full bg-white"
+              class="absolute rounded-full bg-white"
               style="left: 20px; top: 72px; width: 28px; height: 28px;"
             >
               <div
@@ -372,9 +372,9 @@ watch(
                 />
               </div>
             </div>
-            <!-- 右眼：眼白 28 / 瞳孔 12 居中 -->
+            <!-- 右眼 -->
             <div
-              class="absolute relative rounded-full bg-white"
+              class="absolute rounded-full bg-white"
               style="left: 72px; top: 72px; width: 28px; height: 28px;"
             >
               <div
@@ -403,14 +403,14 @@ watch(
           style="width: 125px; height: 210px; opacity: 0; z-index: 2;"
         >
           <div class="relative size-full rounded-[62px] bg-gradient-to-b from-yellow-300 to-yellow-500 shadow-2xl shadow-yellow-400/40">
-            <!-- 左眼（纯黑点，无眼白） -->
+            <!-- 左眼（纯黑点） -->
             <div
               class="absolute rounded-full bg-slate-900"
               style="left: 32px; top: 64px; width: 14px; height: 14px;"
             >
               <div :ref="registerPupil" class="size-full" />
             </div>
-            <!-- 右眼（纯黑点，无眼白） -->
+            <!-- 右眼（纯黑点） -->
             <div
               class="absolute rounded-full bg-slate-900"
               style="left: 79px; top: 64px; width: 14px; height: 14px;"
