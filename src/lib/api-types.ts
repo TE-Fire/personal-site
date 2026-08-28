@@ -35,6 +35,12 @@ export interface UserProfile {
   role: string;
 }
 
+/** 修改密码请求参数 */
+export interface ChangePasswordParams {
+  oldPassword: string;
+  newPassword: string;
+}
+
 /** 验证码响应 */
 export interface CaptchaResponse {
   captchaId: string;

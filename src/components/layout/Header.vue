@@ -8,9 +8,10 @@
  */
 import { ref, computed, onMounted } from 'vue'
 import { useWindowScroll } from '@vueuse/core'
-import { Menu, X, Sparkles, LogOut, FileText } from 'lucide-vue-next'
+import { Menu, X, Sparkles, LogOut, FileText, KeyRound } from 'lucide-vue-next'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import ThemeToggle from './ThemeToggle.vue'
+import ChangePasswordDialog from '@/components/ChangePasswordDialog.vue'
 import { useAuthStore } from '@/stores/auth'
 
 const route = useRoute()
@@ -21,6 +22,7 @@ const scrolled = computed(() => y.value > 24)
 /* ---------- 认证状态 ---------- */
 const authStore = useAuthStore()
 const userMenuOpen = ref(false)
+const passwordDialogOpen = ref(false)
 
 /** 已登录但无用户信息时，拉取 profile */
 onMounted(async () => {
@@ -36,6 +38,22 @@ onMounted(async () => {
 
 function toggleUserMenu() { userMenuOpen.value = !userMenuOpen.value }
 function closeUserMenu() { userMenuOpen.value = false }
+
+/** 打开重置密码弹窗 */
+function openPasswordDialog() {
+  closeUserMenu()
+  passwordDialogOpen.value = true
+}
+function closePasswordDialog() {
+  passwordDialogOpen.value = false
+}
+
+/** 改密成功：强制登出并跳登录页（用新密码登录） */
+function handlePasswordChanged() {
+  passwordDialogOpen.value = false
+  authStore.logout()
+  router.push('/login')
+}
 
 /** 退出登录 */
 function handleLogout() {
@@ -169,6 +187,14 @@ function closeMenu() { menuOpen.value = false }
                 <Sparkles class="size-4" />
                 管理标签
               </RouterLink>
+              <button
+                type="button"
+                class="flex w-full items-center gap-2 px-4 py-2 text-sm text-text-muted hover:bg-surface-muted/40 hover:text-text"
+                @click="openPasswordDialog"
+              >
+                <KeyRound class="size-4" />
+                重置密码
+              </button>
               <div class="my-1 border-t border-border/40" />
               <button
                 type="button"
@@ -220,6 +246,13 @@ function closeMenu() { menuOpen.value = false }
         </nav>
       </div>
     </Transition>
+
+    <!-- 重置密码弹窗 -->
+    <ChangePasswordDialog
+      :open="passwordDialogOpen"
+      @close="closePasswordDialog"
+      @success="handlePasswordChanged"
+    />
   </header>
 </template>
 

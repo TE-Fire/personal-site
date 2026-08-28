@@ -7,7 +7,7 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { request } from '@/lib/axios';
-import type { LoginParams, TokenPayload, UserProfile } from '@/lib/api-types';
+import type { ChangePasswordParams, LoginParams, TokenPayload, UserProfile } from '@/lib/api-types';
 
 export const useAuthStore = defineStore('auth', () => {
   /* ---------- 状态 ---------- */
@@ -52,6 +52,18 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.removeItem('auth_token');
   }
 
+  /**
+   * 修改密码（需登录）
+   * 成功后调用方应强制登出跳登录页
+   */
+  async function changePassword(params: ChangePasswordParams): Promise<void> {
+    await request<null>({
+      method: 'POST',
+      url: '/auth/change-password',
+      data: params,
+    });
+  }
+
   return {
     token,
     user,
@@ -59,5 +71,6 @@ export const useAuthStore = defineStore('auth', () => {
     login,
     fetchProfile,
     logout,
+    changePassword,
   };
 });

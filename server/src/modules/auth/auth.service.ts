@@ -5,7 +5,7 @@ import * as bcrypt from 'bcrypt';
 import { BizCode, BusinessException } from '@/common/exception';
 import { PrismaService } from '@/common/prisma.service';
 import { CaptchaService } from '../captcha/captcha.service';
-import { LoginDto, TokenPayload, UserProfile } from './dto/auth.dto';
+import { ChangePasswordDto, LoginDto, TokenPayload, UserProfile } from './dto/auth.dto';
 
 /**
  * 认证 Service（阶段二：真实查数据库 + bcrypt 校验）
@@ -96,6 +96,39 @@ export class AuthService {
     }
 
     return user;
+  }
+
+  /**
+   * 修改密码（需登录）
+   * 流程：查 user → bcrypt.compare 校验旧密码 → bcrypt.hash 新密码 → prisma.update
+   */
+  async changePassword(userId: number, dto: ChangePasswordDto): Promise<void> {
+    // 1. 查用户（取 password 用于比对）
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, password: true, status: true },
+    });
+    if (!user || user.status !== 1) {
+      throw new BusinessException('用户不存在或已禁用', BizCode.USER_NOT_FOUND);
+    }
+
+    // 2. 校验旧密码
+    const ok = await bcrypt.compare(dto.oldPassword, user.password);
+    if (!ok) {
+      throw new BusinessException('旧密码错误', BizCode.PASSWORD_INVALID);
+    }
+
+    // 3. 新旧不能相同
+    if (dto.oldPassword === dto.newPassword) {
+      throw new BusinessException('新密码不能与旧密码相同', BizCode.BAD_REQUEST);
+    }
+
+    // 4. 加密 + 更新
+    const hashed = await bcrypt.hash(dto.newPassword, 10);
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { password: hashed },
+    });
   }
 
   /**

@@ -26,6 +26,21 @@ export class LoginDto {
 }
 
 /**
+ * 修改密码请求参数（需登录）
+ */
+export class ChangePasswordDto {
+  @ApiProperty({ description: '旧密码', example: 'admin123' })
+  @IsString({ message: '旧密码必须是字符串' })
+  @IsNotEmpty({ message: '旧密码不能为空' })
+  oldPassword: string;
+
+  @ApiProperty({ description: '新密码', minLength: 6, example: 'newpass123' })
+  @IsString({ message: '新密码必须是字符串' })
+  @MinLength(6, { message: '新密码至少 6 位' })
+  newPassword: string;
+}
+
+/**
  * 登录成功响应
  */
 export interface TokenPayload {

@@ -2,7 +2,7 @@ import { Body, Controller, Get, Post, UseGuards, Req } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { AuthService } from './auth.service';
-import { LoginDto, TokenPayload, UserProfile } from './dto/auth.dto';
+import { ChangePasswordDto, LoginDto, TokenPayload, UserProfile } from './dto/auth.dto';
 import { Result } from '@/common/result';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
@@ -29,5 +29,18 @@ export class AuthController {
     const user = req.user as { id: number };
     const data = await this.authService.profile(user.id);
     return Result.ok(data);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Post('change-password')
+  @ApiOperation({ summary: '修改密码（需登录，改完需重新登录）' })
+  async changePassword(
+    @Req() req: Request,
+    @Body() dto: ChangePasswordDto,
+  ): Promise<Result<null>> {
+    const user = req.user as { id: number };
+    await this.authService.changePassword(user.id, dto);
+    return Result.ok(null, '密码修改成功，请重新登录');
   }
 }
