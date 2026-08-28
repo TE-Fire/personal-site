@@ -4,7 +4,7 @@
 >
 > - 适用读者：刚加入项目的开发者 / 想快速回顾用法的自己
 > - 阅读前提：已了解 NestJS 模块化、依赖注入（DI）基本概念
-> - 文档版本：2026-08-28（auth 模块完成数据库接入后）
+> - 文档版本：2026-08-28（auth 模块完成登录 + 改密 + 跑通全链路）
 
 ---
 
@@ -385,7 +385,35 @@ instance.interceptors.request.use((config) => {
 
 后端 `ExtractJwt.fromAuthHeaderAsBearerToken()` 会自动从 `Authorization` Header 中提取。
 
-### 4.6 Token 过期与刷新
+### 4.6 修改密码接口（已实现）
+
+**路由**：`POST /api/auth/change-password`（需登录，JwtAuthGuard 保护）
+
+**流程**：
+```
+前端 ChangePasswordDialog 弹窗
+  → oldPassword + newPassword
+  → POST /auth/change-password (Bearer Token)
+
+后端 AuthService.changePassword()
+  1. PrismaService.user.findUnique({ where: { id: userId } })    ← 取 password 字段
+  2. bcrypt.compare(dto.oldPassword, user.password)              ← 校验旧密码
+  3. oldPassword === newPassword → 拒绝                         ← 新旧不能相同
+  4. bcrypt.hash(dto.newPassword, 10)                            ← 加密新密码
+  5. PrismaService.user.update({ where: { id: userId }, data: { password: hashed } })
+```
+
+**前端处理**：改密成功后 `authStore.logout()` + `router.push('/login')`，强制用新密码重新登录。
+
+**DTO**（[auth.dto.ts](file:///d:/personal-site/server/src/modules/auth/dto/auth.dto.ts)）：
+```typescript
+export class ChangePasswordDto {
+  oldPassword: string;   // @IsNotEmpty
+  newPassword: string;   // @MinLength(6)
+}
+```
+
+### 4.7 Token 过期与刷新
 
 当前实现：access token 7 天有效，过期需重新登录。
 
@@ -473,6 +501,35 @@ A: `CommonModule` 用了 `@Global()` 装饰器（[common.module.ts#L8](file:///d
 ### Q7: 我修改了 `.env` 但后端没生效？
 A: `nest start --watch` 只监听 `.ts` 文件改动，**不监听 `.env`**。需要重启后端（`Ctrl+C` 后重新 `npm run start:dev`）。
 
+### Q8: 浏览器控制台报 CORS 跨域被拦？
+A: 检查三个地方：
+1. 后端 `.env` 里的 `CORS_ORIGIN` 要包含前端实际运行的 **完整 origin**（协议 + 域名 + 端口），如 `http://127.0.0.1:5173` 和 `http://localhost:5173` 要**同时写**
+2. 修改 `.env` 后必须**重启后端**才生效
+3. 如果前端用了 vite proxy，确认 proxy 没有把 origin 改掉
+
+**踩坑实录**：前端跑在 `5173` 但 `.env` 只写了 `5175` 的 origin，导致所有 POST 请求的 CORS 预检返回 403。详见 [main.ts#L24-L31](file:///d:/personal-site/server/src/main.ts#L24-L31) 的 CORS 配置。
+
+### Q9: Prisma 可空字段 vs TypeScript 接口非空导致类型报错？
+A: Prisma 可空字段（`String?`）的 TS 类型是 `string | null`，但对外 DTO/Interface 可能定义成 `string`。两种处理方式：
+- **方式 A（推荐）**：Service 层返回前做 `null` 兜底，如 `nickname: user.nickname ?? user.username`
+- **方式 B**：把对外接口改成 `nickname?: string | null`
+
+**踩坑实录**：UserProfile 接口定义 `nickname: string`，Prisma `User.nickname` 是 `String?`，`auth.service.ts` profile 方法直接 `return user` 导致 `TS2322` 编译错误，后端无法启动，前端报"获取验证码失败"（实为后端挂了）。
+
+### Q10: 登录页需要验证码但后端返回"未找到验证码背景图"？
+A: 确保 [server/public/captcha-bg/](file:///d:/personal-site/server/public/captcha-bg/) 下有图片（`.jpg` / `.jpeg` / `.png`）。CaptchaService 会从该目录随机选一张 resize 到 300×180。没有图片或目录不存在会直接抛异常。
+
+---
+
+## 附：Auth 模块 API 清单
+
+| 方法 | 路径 | 鉴权 | 说明 |
+|---|---|---|---|
+| GET | `/api/auth/captcha` | ❌ | 获取滑块验证码（captchaId + base64 图片） |
+| POST | `/api/auth/login` | ❌ | 登录（需先通过验证码校验） |
+| GET | `/api/auth/profile` | ✅ JwtAuthGuard | 获取当前用户信息（不含 password） |
+| POST | `/api/auth/change-password` | ✅ JwtAuthGuard | 修改密码（旧密码 + 新密码） |
+
 ---
 
 ## 附：相关文件清单
@@ -483,7 +540,10 @@ A: `nest start --watch` 只监听 `.ts` 文件改动，**不监听 `.env`**。�
 | Prisma | [prisma/schema.prisma](file:///d:/personal-site/server/prisma/schema.prisma) · [prisma/init.sql](file:///d:/personal-site/server/prisma/init.sql) · [src/common/prisma.service.ts](file:///d:/personal-site/server/src/common/prisma.service.ts) · [src/common/common.module.ts](file:///d:/personal-site/server/src/common/common.module.ts) |
 | Redis | [src/modules/redis/redis.service.ts](file:///d:/personal-site/server/src/modules/redis/redis.service.ts) · [src/modules/redis/redis.module.ts](file:///d:/personal-site/server/src/modules/redis/redis.module.ts) |
 | JWT | [src/modules/auth/auth.module.ts](file:///d:/personal-site/server/src/modules/auth/auth.module.ts) · [src/modules/auth/auth.service.ts](file:///d:/personal-site/server/src/modules/auth/auth.service.ts) · [src/modules/auth/strategies/jwt.strategy.ts](file:///d:/personal-site/server/src/modules/auth/strategies/jwt.strategy.ts) · [src/modules/auth/guards/jwt-auth.guard.ts](file:///d:/personal-site/server/src/modules/auth/guards/jwt-auth.guard.ts) |
-| 三者协同范例 | [src/modules/auth/auth.service.ts](file:///d:/personal-site/server/src/modules/auth/auth.service.ts)（login 方法同时用了 Prisma + Redis + JWT） |
+| Auth DTO | [src/modules/auth/dto/auth.dto.ts](file:///d:/personal-site/server/src/modules/auth/dto/auth.dto.ts)（LoginDto + ChangePasswordDto） |
+| 验证码 | [src/modules/captcha/captcha.service.ts](file:///d:/personal-site/server/src/modules/captcha/captcha.service.ts) · [server/public/captcha-bg/](file:///d:/personal-site/server/public/captcha-bg/)（背景图目录） |
+| 前端相关 | [src/lib/axios.ts](file:///d:/personal-site/src/lib/axios.ts) · [src/stores/auth.ts](file:///d:/personal-site/src/stores/auth.ts) · [src/components/layout/Header.vue](file:///d:/personal-site/src/components/layout/Header.vue)（登出 + 重置密码入口） · [src/components/ChangePasswordDialog.vue](file:///d:/personal-site/src/components/ChangePasswordDialog.vue)（改密弹窗） |
+| 三者协同范例 | [src/modules/auth/auth.service.ts](file:///d:/personal-site/server/src/modules/auth/auth.service.ts)（login + changePassword 方法同时用了 Prisma + Redis + JWT + bcrypt） |
 
 ---
 
@@ -527,4 +587,4 @@ node scripts/verify-auth.js
 
 ---
 
-**最后更新**：2026-08-28 · auth 模块完成数据库接入 + 端到端实测通过
+**最后更新**：2026-08-28 · auth 模块完成登录 + 改密 + 跑通全链路 + CORS 配置说明

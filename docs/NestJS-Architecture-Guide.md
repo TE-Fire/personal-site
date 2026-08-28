@@ -334,44 +334,44 @@ export class TransformInterceptor implements NestInterceptor {
 ```
 personal-site-server/
 ├── src/
-│   ├── main.ts                  # 入口文件
-│   ├── app.module.ts            # 根模块
-│   ├── common/                  # 公共模块
-│   │   ├── decorators/          # 自定义装饰器
-│   │   ├── filters/             # 异常过滤器
-│   │   ├── guards/              # 守卫
-│   │   ├── interceptors/        # 拦截器
-│   │   └── pipes/               # 管道
-│   ├── config/                  # 配置模块
-│   │   └── configuration.ts
-│   ├── auth/                    # 认证模块
-│   │   ├── auth.module.ts
-│   │   ├── auth.controller.ts
-│   │   ├── auth.service.ts
-│   │   ├── jwt.strategy.ts
-│   │   └── dto/
-│   ├── users/                   # 用户模块
-│   │   ├── users.module.ts
-│   │   ├── users.controller.ts
-│   │   ├── users.service.ts
-│   │   └── entities/
-│   ├── posts/                   # 文章模块
-│   │   ├── posts.module.ts
-│   │   ├── posts.controller.ts
-│   │   ├── posts.service.ts
-│   │   ├── posts.repository.ts
-│   │   ├── dto/                 # 数据传输对象
-│   │   │   ├── create-post.dto.ts
-│   │   │   └── update-post.dto.ts
-│   │   └── entities/            # 实体定义
-│   │       └── post.entity.ts
-│   ├── tags/                    # 标签模块
-│   └── categories/              # 分类模块
+│   ├── main.ts                  # 入口文件（NestFactory.create + CORS + Helmet + Swagger）
+│   ├── app.module.ts            # 根模块（imports: ConfigModule, CommonModule, RedisModule, AuthModule）
+│   ├── common/                  # 公共模块（@Global，全局可用）
+│   │   ├── common.module.ts
+│   │   ├── prisma.service.ts    # PrismaClient 封装（继承 PrismaClient + OnModuleInit）
+│   │   ├── exception.ts         # BusinessException + BizCode 枚举
+│   │   ├── result.ts            # Result<T> 统一响应封装
+│   │   ├── global-exception.filter.ts   # 全局异常过滤器
+│   │   └── validation.pipe.ts   # 参数校验管道
+│   ├── modules/                 # 业务模块（按领域分目录）
+│   │   ├── auth/                # 认证模块
+│   │   │   ├── auth.module.ts
+│   │   │   ├── auth.controller.ts   # GET /auth/captcha, POST /auth/login, GET /auth/profile, POST /auth/change-password
+│   │   │   ├── auth.service.ts      # login + profile + validateUser + changePassword
+│   │   │   ├── strategies/
+│   │   │   │   └── jwt.strategy.ts  # Passport JWT 策略
+│   │   │   ├── guards/
+│   │   │   │   └── jwt-auth.guard.ts
+│   │   │   └── dto/
+│   │   │       └── auth.dto.ts       # LoginDto + ChangePasswordDto + UserProfile
+│   │   ├── captcha/             # 滑块验证码模块
+│   │   │   ├── captcha.module.ts
+│   │   │   ├── captcha.service.ts    # sharp 图片处理 + Redis 缓存 + 内存降级
+│   │   │   └── dto/
+│   │   │       └── captcha.dto.ts
+│   │   └── redis/               # Redis 模块（@Global）
+│   │       ├── redis.module.ts
+│   │       └── redis.service.ts      # ioredis 封装（set/get/del/exists）
+│   └── config/
+│       └── configuration.ts
 ├── prisma/
-│   ├── schema.prisma            # 数据模型
-│   └── migrations/              # 数据库迁移
-├── test/                        # 测试文件
-├── .env                         # 环境变量
+│   ├── schema.prisma            # 数据模型定义（PascalCase model → lowercase table via @@map）
+│   └── init.sql                 # 手写建库 + 建表 + 初始数据脚本（⚠️ 暂未用 prisma migrate）
+├── public/
+│   └── captcha-bg/              # 滑块验证码背景图（.jpg/.jpeg/.png，300×180 自动 resize）
+├── scripts/
+│   └── verify-auth.js           # 端到端登录验证脚本（captcha → login → profile → error test）
+├── .env                         # 环境变量（DATABASE_URL, REDIS_HOST, JWT_SECRET, CORS_ORIGIN 等）
 ├── tsconfig.json
 └── package.json
 ```
@@ -380,10 +380,12 @@ personal-site-server/
 
 | 原则 | 说明 |
 |------|------|
-| **按功能分模块** | 每个业务领域一个文件夹（如 posts、tags） |
-| **模块内分层** | `module` → `controller` → `service` → `repository` |
-| **公共代码集中** | `common/` 存放跨模块复用的组件 |
+| **按功能分模块** | 每个业务领域一个文件夹（auth、captcha、redis、后续 post/tag/comment...） |
+| **模块内分层** | `module` → `controller` → `service` → `dto`，暂不单独抽 repository（Prisma 直接在 service 里用） |
+| **公共代码集中** | `common/` 存放跨模块复用的组件（PrismaService、异常封装、全局过滤器） |
 | **配置与业务分离** | `config/` 管理环境变量和配置 |
+| **@Global 减少冗余** | CommonModule 和 RedisModule 用 `@Global()` 装饰器，业务模块无需重复 imports |
+| **手写 SQL 而非 migrate** | 改表结构直接改 `prisma/init.sql` 然后 source 执行，避免 prisma migrate 的漂移检测 |
 
 ---
 
