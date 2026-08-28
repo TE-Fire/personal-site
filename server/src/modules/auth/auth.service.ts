@@ -95,7 +95,11 @@ export class AuthService {
       throw new BusinessException('用户不存在', BizCode.USER_NOT_FOUND);
     }
 
-    return user;
+    // Prisma nickname 可空，兜底为 username，保持对外接口 nickname 必有值
+    return {
+      ...user,
+      nickname: user.nickname ?? user.username,
+    };
   }
 
   /**
