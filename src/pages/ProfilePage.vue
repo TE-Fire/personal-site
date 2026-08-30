@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 /**
  * ProfilePage · 个人工作台（/profile，requiresAuth）
  *
@@ -622,31 +622,35 @@ function resetAccount() {
 
             <!-- ========= 左侧：头像卡片 ========= -->
             <div class="space-y-4">
-              <Card class="p-6 flex flex-col items-center text-center gap-5 sticky top-24">
-                <!-- 圆形头像预览 -->
-                <div class="relative">
-                  <div class="size-36 md:size-40 rounded-full overflow-hidden ring-4 ring-brand/15 bg-surface-muted flex items-center justify-center">
-                    <img
-                      v-if="avatarPreview"
-                      :src="avatarPreview"
-                      alt="avatar"
-                      class="size-full object-cover"
-                      @error="avatarPreview = null"
-                    />
-                    <UserCircle2 v-else class="size-24 text-brand/50" :stroke-width="1.5" />
-                  </div>
-                  <!-- 上传按钮覆盖 -->
-                  <button
-                    type="button"
-                    class="absolute -bottom-1 -right-1 size-9 rounded-full bg-brand text-white shadow-md hover:bg-brand/90 transition flex items-center justify-center ring-2 ring-surface disabled:opacity-60"
-                    :disabled="avatarUploading"
-                    @click="triggerUpload"
-                    title="上传头像（展示头像 = 账号头像）"
-                  >
-                    <Camera v-if="!avatarUploading" class="size-4" />
-                    <Loader2 v-else class="size-4 animate-spin" />
-                  </button>
-                </div>
+              <Card class="p-5 flex flex-col items-center text-center gap-4 sticky top-24">
+                 <!-- 圆形头像预览 -->
+                 <div class="relative group">
+                   <div class="size-28 md:size-32 rounded-full overflow-hidden ring-2 ring-brand/20 bg-surface-muted flex items-center justify-center transition-shadow group-hover:ring-brand/40 group-hover:shadow-md">
+                     <img
+                       v-if="avatarPreview"
+                       :src="avatarPreview"
+                       alt="avatar"
+                       class="size-full object-cover"
+                       @error="avatarPreview = null"
+                     />
+                     <UserCircle2 v-else class="size-[88px] text-brand/40" :stroke-width="1.5" />
+
+                     <!-- Hover 遮罩（上传/清除） -->
+                     <button
+                       type="button"
+                       class="absolute inset-0 flex flex-col items-center justify-center gap-1 rounded-full bg-black/50 text-white opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100"
+                       :disabled="avatarUploading"
+                       @click="triggerUpload"
+                       title="点击上传头像"
+                     >
+                       <Camera v-if="!avatarUploading" class="size-5" />
+                       <Loader2 v-else class="size-5 animate-spin" />
+                       <span class="text-[11px] font-medium">
+                         {{ avatarUploading ? '上传中…' : '更换头像' }}
+                       </span>
+                     </button>
+                   </div>
+                 </div>
                 <input
                   ref="fileInputAbout"
                   type="file"
@@ -823,32 +827,32 @@ function resetAccount() {
                 </div>
 
                 <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div
-                    v-for="(stat, idx) in aboutDraft.highlightStats"
-                    :key="idx"
-                    class="flex items-stretch gap-2 rounded-md border border-border bg-surface-elevated p-2"
-                  >
-                    <div class="grid grid-cols-[80px_1fr] gap-2 flex-1">
-                      <div class="space-y-1 min-w-0">
-                        <Label class="text-[10.5px] font-normal text-text-muted/80">标签</Label>
-                        <Input v-model="stat.label" placeholder="例如：年前端经验" size="sm" class="!h-8 text-xs" />
-                      </div>
-                      <div class="space-y-1 min-w-0">
-                        <Label class="text-[10.5px] font-normal text-text-muted/80">数值（原样显示，支持单位）</Label>
-                        <Input v-model="stat.value" placeholder="例如：5+ 或 3.2k" size="sm" class="!h-8 text-xs" />
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      class="shrink-0 size-8 self-center rounded-md border border-transparent text-text-muted hover:text-danger hover:border-danger/30 hover:bg-danger/5 transition inline-flex items-center justify-center"
-                      :disabled="aboutDraft.highlightStats.length <= 1"
-                      :title="aboutDraft.highlightStats.length <= 1 ? '至少保留 1 行' : '删除此行'"
-                      @click="removeStat(idx)"
-                    >
-                      <Minus class="size-3.5" />
-                    </button>
-                  </div>
-                </div>
+                   <div
+                     v-for="(stat, idx) in aboutDraft.highlightStats"
+                     :key="idx"
+                     class="flex items-stretch gap-2 rounded-md border border-border bg-surface-elevated p-3"
+                   >
+                     <div class="grid grid-cols-[140px_1fr] gap-3 flex-1 min-w-0">
+                       <div class="space-y-1 min-w-0">
+                         <Label class="text-[10.5px] font-normal text-text-muted/80">标签</Label>
+                         <Input v-model="stat.label" placeholder="例如：年前端经验" size="sm" class="!h-8 text-xs" />
+                       </div>
+                       <div class="space-y-1 min-w-0">
+                         <Label class="text-[10.5px] font-normal text-text-muted/80">数值（原样显示，支持单位）</Label>
+                         <Input v-model="stat.value" placeholder="例如：5+ 或 3.2k" size="sm" class="!h-8 text-xs" />
+                       </div>
+                     </div>
+                     <button
+                       type="button"
+                       class="shrink-0 size-8 self-center rounded-md border border-transparent text-text-muted hover:text-danger hover:border-danger/30 hover:bg-danger/5 transition inline-flex items-center justify-center"
+                       :disabled="aboutDraft.highlightStats.length <= 1"
+                       :title="aboutDraft.highlightStats.length <= 1 ? '至少保留 1 行' : '删除此行'"
+                       @click="removeStat(idx)"
+                     >
+                       <Minus class="size-3.5" />
+                     </button>
+                   </div>
+                 </div>
               </section>
 
               <!-- Section · 兴趣标签 interests（chip） -->
@@ -904,7 +908,7 @@ function resetAccount() {
                   :key="grp.id"
                   class="rounded-md border border-border bg-surface-elevated p-4 space-y-3"
                 >
-                  <div class="grid grid-cols-1 sm:grid-cols-[1fr_140px_36px] gap-2 items-start">
+                  <div class="grid grid-cols-1 sm:grid-cols-[1fr_150px_36px] gap-2 items-start">
                     <div class="space-y-1">
                       <Label class="text-[10.5px] font-normal text-text-muted/80">分组标题</Label>
                       <Input v-model="grp.title" placeholder="例：前端框架" size="sm" class="!h-8 text-xs" />
