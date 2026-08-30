@@ -28,7 +28,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useAboutStore } from '@/stores/about'
 import type { AboutRsp, HighlightStat, SkillGroup, UpdateAboutParams, HeatmapSource } from '@/lib/api-types'
-import { Button, Card, CardContent, Input, Label } from '@/components/ui'
+import { Button, Card, CardContent, Input, Label, Switch } from '@/components/ui'
 import {
   Camera,
   X,
@@ -618,14 +618,14 @@ function resetAccount() {
 
         <template v-else>
           <!-- 主体三栏：左=头像卡；右=表单（桌面 grid / 移动堆叠） -->
-          <div class="grid grid-cols-1 md:grid-cols-[260px_1fr] gap-6 p-5 md:p-6">
+          <div class="grid grid-cols-1 md:grid-cols-[320px_1fr] gap-6 p-5 md:p-6">
 
             <!-- ========= 左侧：头像卡片 ========= -->
             <div class="space-y-4">
               <Card class="p-5 flex flex-col items-center text-center gap-4 sticky top-24">
                  <!-- 圆形头像预览 -->
                  <div class="relative group">
-                   <div class="size-28 md:size-32 rounded-full overflow-hidden ring-2 ring-brand/20 bg-surface-muted flex items-center justify-center transition-shadow group-hover:ring-brand/40 group-hover:shadow-md">
+                   <div class="size-32 md:size-36 rounded-full overflow-hidden ring-2 ring-brand/20 bg-surface-muted flex items-center justify-center transition-shadow group-hover:ring-brand/40 group-hover:shadow-md">
                      <img
                        v-if="avatarPreview"
                        :src="avatarPreview"
@@ -658,22 +658,29 @@ function resetAccount() {
                   class="hidden"
                   @change="onFileChange"
                 />
-                <div class="flex items-center gap-2">
-                  <Button type="button" variant="secondary" size="sm" class="h-8" @click="triggerUpload">
+                <!-- 操作区：纯图标按钮（hover 才显）+ 文字链接 -->
+                <div class="flex items-center justify-center gap-3">
+                  <!-- 选择头像：纯 Camera 图标，hover 才淡显 -->
+                  <button
+                    type="button"
+                    class="group/avatar inline-flex items-center gap-1.5 text-[12px] text-text-muted hover:text-brand transition-colors"
+                    title="点击更换头像"
+                    @click="triggerUpload"
+                  >
                     <Camera class="size-3.5" />
-                    <span>选择头像</span>
-                  </Button>
-                  <Button
+                    <span>更换</span>
+                  </button>
+                  <!-- 清除头像：danger 文字链接，无背景 -->
+                  <button
                     v-if="authStore.user?.avatar"
                     type="button"
-                    variant="secondary"
-                    size="sm"
-                    class="h-8 text-danger hover:text-danger hover:bg-danger/10"
+                    class="inline-flex items-center gap-1 text-[12px] text-danger/70 hover:text-danger transition-colors"
+                    title="清除当前头像"
                     @click="onRemoveAvatar"
                   >
-                    <X class="size-3.5" />
+                    <X class="size-3" />
                     <span>清除</span>
-                  </Button>
+                  </button>
                 </div>
                 <p class="text-[11px] text-text-muted/70 leading-relaxed m-0">
                   展示头像 ≡ 账号头像<br>
@@ -713,38 +720,30 @@ function resetAccount() {
                   />
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-[1fr_140px] gap-4">
-                  <!-- location -->
-                  <div class="space-y-1.5">
-                    <Label class="text-xs font-normal text-text-muted">所在地 &amp; 协作方式</Label>
-                    <Input
-                      v-model="aboutDraft.location"
-                      maxlength="80"
-                      placeholder="例：中国 · 远程协作友好 (UTC+8)"
-                    />
+                <!-- location：独立一行全宽 -->
+                <div class="space-y-1.5">
+                  <Label class="text-xs font-normal text-text-muted">所在地 &amp; 协作方式</Label>
+                  <Input
+                    v-model="aboutDraft.location"
+                    maxlength="80"
+                    placeholder="例：中国 · 远程协作友好 (UTC+8)"
+                  />
+                </div>
+
+                <!-- available：独立一行（用新 Switch 组件 · Radix 驱动） -->
+                <div class="flex items-center justify-between gap-3 rounded-lg border border-border/60 bg-surface-elevated/50 px-4 py-3">
+                  <div class="space-y-0.5 min-w-0">
+                    <Label class="text-sm font-medium text-text">可接项目</Label>
+                    <p class="text-[11px] text-text-muted m-0">控制 About 页 Hero 区的「可接单」状态 Badge</p>
                   </div>
-                  <!-- available switch -->
-                  <div class="space-y-1.5">
-                    <Label class="text-xs font-normal text-text-muted">可接项目</Label>
-                    <button
-                      type="button"
-                      role="switch"
-                      :aria-checked="aboutDraft.available"
-                      class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface disabled:cursor-not-allowed disabled:opacity-50"
-                      :class="aboutDraft.available ? 'bg-emerald-500' : 'bg-surface-muted'"
-                      @click="aboutDraft.available = !aboutDraft.available"
-                    >
-                      <span
-                        class="pointer-events-none inline-block size-5 rounded-full bg-white shadow-md ring-0 transition-transform duration-200"
-                        :class="aboutDraft.available ? 'translate-x-5' : 'translate-x-0'"
-                      />
-                    </button>
-                    <p
-                      class="m-0 text-[10.5px] leading-tight"
+                  <div class="flex items-center gap-3 shrink-0">
+                    <Switch v-model:checked="aboutDraft.available" variant="success" />
+                    <span
+                      class="text-[12px] font-medium whitespace-nowrap"
                       :class="aboutDraft.available ? 'text-emerald-600 dark:text-emerald-400' : 'text-text-muted'"
                     >
-                      {{ aboutDraft.available ? '✓ 当前开放中' : '当前排期满' }}
-                    </p>
+                      {{ aboutDraft.available ? '开放中' : '排期满' }}
+                    </span>
                   </div>
                 </div>
 
@@ -834,11 +833,11 @@ function resetAccount() {
                      <div class="grid grid-cols-[140px_1fr] gap-3 flex-1 min-w-0">
                        <div class="space-y-1 min-w-0">
                          <Label class="text-[10.5px] font-normal text-text-muted/80">标签</Label>
-                         <Input v-model="stat.label" placeholder="例如：年前端经验" size="sm" class="!h-8 text-xs" />
+                         <Input v-model="stat.label" placeholder="例如：年前端经验" />
                        </div>
                        <div class="space-y-1 min-w-0">
                          <Label class="text-[10.5px] font-normal text-text-muted/80">数值（原样显示，支持单位）</Label>
-                         <Input v-model="stat.value" placeholder="例如：5+ 或 3.2k" size="sm" class="!h-8 text-xs" />
+                         <Input v-model="stat.value" placeholder="例如：5+ 或 3.2k" />
                        </div>
                      </div>
                      <button
@@ -910,7 +909,7 @@ function resetAccount() {
                   <div class="grid grid-cols-1 sm:grid-cols-[1fr_150px_36px] gap-2 items-start">
                     <div class="space-y-1">
                       <Label class="text-[10.5px] font-normal text-text-muted/80">分组标题</Label>
-                      <Input v-model="grp.title" placeholder="例：前端框架" size="sm" class="!h-8 text-xs" />
+                      <Input v-model="grp.title" placeholder="例：前端框架" />
                     </div>
                     <div class="space-y-1">
                       <Label class="text-[10.5px] font-normal text-text-muted/80">样式 variant</Label>
@@ -1061,11 +1060,12 @@ function resetAccount() {
 
       <!-- ==================== Tab2 · 账号资料 ==================== -->
       <CardContent v-else class="p-5 md:p-6">
-        <div class="grid grid-cols-1 md:grid-cols-[240px_1fr] gap-6">
+        <div class="grid grid-cols-1 md:grid-cols-[320px_1fr] gap-6">
           <!-- 左栏：头像卡片（与 Tab1 共用的同一份上传逻辑，保持同步） -->
-          <Card class="p-6 flex flex-col items-center text-center gap-5">
-            <div class="relative">
-              <div class="size-36 rounded-full overflow-hidden ring-4 ring-brand/15 bg-surface-muted flex items-center justify-center">
+          <Card class="p-5 flex flex-col items-center text-center gap-4 sticky top-24">
+            <!-- 圆形头像预览 + hover 遮罩触发上传 -->
+            <div class="relative group">
+              <div class="size-32 md:size-36 rounded-full overflow-hidden ring-2 ring-brand/20 bg-surface-muted flex items-center justify-center transition-shadow group-hover:ring-brand/40 group-hover:shadow-md">
                 <img
                   v-if="avatarPreview"
                   :src="avatarPreview"
@@ -1073,18 +1073,22 @@ function resetAccount() {
                   class="size-full object-cover"
                   @error="avatarPreview = null"
                 />
-                <UserCircle2 v-else class="size-20 text-brand/50" :stroke-width="1.5" />
+                <UserCircle2 v-else class="size-[100px] text-brand/40" :stroke-width="1.5" />
+                <!-- hover 遮罩 -->
+                <button
+                  type="button"
+                  class="absolute inset-0 flex flex-col items-center justify-center gap-1 rounded-full bg-black/50 text-white opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100"
+                  :disabled="avatarUploading"
+                  @click="triggerUpload"
+                  title="点击更换头像"
+                >
+                  <Camera v-if="!avatarUploading" class="size-5" />
+                  <Loader2 v-else class="size-5 animate-spin" />
+                  <span class="text-[11px] font-medium">
+                    {{ avatarUploading ? '上传中…' : '更换头像' }}
+                  </span>
+                </button>
               </div>
-              <button
-                type="button"
-                class="absolute -bottom-1 -right-1 size-9 rounded-full bg-brand text-white shadow-md hover:bg-brand/90 transition flex items-center justify-center ring-2 ring-surface disabled:opacity-60"
-                :disabled="avatarUploading"
-                @click="triggerUpload"
-                title="上传头像"
-              >
-                <Camera v-if="!avatarUploading" class="size-4" />
-                <Loader2 v-else class="size-4 animate-spin" />
-              </button>
             </div>
             <input
               ref="fileInputAccount"
@@ -1093,25 +1097,30 @@ function resetAccount() {
               class="hidden"
               @change="onFileChange"
             />
-            <div class="flex items-center gap-2">
-              <Button type="button" variant="secondary" size="sm" class="h-8" @click="triggerUpload">
+            <!-- 操作区：纯图标/文字链接（无背景无阴影） -->
+            <div class="flex items-center justify-center gap-3">
+              <button
+                type="button"
+                class="inline-flex items-center gap-1.5 text-[12px] text-text-muted hover:text-brand transition-colors"
+                title="点击更换头像"
+                @click="triggerUpload"
+              >
                 <Camera class="size-3.5" />
-                <span>选择头像</span>
-              </Button>
-              <Button
+                <span>更换</span>
+              </button>
+              <button
                 v-if="authStore.user?.avatar"
                 type="button"
-                variant="secondary"
-                class="w-full text-danger hover:text-danger hover:bg-danger/10"
+                class="inline-flex items-center gap-1 text-[12px] text-danger/70 hover:text-danger transition-colors"
+                title="清除当前头像"
                 @click="onRemoveAvatar"
               >
-                <X class="size-3.5" />
+                <X class="size-3" />
                 <span>清除</span>
-              </Button>
+              </button>
             </div>
             <p class="text-[11px] text-text-muted/70 leading-relaxed m-0">
-              支持 JPG / PNG / WEBP / GIF<br>
-              最大 5MB
+              支持 JPG / PNG / WEBP / GIF · 最大 5MB
             </p>
           </Card>
 

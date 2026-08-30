@@ -29,3 +29,5 @@ export {
   Badge,
   Separator
 }
+import Switch from './Switch.vue'
+Switch,
