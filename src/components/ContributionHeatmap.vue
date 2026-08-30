@@ -342,11 +342,11 @@ function levelClass(level: number): string {
             :href="githubLink"
             target="_blank"
             rel="noopener noreferrer"
-            class="size-7 inline-flex items-center justify-center rounded-md text-text-muted hover:text-brand hover:bg-brand/10 transition"
+            class="size-9 inline-flex items-center justify-center rounded-lg text-text-muted hover:text-brand hover:bg-brand/10 transition"
             title="在 GitHub 查看主页"
             aria-label="GitHub 主页"
           >
-            <ExternalLink class="size-4" />
+            <Github class="size-6" />
           </a>
         </div>
       </div>

@@ -63,13 +63,13 @@ model User {
 
   // ===== About 热力图配置（Contribution 模块 A/B/D 方案控制用） =====
   /// 默认显示源：SITE 本站 / GITHUB / MERGED（方案 D 三态）
-  aboutHeatmapSource       String   @default("SITE")  @db.VarChar(20)   @map("about_heatmap_source")
-  /// 是否启用 GitHub 贡献（false 时前端只显示本站 Tab，后端 GitHub 接口返回空）
-  aboutHeatmapEnableGithub Boolean  @default(false)                      @map("about_heatmap_enable_github")
+  aboutHeatmapSource       String   @default("MERGED") @db.VarChar(20)   @map("about_heatmap_source")
+  /// 是否启用 GitHub 贡献（默认 true，游客 About 页可以看到 GitHub Tab）
+  aboutHeatmapEnableGithub Boolean  @default(true)                       @map("about_heatmap_enable_github")
   /// 博主 GitHub 用户名（公开，游客 About 页能看到）
-  aboutGithubUsername      String   @default("")      @db.VarChar(100)  @map("about_github_username")
+  aboutGithubUsername      String   @default("TE-Fire") @db.VarChar(100) @map("about_github_username")
   /// 博主 GitHub 主页链接
-  aboutGithubLink          String   @default("")      @db.VarChar(500)  @map("about_github_link")
+  aboutGithubLink          String   @default("https://github.com/TE-Fire") @db.VarChar(500) @map("about_github_link")
 
   @@map("user")
 }
