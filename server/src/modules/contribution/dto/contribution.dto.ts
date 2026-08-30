@@ -43,5 +43,9 @@ export interface ContributionRsp {
     tablesFound?: string[];
     /** GitHub 软过期标记（true = 返回了 24h 之前的旧缓存，因为 fetch 失败） */
     githubStale?: boolean;
+    /** GitHub 本次抓取失败（true=GITHUB/MERGED 入口里给前端展示「GitHub 暂不可用」） */
+    githubFailed?: boolean;
+    /** MERGED 视图降级标记：'site'=仅 SITE 可用 / 'github'=仅 GitHub 可用 / 'both'=两源都失败 */
+    mergedFallback?: 'site' | 'github' | 'both';
   };
 }

@@ -117,6 +117,18 @@ export class AboutService {
    * 3. 返回完整 AboutRsp（前端立即 setState，不用再 GET）
    */
   async saveAbout(userId: number, dto: UpdateAboutDto): Promise<AboutRsp> {
+    // ① 先读旧值 → 用于判断 githubUsername / enableGithub 是否变化，决定要删哪些 GitHub key
+    let oldGithubUsername = '';
+    try {
+      const prev = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { aboutGithubUsername: true, aboutHeatmapEnableGithub: true },
+      });
+      oldGithubUsername = prev?.aboutGithubUsername?.trim() ?? '';
+    } catch (_) { /* ignore，读失败就当旧用户名空 */ }
+
+    // ② 写入 DB
+    const nextGithubUsername = typeof dto.githubUsername === 'string' ? dto.githubUsername.trim() : undefined;
     try {
       await this.prisma.user.update({
         where: { id: userId },
@@ -131,15 +143,14 @@ export class AboutService {
           aboutHighlightStats: dto.highlightStats as any,
           aboutSkills: dto.skillGroups as any,
           // ========== 热力图 4 配置字段 ==========
-          // 不传则不覆盖（保持 DB 默认值），传了按 DTO 校验结果写入
           ...(typeof dto.heatmapSource === 'string'
             ? { aboutHeatmapSource: dto.heatmapSource }
             : {}),
           ...(typeof dto.heatmapEnableGithub === 'boolean'
             ? { aboutHeatmapEnableGithub: dto.heatmapEnableGithub }
             : {}),
-          ...(typeof dto.githubUsername === 'string'
-            ? { aboutGithubUsername: dto.githubUsername }
+          ...(typeof nextGithubUsername === 'string'
+            ? { aboutGithubUsername: nextGithubUsername }
             : {}),
           ...(typeof dto.githubLink === 'string'
             ? { aboutGithubLink: dto.githubLink }
@@ -151,22 +162,29 @@ export class AboutService {
       throw new BusinessException(getAboutErrorInfo(AboutBizError.SAVE_FAILED));
     }
 
-    // 删 About 缓存（失败忽略，最多 1 分钟自然过期）
+    // ③ 删 About 公开缓存（失败忽略，最多 1 分钟自然过期）
     try {
       await this.redis.del(ABOUT_PUBLIC_KEY);
     } catch (e) {
       this.logger.warn(`Redis 删 About 缓存失败：${(e as Error).message}`);
     }
 
-    // B5 钩子：热力图配置变了 → 统一调用 ContributionService.invalidateAll 失效 SITE/MERGED/GITHUB 缓存
-    //       失效逻辑只在 Contribution 模块一处维护，后续 Phase 2/3 新增 key 时这里无需改动
+    // ④ 贡献缓存失效钩子：
+    //    · 永远删 SITE + MERGED（按 userId）
+    //    · githubUsername 有变化（旧≠新）→ 删旧用户名 + 新用户名两个 GitHub key
+    //    · heatmapEnableGithub 从 true→false / false→true → 也刷新 GitHub key （避免遗留空态/真实态脏缓存）
     try {
-      await this.contributionService.invalidateAll(userId);
+      const githubKeysToInvalidate: string[] = [];
+      if (oldGithubUsername) githubKeysToInvalidate.push(oldGithubUsername);
+      if (nextGithubUsername && nextGithubUsername !== oldGithubUsername) {
+        githubKeysToInvalidate.push(nextGithubUsername);
+      }
+      await this.contributionService.invalidateAll(userId, githubKeysToInvalidate);
     } catch (e) {
       this.logger.warn(`贡献缓存失效钩子失败（不影响 About 返回）：${(e as Error).message}`);
     }
 
-    // 直接再读一次 DB（重建链路，保证返回最新值）
+    // ⑤ 直接再读一次 DB（重建链路，保证返回最新值）
     return this.getPublicAbout();
   }
 

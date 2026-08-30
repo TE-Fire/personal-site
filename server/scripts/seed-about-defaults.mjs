@@ -57,6 +57,11 @@ const DEFAULTS = {
     '🔍 **寻找**：有趣的独立项目 / 长期开源协作 / 设计系统类咨询。',
     '🛠️ **技能打磨**：正在啃 Three.js + WebGPU 的入门教程，目标 Q4 能出一个完整的 3D 小玩具。',
   ],
+  /* ===================== Phase 2 · 热力图 GitHub 默认值（博主账号 = TE-Fire） ===================== */
+  aboutHeatmapSource: 'MERGED',
+  aboutHeatmapEnableGithub: true,
+  aboutGithubUsername: 'TE-Fire',
+  aboutGithubLink: 'https://github.com/TE-Fire',
 }
 
 const isEmptyStringOrNull = (v) => v == null || v === ''
@@ -82,6 +87,19 @@ async function main() {
   if (typeof user.aboutAvailable !== 'boolean')     patch.aboutAvailable = DEFAULTS.aboutAvailable
   if (isEmptyJsonArray(user.aboutNowDoing))         patch.aboutNowDoing = DEFAULTS.aboutNowDoing
 
+  // Phase 2：热力图 GitHub 默认值（heatmapSource 不是 SITE 视为已自定义 → 不覆盖；
+  //          heatmapEnableGithub=false 视为用户主动关闭 → 不覆盖；
+  //          githubUsername / githubLink 非空 → 不覆盖）
+  const validHeatmapSources = ['SITE', 'GITHUB', 'MERGED']
+  if (!validHeatmapSources.includes(String(user.aboutHeatmapSource || '').toUpperCase())) {
+    patch.aboutHeatmapSource = DEFAULTS.aboutHeatmapSource
+  }
+  if (typeof user.aboutHeatmapEnableGithub !== 'boolean') {
+    patch.aboutHeatmapEnableGithub = DEFAULTS.aboutHeatmapEnableGithub
+  }
+  if (isEmptyStringOrNull(user.aboutGithubUsername)) patch.aboutGithubUsername = DEFAULTS.aboutGithubUsername
+  if (isEmptyStringOrNull(user.aboutGithubLink))     patch.aboutGithubLink     = DEFAULTS.aboutGithubLink
+
   if (Object.keys(patch).length === 0) {
     console.log('ℹ️  所有 About 字段都已有有效值，跳过写入（幂等）')
     return
@@ -101,6 +119,10 @@ async function main() {
       aboutTags: true,
       aboutHighlightStats: true,
       aboutInterests: true,
+      aboutHeatmapSource: true,
+      aboutHeatmapEnableGithub: true,
+      aboutGithubUsername: true,
+      aboutGithubLink: true,
     },
   })
   console.log('✅ 写入完成。字段摘要：')
