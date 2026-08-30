@@ -27,8 +27,8 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useAboutStore } from '@/stores/about'
-import type { AboutRsp, HighlightStat, SkillGroup, UpdateAboutParams } from '@/lib/api-types'
-import { Button, Card, CardContent, Input, Label } from '@/components/ui'
+import type { AboutRsp, HighlightStat, SkillGroup, UpdateAboutParams, HeatmapSource } from '@/lib/api-types'
+import { Button, Card, CardContent, Input, Label, Badge } from '@/components/ui'
 import {
   Camera,
   X,
@@ -106,6 +106,13 @@ function cloneForEdit(src: AboutRsp): UpdateAboutParams & { displayName: string 
           items: Array.isArray(g.items) ? [...g.items] : [],
         }))
       : [],
+    // ===== 热力图配置（4 字段；Phase 1 后 3 项在 UI 上 disabled，但表单仍统一维护）=====
+    heatmapSource: (['SITE', 'GITHUB', 'MERGED'].includes(src.heatmapSource as any)
+      ? src.heatmapSource
+      : 'SITE') as HeatmapSource,
+    heatmapEnableGithub: Boolean(src.heatmapEnableGithub),
+    githubUsername: src.githubUsername ?? '',
+    githubLink: src.githubLink ?? '',
   }
 }
 
@@ -121,6 +128,10 @@ const aboutDraft = ref<ReturnType<typeof cloneForEdit>>({
   nowDoing: [],
   highlightStats: [],
   skillGroups: [],
+  heatmapSource: 'SITE',
+  heatmapEnableGithub: false,
+  githubUsername: '',
+  githubLink: '',
 })
 
 /** 从 store 同步到 aboutDraft（首次加载 / 重置 触发） */
@@ -263,6 +274,11 @@ const aboutDirty = computed(() => {
       })),
     )
   ) { return true }
+  // ===== 热力图配置 4 字段 =====
+  if (d.heatmapSource !== (cur.heatmapSource ?? 'SITE')) return true
+  if (d.heatmapEnableGithub !== Boolean(cur.heatmapEnableGithub)) return true
+  if (d.githubUsername !== (cur.githubUsername ?? '')) return true
+  if (d.githubLink !== (cur.githubLink ?? '')) return true
   return false
 })
 
@@ -312,6 +328,11 @@ async function saveAboutDraft() {
       nowDoing: d.nowDoing,
       highlightStats: d.highlightStats,
       skillGroups: d.skillGroups,
+      // ===== 热力图配置（Phase 1 只有 heatmapSource 实际会被用户改动；其余字段保持写入以便后续 Phase 2 直接生效）=====
+      heatmapSource: d.heatmapSource,
+      heatmapEnableGithub: d.heatmapEnableGithub,
+      githubUsername: (d.githubUsername ?? '').trim(),
+      githubLink: (d.githubLink ?? '').trim(),
     }
     // aboutStore.saveAbout 参数类型是 UpdateAboutParams，但我们后端实际能收 name（
     // AboutServiceImpl 内部会把 name 写入 User.about_name）。做一次 as any 避免改接口。
@@ -940,6 +961,92 @@ function resetAccount() {
 
                 <div v-if="!aboutDraft.skillGroups.length" class="rounded-md border border-dashed border-border/80 bg-surface-muted/20 px-4 py-8 text-center text-xs text-text-muted">
                   还没有技能分组，点右上角「新增分组」开始添加。
+                </div>
+              </section>
+
+              <!-- =========================
+                   · 热力图配置 Section ·
+                   Phase 1 仅「默认显示源」可编辑，
+                   GitHub 相关三项标记为 Phase 2 disabled，
+                   便于后续升级时无需改表单结构。
+                   ========================= -->
+              <section class="space-y-4 pt-6">
+                <div class="flex items-end justify-between gap-3 flex-wrap">
+                  <div>
+                    <h3 class="m-0 text-sm font-semibold tracking-tight">贡献热力图配置</h3>
+                    <p class="mt-1 text-xs text-text-muted">
+                      控制 About 页贡献热力图的显示源和数据来源（Phase 2 开放 GitHub 配置）。
+                    </p>
+                  </div>
+                </div>
+
+                <div class="space-y-4 rounded-md border border-border bg-surface-elevated p-4">
+                  <!-- 1. 显示源 -->
+                  <div class="space-y-1.5">
+                    <Label class="text-xs font-normal text-text-muted">默认显示源</Label>
+                    <select
+                      v-model="aboutDraft.heatmapSource"
+                      class="w-full h-9 rounded-md border border-border bg-surface px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+                    >
+                      <option value="SITE">本站贡献（博客 / 生活 / 笔记）</option>
+                      <option value="GITHUB">GitHub 贡献</option>
+                      <option value="MERGED">合并视图（本站 + GitHub）</option>
+                    </select>
+                  </div>
+
+                  <!-- 2. 启用 GitHub -->
+                  <div class="space-y-1.5">
+                    <div class="flex items-center justify-between">
+                      <Label class="text-xs font-normal text-text-muted">启用 GitHub 贡献</Label>
+                      <Badge variant="outline" class="text-[10px] h-5 px-1.5">Phase 2</Badge>
+                    </div>
+                    <div class="h-9 flex items-center gap-3 rounded-md border border-border bg-surface-elevated px-3">
+                      <button
+                        type="button"
+                        role="switch"
+                        :aria-checked="aboutDraft.heatmapEnableGithub"
+                        class="relative inline-flex h-5 w-9 shrink-0 cursor-not-allowed items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface opacity-60"
+                        :class="aboutDraft.heatmapEnableGithub ? 'bg-success/90' : 'bg-surface-muted'"
+                        disabled
+                      >
+                        <span
+                          class="pointer-events-none inline-block size-4 rounded-full bg-white shadow-sm ring-1 ring-black/5 transition-transform"
+                          :class="aboutDraft.heatmapEnableGithub ? 'translate-x-[18px]' : 'translate-x-[2px]'"
+                        />
+                      </button>
+                      <span class="text-xs font-medium text-text-muted">后续开放，当前仅显示本站数据</span>
+                    </div>
+                  </div>
+
+                  <!-- 3. GitHub 用户名 -->
+                  <div class="space-y-1.5">
+                    <div class="flex items-center justify-between">
+                      <Label class="text-xs font-normal text-text-muted">GitHub 用户名</Label>
+                      <Badge variant="outline" class="text-[10px] h-5 px-1.5">Phase 2</Badge>
+                    </div>
+                    <Input
+                      v-model="aboutDraft.githubUsername"
+                      placeholder="例：TE-Fire"
+                      size="sm"
+                      class="!h-9 text-sm"
+                      disabled
+                    />
+                  </div>
+
+                  <!-- 4. GitHub 链接 -->
+                  <div class="space-y-1.5">
+                    <div class="flex items-center justify-between">
+                      <Label class="text-xs font-normal text-text-muted">GitHub 主页链接</Label>
+                      <Badge variant="outline" class="text-[10px] h-5 px-1.5">Phase 2</Badge>
+                    </div>
+                    <Input
+                      v-model="aboutDraft.githubLink"
+                      placeholder="例：https://github.com/TE-Fire"
+                      size="sm"
+                      class="!h-9 text-sm"
+                      disabled
+                    />
+                  </div>
                 </div>
               </section>
 

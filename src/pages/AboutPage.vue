@@ -3,8 +3,7 @@
  * AboutPage · 关于我（完整填充 + 滚动进入揭示动画）。
  *
  * 数据来源：aboutStore.fetchAbout()（GET /api/about，公开缓存 1 min + 本地兜底）
- * 原先写死数据 from '@/data' 仅作为接口失败时的兜底（由 aboutStore 内部统一处理，
- * 这里消费端不再直接 import 写死数据，统一 aboutStore.safeAbout 出口）。
+ * Contribution 热力图：aboutStore.fetchHeatmap(source)（GET /api/contribution/site，6h Redis 缓存 + 内存缓存）
  */
 import { computed, onMounted, ref } from 'vue'
 import { Badge, Card, CardContent, CardHeader, CardTitle, CardDescription, Separator } from '@/components/ui'
@@ -13,7 +12,7 @@ import { useScrollReveal } from '@/composables/useScrollReveal'
 import { useAboutStore } from '@/stores/about'
 import { useAuthStore } from '@/stores/auth'
 import ContributionHeatmap from '@/components/ContributionHeatmap.vue'
-import type { SkillGroup } from '@/lib/api-types'
+import type { SkillGroup, HeatmapSource } from '@/lib/api-types'
 
 const aboutStore = useAboutStore()
 const authStore = useAuthStore()
@@ -21,8 +20,17 @@ const authStore = useAuthStore()
 const rootRef = ref<HTMLElement | null>(null)
 useScrollReveal(rootRef)
 
+/**
+ * Phase 1 选择要渲染的贡献来源（SITE，避免 GITHUB / MERGED 尚未实现的 Tab 引入复杂度）。
+ * 后续 Phase 3 方案 D 可以把这里改成 "从 aboutStore.safeAbout.heatmapSource 取用户配置 + 在 Heatmap 顶部加 Tabs"。
+ */
+const HEATMAP_SOURCE: HeatmapSource = 'SITE'
+
 onMounted(async () => {
+  // 1) About 公开展示数据（含热力图配置 4 字段：heatmapSource / heatmapEnableGithub / ...）
   await aboutStore.fetchAbout()
+  // 2) 拉取真实贡献热力图（内存缓存命中则直接返回，不会重复请求）
+  await aboutStore.fetchHeatmap(HEATMAP_SOURCE)
 })
 
 /* ------ 简化取值 ------ */
@@ -33,6 +41,27 @@ const avatarUrl = computed(() => {
   return authStore.resolveAvatarUrl(raw)
 })
 const nameInitial = computed(() => (aboutStore.displayName || 'T').charAt(0).toUpperCase())
+
+/* ------ Heatmap 组件 props 计算（从 store 拿状态 → 映射成 4 个 prop）------ */
+/** 传 null=让组件兜底 Mock；传 undefined 会被 ContributionHeatmap 视为 Mock（兼容）；有真实数据传对象 */
+const heatmapProp = computed(() => aboutStore.heatmapData(HEATMAP_SOURCE) ?? null)
+const heatmapLoading = computed(() => Boolean(aboutStore.heatmapLoading[HEATMAP_SOURCE]))
+const heatmapError = computed(() => aboutStore.heatmapError[HEATMAP_SOURCE] ?? null)
+
+/**
+ * 空态提示：真实数据 total=0 且后端 meta.fallback=true 才显示，
+ * 文案里要区分"业务模块还没上线"和"确实没产出任何博客"—— 由 tablesFound 是否为空决定。
+ */
+const heatmapEmptyHint = computed(() => {
+  const d = aboutStore.heatmapData(HEATMAP_SOURCE)
+  if (!d) return null
+  if (d.total !== 0) return null
+  const tablesFound = d.meta?.tablesFound ?? []
+  if (tablesFound.length === 0) {
+    return '博主还没发布第一篇内容（博客/生活/笔记模块数据尚未接入）。先看空网格占个位置，后续发文章这里会自动长出小方块。'
+  }
+  return '过去一年里博主还没发布内容，下一篇文章就是起点 ✨'
+})
 
 /*
  * 把一行里的 "**粗体**" 语法用 <strong> 包起来，返回用于 v-html 的 HTML 串。
@@ -116,9 +145,14 @@ const safeSkillGroups = computed<SkillGroup[]>(() =>
       </div>
     </div>
 
-    <!-- 3. 贡献热力图 -->
+    <!-- 3. 贡献热力图（绑定真实数据 + loading + emptyHint + error） -->
     <section data-reveal="0.08">
-      <ContributionHeatmap />
+      <ContributionHeatmap
+        :data="heatmapProp"
+        :loading="heatmapLoading"
+        :empty-hint="heatmapEmptyHint"
+        :error-msg="heatmapError"
+      />
     </section>
 
     <Separator />

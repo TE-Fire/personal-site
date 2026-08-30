@@ -10,14 +10,16 @@
  *   · 月份标签 + 星期标签 + 图例
  *   · 响应式：移动端横向滚动
  *   · prefers-reduced-motion 友好
+ *   · Loading 骨架屏（cells.len + stats 区）
+ *   · total=0 空态提示 + error 提示 banner（由父组件根据后端 meta.fallback 传入）
  *
  * 数据：
- *   · 内置基于确定性种子的 Mock 生成器，模拟真实贡献分布
- *   · 可通过 props.data 传入真实数据（如 GitHub API 拉取）
+ *   · 内置基于确定性种子的 Mock 生成器，data=null 时启用（用于后端接口失败 / 开发期未接入兜底）
+ *   · 可通过 props.data 传入真实数据（后端 ContributionRsp：cells / total / bestDay 等）
  */
 import { computed, ref } from 'vue'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui'
-import { Activity, Flame, Calendar, TrendingUp } from 'lucide-vue-next'
+import { Activity, Flame, Calendar, TrendingUp, AlertTriangle, Sparkles } from 'lucide-vue-next'
 
 /* ---------- 类型 ---------- */
 
@@ -36,11 +38,21 @@ interface HeatmapData {
 }
 
 interface Props {
+  /** 真实数据（后端 ContributionRsp，null=用内置 Mock；undefined=尚未加载 → 走 loading prop 决定） */
   data?: HeatmapData | null
+  /** 是否显示骨架屏（真实数据请求期间） */
+  loading?: boolean
+  /** total=0 且后端返回 meta.fallback=true 时建议显示的「空态文案」 */
+  emptyHint?: string | null
+  /** 真实数据请求失败文案（非空时顶部显示 error banner）—— 仍然显示 Mock 数据不让用户白屏 */
+  errorMsg?: string | null
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  data: null
+  data: undefined,
+  loading: false,
+  emptyHint: null,
+  errorMsg: null,
 })
 
 /* ---------- 确定性 Mock 数据生成 ---------- */
@@ -153,9 +165,39 @@ function generateMockData(seed = 20260824): HeatmapData {
 
 /* ---------- 数据来源 ---------- */
 
+/**
+ * 实际渲染的数据（HeatmapData | null）：
+ *   · loading=true 时，无论真实 data 是什么都用 「SKELETON_PLACEHOLDER」—— 由模板层渲染骨架屏
+ *   · 真实 data 是合法对象（cells 数组）→ 渲染真实数据（哪怕 total=0 也要渲染，空态 banner 另外显示）
+ *   · 真实 data=null（父组件明确告知「失败兜底」）→ 用内置 Mock，同时若 errorMsg 有值 → error banner
+ *   · 真实 data=undefined（父组件没传 / 初次加载）→ 退化为 Mock（兼容性兜底，避免父组件忘了传报错）
+ */
+const SKELETON_PLACEHOLDER: HeatmapData = {
+  cells: [],
+  total: 0,
+  bestDay: { date: '', count: 0 },
+  currentStreak: 0,
+  longestStreak: 0,
+}
+
+const showSkeleton = computed(() => Boolean(props.loading))
+
 const data = computed<HeatmapData>(() => {
-  return props.data ?? generateMockData()
+  if (showSkeleton.value) return SKELETON_PLACEHOLDER
+  if (props.data && Array.isArray(props.data.cells)) return props.data
+  // data=null 或 undefined → 兜底 Mock（error banner 另外渲染）
+  return generateMockData()
 })
+
+/** 是否展示空态提示（真实数据 total=0 + 非 loading + 有 hint） */
+const showEmptyHint = computed(() => {
+  if (showSkeleton.value) return false
+  if (!props.data || !Array.isArray(props.data.cells)) return false
+  return props.data.total === 0 && Boolean(props.emptyHint)
+})
+
+/** 是否展示 error banner（errorMsg 非空） */
+const showErrorBanner = computed(() => Boolean(props.errorMsg))
 
 /* ---------- 布局计算 ---------- */
 
@@ -259,35 +301,59 @@ function levelClass(level: number): string {
     </CardHeader>
 
     <CardContent class="space-y-4">
-      <!-- 统计摘要 -->
+      <!-- [error banner] 真实数据请求失败，但下方仍显示 Mock，用户仍有视觉内容 -->
+      <div
+        v-if="showErrorBanner"
+        class="rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning flex items-start gap-2"
+      >
+        <AlertTriangle class="size-4 shrink-0 mt-0.5" />
+        <span class="leading-relaxed">{{ errorMsg }}（下图为示例数据，用于演示界面效果）</span>
+      </div>
+
+      <!-- [空态提示 banner] 真实数据 total=0 且有 emptyHint -->
+      <div
+        v-if="showEmptyHint"
+        class="rounded-lg border border-brand/30 bg-brand/[0.07] px-3 py-2 text-xs text-brand-foreground/90 flex items-start gap-2"
+      >
+        <Sparkles class="size-4 shrink-0 mt-0.5" />
+        <span class="leading-relaxed">{{ emptyHint }}</span>
+      </div>
+
+      <!-- 统计摘要（loading → 骨架；否则正常渲染） -->
       <div class="grid grid-cols-3 gap-3">
+        <!-- 总贡献 -->
         <div class="rounded-lg border border-border/50 bg-surface-muted/30 p-3 space-y-0.5">
           <div class="flex items-center gap-1.5 text-xs text-text-muted">
             <Calendar class="size-3.5" />
             总贡献
           </div>
-          <div class="text-xl font-bold tabular-nums text-brand">{{ data.total.toLocaleString() }}</div>
+          <div v-if="showSkeleton" class="h-7 w-24 rounded bg-surface-muted/70 animate-pulse" />
+          <div v-else class="text-xl font-bold tabular-nums text-brand">{{ data.total.toLocaleString() }}</div>
         </div>
+        <!-- 当前连续 -->
         <div class="rounded-lg border border-border/50 bg-surface-muted/30 p-3 space-y-0.5">
           <div class="flex items-center gap-1.5 text-xs text-text-muted">
             <Flame class="size-3.5" />
             当前连续
           </div>
-          <div class="text-xl font-bold tabular-nums text-accent">{{ data.currentStreak }}</div>
+          <div v-if="showSkeleton" class="h-7 w-16 rounded bg-surface-muted/70 animate-pulse" />
+          <div v-else class="text-xl font-bold tabular-nums text-accent">{{ data.currentStreak }}</div>
         </div>
+        <!-- 最长连续 -->
         <div class="rounded-lg border border-border/50 bg-surface-muted/30 p-3 space-y-0.5">
           <div class="flex items-center gap-1.5 text-xs text-text-muted">
             <TrendingUp class="size-3.5" />
             最长连续
           </div>
-          <div class="text-xl font-bold tabular-nums text-text">{{ data.longestStreak }}</div>
+          <div v-if="showSkeleton" class="h-7 w-16 rounded bg-surface-muted/70 animate-pulse" />
+          <div v-else class="text-xl font-bold tabular-nums text-text">{{ data.longestStreak }}</div>
         </div>
       </div>
 
       <!-- 热力图主体 -->
       <div class="heatmap-wrapper">
-        <!-- 月份标签 -->
-        <div class="heatmap-month-labels">
+        <!-- 月份标签（非 skeleton 显示） -->
+        <div v-if="!showSkeleton" class="heatmap-month-labels">
           <div
             v-for="ml in monthLabels"
             :key="ml.weekIdx"
@@ -295,6 +361,7 @@ function levelClass(level: number): string {
             :style="{ left: `${ml.weekIdx * (14 + 3)}px` }"
           >{{ ml.label }}</div>
         </div>
+        <div v-else class="heatmap-month-labels h-4">&nbsp;</div>
 
         <div class="heatmap-scroll">
           <div class="heatmap-inner">
@@ -303,8 +370,17 @@ function levelClass(level: number): string {
               <span v-for="(label, idx) in WEEK_LABELS" :key="idx" class="heatmap-day-label" :style="{ top: `${idx * (14 + 3) + 8}px` }">{{ label }}</span>
             </div>
 
-            <!-- 网格 -->
-            <div class="heatmap-grid">
+            <!-- 网格 · skeleton：画一串浅灰占位（53 周 × 7 天，空单元格 hm-l0 背景） -->
+            <div v-if="showSkeleton" class="heatmap-grid">
+              <template v-for="colIdx in 53" :key="`sk-col-${colIdx}`">
+                <div class="heatmap-col">
+                  <div v-for="r in 7" :key="`sk-cell-${colIdx}-${r}`" class="heatmap-cell hm-l0 opacity-70 animate-pulse" />
+                </div>
+              </template>
+            </div>
+
+            <!-- 网格 · 真实 / Mock 数据 -->
+            <div v-else class="heatmap-grid">
               <!-- 按列渲染（每列 = 一周） -->
               <div v-for="(week, colIdx) in weeks" :key="colIdx" class="heatmap-col">
                 <div
@@ -328,10 +404,10 @@ function levelClass(level: number): string {
           </div>
         </div>
 
-        <!-- tooltip（fixed 定位，避免被 overflow 裁剪） -->
+        <!-- tooltip（fixed 定位，避免被 overflow 裁剪；skeleton 不需要） -->
         <Teleport to="body">
           <div
-            v-if="hoveredCell"
+            v-if="!showSkeleton && hoveredCell"
             class="heatmap-tooltip"
             :style="tooltipStyle"
           >
@@ -342,8 +418,8 @@ function levelClass(level: number): string {
         </Teleport>
       </div>
 
-      <!-- 图例 -->
-      <div class="flex items-center justify-between text-xs text-text-muted">
+      <!-- 图例（非 skeleton 才显示；skeleton 显示一条短 Skeleton 条） -->
+      <div v-if="!showSkeleton" class="flex items-center justify-between text-xs text-text-muted">
         <span>少</span>
         <div class="flex items-center gap-1">
           <span
@@ -358,6 +434,11 @@ function levelClass(level: number): string {
           />
         </div>
         <span>多</span>
+      </div>
+      <div v-else class="flex items-center justify-between text-xs text-text-muted">
+        <div class="h-3 w-4 rounded bg-surface-muted/70 animate-pulse" />
+        <div class="h-3 w-24 rounded bg-surface-muted/70 animate-pulse" />
+        <div class="h-3 w-4 rounded bg-surface-muted/70 animate-pulse" />
       </div>
     </CardContent>
   </Card>
