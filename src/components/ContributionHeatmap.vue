@@ -12,6 +12,8 @@
  *   · prefers-reduced-motion 友好
  *   · Loading 骨架屏（cells.len + stats 区）
  *   · total=0 空态提示 + error 提示 banner（由父组件根据后端 meta.fallback 传入）
+ *   · 方案 D：支持 3 个 Tab 切换（SITE / GITHUB / MERGED）；当 enableGithub=false 时 GitHub 相关 Tab 禁用
+ *   · 右上角 GitHub 主页外链图标（当传入 githubLink 时显示）
  *
  * 数据：
  *   · 内置基于确定性种子的 Mock 生成器，data=null 时启用（用于后端接口失败 / 开发期未接入兜底）
@@ -19,7 +21,8 @@
  */
 import { computed, ref } from 'vue'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui'
-import { Activity, Flame, Calendar, TrendingUp, AlertTriangle, Sparkles } from 'lucide-vue-next'
+import { Activity, Flame, Calendar, TrendingUp, AlertTriangle, Sparkles, ExternalLink } from 'lucide-vue-next'
+import type { HeatmapSource } from '@/lib/api-types'
 
 /* ---------- 类型 ---------- */
 
@@ -46,6 +49,12 @@ interface Props {
   emptyHint?: string | null
   /** 真实数据请求失败文案（非空时顶部显示 error banner）—— 仍然显示 Mock 数据不让用户白屏 */
   errorMsg?: string | null
+  /** 当前 Tab（方案 D：SITE / GITHUB / MERGED） */
+  source?: HeatmapSource
+  /** 是否允许 GitHub / MERGED Tab（由 aboutStore.safeAbout.heatmapEnableGithub 决定） */
+  enableGithub?: boolean
+  /** GitHub 主页外链（右上角图标按钮）；空字符串=不显示 */
+  githubLink?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -53,7 +62,34 @@ const props = withDefaults(defineProps<Props>(), {
   loading: false,
   emptyHint: null,
   errorMsg: null,
+  source: 'SITE',
+  enableGithub: false,
+  githubLink: '',
 })
+
+const emit = defineEmits<{
+  /** Tab 切换事件，父组件收到后 aboutStore.fetchHeatmap(newSource) */
+  (e: 'update:source', next: HeatmapSource): void
+}>()
+
+type TabItem = { value: HeatmapSource; label: string; desc: string }
+const TABS: TabItem[] = [
+  { value: 'SITE',   label: '本站',   desc: '博客 / 生活 / 笔记' },
+  { value: 'GITHUB', label: 'GitHub', desc: 'GitHub 公开贡献日历' },
+  { value: 'MERGED', label: '合并',   desc: '本站 + GitHub 合并视图' },
+]
+
+const isTabDisabled = (tab: HeatmapSource): boolean => {
+  // SITE 始终启用；GITHUB / MERGED 需要 enableGithub=true
+  if (tab === 'SITE') return false
+  return !props.enableGithub
+}
+
+function onTabClick(next: HeatmapSource) {
+  if (isTabDisabled(next)) return
+  if (next === props.source) return
+  emit('update:source', next)
+}
 
 /* ---------- 确定性 Mock 数据生成 ---------- */
 
@@ -286,17 +322,55 @@ function levelClass(level: number): string {
 
 <template>
   <Card class="heatmap-card" data-reveal>
-    <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-3">
-      <div class="flex items-center gap-2">
-        <CardTitle class="flex items-center gap-2 text-lg">
-          <Activity class="size-5 text-brand" />
-          贡献热力图
-        </CardTitle>
+    <CardHeader class="flex flex-col items-start gap-3 space-y-0 pb-3">
+      <!-- 顶部行：标题 + 年份区间 + GitHub 外链 -->
+      <div class="w-full flex flex-row items-center justify-between gap-3 flex-wrap">
+        <div class="flex items-center gap-2 min-w-0">
+          <CardTitle class="flex items-center gap-2 text-lg">
+            <Activity class="size-5 text-brand shrink-0" />
+            <span class="truncate">贡献热力图</span>
+          </CardTitle>
+        </div>
+        <div class="flex items-center gap-2 shrink-0">
+          <div class="flex items-center gap-1.5 text-xs text-text-muted">
+            <span>{{ yearStartLabel }}</span>
+            <span aria-hidden>→</span>
+            <span>{{ yearEndLabel }}</span>
+          </div>
+          <a
+            v-if="githubLink"
+            :href="githubLink"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="size-7 inline-flex items-center justify-center rounded-md text-text-muted hover:text-brand hover:bg-brand/10 transition"
+            title="在 GitHub 查看主页"
+            aria-label="GitHub 主页"
+          >
+            <ExternalLink class="size-4" />
+          </a>
+        </div>
       </div>
-      <div class="flex items-center gap-1.5 text-xs text-text-muted">
-        <span>{{ yearStartLabel }}</span>
-        <span aria-hidden>→</span>
-        <span>{{ yearEndLabel }}</span>
+
+      <!-- Tab 切换（SITE / GITHUB / MERGED） -->
+      <div class="w-full heatmap-tabs" role="tablist" aria-label="贡献数据来源">
+        <button
+          v-for="tab in TABS"
+          :key="tab.value"
+          type="button"
+          role="tab"
+          :aria-selected="source === tab.value"
+          :disabled="isTabDisabled(tab.value)"
+          :title="isTabDisabled(tab.value) ? '博主未启用 GitHub 贡献，请在个人设置中开启' : tab.desc"
+          class="heatmap-tab"
+          :class="{
+            'heatmap-tab-active': source === tab.value,
+            'heatmap-tab-disabled': isTabDisabled(tab.value),
+          }"
+          @click="onTabClick(tab.value)"
+        >
+          <span class="heatmap-tab-label">{{ tab.label }}</span>
+          <span class="heatmap-tab-desc">{{ tab.desc }}</span>
+        </button>
       </div>
     </CardHeader>
 
@@ -612,6 +686,101 @@ function levelClass(level: number): string {
 .heatmap-legend-cell {
   display: inline-block;
   border-radius: 2px;
+}
+
+/* ---------- Tab 切换（segmented tabs）样式 ---------- */
+
+.heatmap-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  background: var(--surface-muted);
+  border-radius: 10px;
+}
+
+.heatmap-tab {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 8px 6px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+  line-height: 1.2;
+  text-align: center;
+  transition: background 160ms ease, color 160ms ease, transform 120ms ease;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
+}
+
+.heatmap-tab:focus-visible {
+  box-shadow: 0 0 0 2px var(--surface-elevated), 0 0 0 4px var(--brand);
+  z-index: 1;
+}
+
+.heatmap-tab:not(.heatmap-tab-disabled):hover {
+  background: var(--surface-elevated);
+}
+
+.heatmap-tab:not(.heatmap-tab-disabled):active {
+  transform: translateY(1px);
+}
+
+.heatmap-tab-active {
+  background: var(--surface-elevated);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06), 0 0 0 1px var(--border-strong);
+}
+
+.heatmap-tab-active .heatmap-tab-label {
+  color: var(--brand);
+  font-weight: 600;
+}
+
+.heatmap-tab-label {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.heatmap-tab-desc {
+  font-size: 10px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.heatmap-tab-active .heatmap-tab-desc {
+  color: var(--text-muted);
+  opacity: 1;
+}
+
+.heatmap-tab-disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.heatmap-tab-disabled:hover {
+  background: transparent !important;
+}
+
+/* 小屏幕（<480px）：Tab 说明文字隐藏，只保留主标签，省空间 */
+@media (max-width: 479px) {
+  .heatmap-tab-desc {
+    display: none;
+  }
+  .heatmap-tab {
+    padding: 10px 6px;
+  }
 }
 
 /* 减少动效 */

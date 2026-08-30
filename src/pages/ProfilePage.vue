@@ -28,7 +28,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useAboutStore } from '@/stores/about'
 import type { AboutRsp, HighlightStat, SkillGroup, UpdateAboutParams, HeatmapSource } from '@/lib/api-types'
-import { Button, Card, CardContent, Input, Label, Badge } from '@/components/ui'
+import { Button, Card, CardContent, Input, Label } from '@/components/ui'
 import {
   Camera,
   X,
@@ -337,6 +337,10 @@ async function saveAboutDraft() {
     // aboutStore.saveAbout 参数类型是 UpdateAboutParams，但我们后端实际能收 name（
     // AboutServiceImpl 内部会把 name 写入 User.about_name）。做一次 as any 避免改接口。
     await aboutStore.saveAbout(savePayload as any)
+
+    // 保存成功后清掉贡献热力图前端内存缓存（可能改了 heatmapSource / enableGithub / githubUsername，
+    // 让 About 页下次进入重新拉后端最新数据）
+    aboutStore.invalidateHeatmap()
 
     // Step 2: 同步账号昵称（nickname 始终 ≡ About 展示名）
     const newNickname = d.displayName.trim()
@@ -975,7 +979,7 @@ function resetAccount() {
                   <div>
                     <h3 class="m-0 text-sm font-semibold tracking-tight">贡献热力图配置</h3>
                     <p class="mt-1 text-xs text-text-muted">
-                      控制 About 页贡献热力图的显示源和数据来源（Phase 2 开放 GitHub 配置）。
+                      控制 About 页贡献热力图的显示源和 GitHub 数据来源。
                     </p>
                   </div>
                 </div>
@@ -998,23 +1002,22 @@ function resetAccount() {
                   <div class="space-y-1.5">
                     <div class="flex items-center justify-between">
                       <Label class="text-xs font-normal text-text-muted">启用 GitHub 贡献</Label>
-                      <Badge variant="outline" class="text-[10px] h-5 px-1.5">Phase 2</Badge>
                     </div>
                     <div class="h-9 flex items-center gap-3 rounded-md border border-border bg-surface-elevated px-3">
                       <button
                         type="button"
                         role="switch"
                         :aria-checked="aboutDraft.heatmapEnableGithub"
-                        class="relative inline-flex h-5 w-9 shrink-0 cursor-not-allowed items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface opacity-60"
+                        class="relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
                         :class="aboutDraft.heatmapEnableGithub ? 'bg-success/90' : 'bg-surface-muted'"
-                        disabled
+                        @click="aboutDraft.heatmapEnableGithub = !aboutDraft.heatmapEnableGithub"
                       >
                         <span
                           class="pointer-events-none inline-block size-4 rounded-full bg-white shadow-sm ring-1 ring-black/5 transition-transform"
                           :class="aboutDraft.heatmapEnableGithub ? 'translate-x-[18px]' : 'translate-x-[2px]'"
                         />
                       </button>
-                      <span class="text-xs font-medium text-text-muted">后续开放，当前仅显示本站数据</span>
+                      <span class="text-xs font-medium text-text-muted">关闭后 GitHub / 合并 视图将回退到本站数据</span>
                     </div>
                   </div>
 
@@ -1022,14 +1025,12 @@ function resetAccount() {
                   <div class="space-y-1.5">
                     <div class="flex items-center justify-between">
                       <Label class="text-xs font-normal text-text-muted">GitHub 用户名</Label>
-                      <Badge variant="outline" class="text-[10px] h-5 px-1.5">Phase 2</Badge>
                     </div>
                     <Input
                       v-model="aboutDraft.githubUsername"
                       placeholder="例：TE-Fire"
                       size="sm"
                       class="!h-9 text-sm"
-                      disabled
                     />
                   </div>
 
@@ -1037,14 +1038,12 @@ function resetAccount() {
                   <div class="space-y-1.5">
                     <div class="flex items-center justify-between">
                       <Label class="text-xs font-normal text-text-muted">GitHub 主页链接</Label>
-                      <Badge variant="outline" class="text-[10px] h-5 px-1.5">Phase 2</Badge>
                     </div>
                     <Input
                       v-model="aboutDraft.githubLink"
                       placeholder="例：https://github.com/TE-Fire"
                       size="sm"
                       class="!h-9 text-sm"
-                      disabled
                     />
                   </div>
                 </div>

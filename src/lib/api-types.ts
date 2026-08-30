@@ -141,11 +141,15 @@ export interface ContributionRsp {
   longestStreak: number;
   /** 实际来源 */
   source: HeatmapSource | 'SITE' | 'GITHUB' | 'MERGED';
-  /** 后端附加元信息（fallback=纯占位、tablesFound=实际聚合成功的业务表） */
+  /** 后端附加元信息（fallback=纯占位、tablesFound=实际聚合成功的业务表；mergedFallback=合并视图实际回退到的单源） */
   meta?: {
     fallback?: boolean;
     tablesFound?: string[];
     githubStale?: boolean;
+    /** GITHUB 源请求失败（软过期兜底或无 PAT 兜底），true=显示的是本站数据 */
+    githubFailed?: boolean;
+    /** MERGED 合并时实际可使用的数据源，'both'=两边都有；其它值=仅那一侧可用（UI 上可以提示用户） */
+    mergedFallback?: 'site' | 'github' | 'both';
   };
 }
 

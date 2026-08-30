@@ -3,9 +3,12 @@
  * AboutPage · 关于我（完整填充 + 滚动进入揭示动画）。
  *
  * 数据来源：aboutStore.fetchAbout()（GET /api/about，公开缓存 1 min + 本地兜底）
- * Contribution 热力图：aboutStore.fetchHeatmap(source)（GET /api/contribution/site，6h Redis 缓存 + 内存缓存）
+ * Contribution 热力图：aboutStore.fetchHeatmap(source)（GET /api/contribution/{site|github|merged}）
+ *   · 方案 D：3 个 Tab 切换（本站 / GitHub / 合并）
+ *   · 默认源 = 博主在 Profile 页配置的 heatmapSource
+ *   · 若博主关闭 heatmapEnableGithub → GitHub / 合并 Tab 禁用，后端也会自动回退到本站数据
  */
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { Badge, Card, CardContent, CardHeader, CardTitle, CardDescription, Separator } from '@/components/ui'
 import { MapPin, Briefcase, Coffee, Heart } from 'lucide-vue-next'
 import { useScrollReveal } from '@/composables/useScrollReveal'
@@ -20,17 +23,62 @@ const authStore = useAuthStore()
 const rootRef = ref<HTMLElement | null>(null)
 useScrollReveal(rootRef)
 
+/* ===========================
+ * 方案 D · 贡献热力图状态
+ * =========================== */
+
 /**
- * Phase 1 选择要渲染的贡献来源（SITE，避免 GITHUB / MERGED 尚未实现的 Tab 引入复杂度）。
- * 后续 Phase 3 方案 D 可以把这里改成 "从 aboutStore.safeAbout.heatmapSource 取用户配置 + 在 Heatmap 顶部加 Tabs"。
+ * 当前激活的 Tab（方案 D 三态）。
+ *   · 初始值 = aboutStore.safeAbout.heatmapSource（fetchAbout 之前是 fallback 的 'SITE'；
+ *     fetchAbout 返回后会变成博主在数据库中配置的值 —— 见 onMounted）
+ *   · 用户切换 Tab → ContributionHeatmap 组件触发 update:source → 修改本 ref →
+ *     watch 本 ref → aboutStore.fetchHeatmap(newValue)
  */
-const HEATMAP_SOURCE: HeatmapSource = 'SITE'
+const activeHeatmapSource = ref<HeatmapSource>('SITE')
+
+/**
+ * 根据 safeAbout 的配置，把 source 限制为「实际可访问」的值：
+ *   · heatmapEnableGithub=false 时，若传入 GITHUB / MERGED，返回 SITE 作为兜底
+ *   · 始终保证用户看不到「禁用的 Tab」数据（避免后端已经 fallback 但前端默认值还挂着 MERGED 让用户困惑）
+ */
+function resolveAvailableSource(
+  wanted: HeatmapSource | null | undefined,
+  enableGithub: boolean,
+): HeatmapSource {
+  const s = wanted ?? 'SITE'
+  if (s === 'SITE') return 'SITE'
+  return enableGithub ? s : 'SITE'
+}
+
+/** 点击 Tab 切换（来自 ContributionHeatmap 组件的 v-model:source） */
+function onHeatmapSourceChange(next: HeatmapSource) {
+  activeHeatmapSource.value = next
+}
+
+/**
+ * 当 activeHeatmapSource 变化时：
+ *   1) 立刻把 UI 切到 loading 骨架屏（heatmapLoading[next] 初始就是 false；缓存命中就无 loading）
+ *   2) 调 aboutStore.fetchHeatmap(next) —— 内存缓存命中直接返回
+ */
+watch(
+  activeHeatmapSource,
+  (src, _prev) => {
+    // 不用 await：让 fetch 过程作为副作用发生；组件 loading 态靠 store 的 heatmapLoading 控制
+    aboutStore.fetchHeatmap(src).catch(() => {
+      // store 内部已吞掉错误并写 heatmapError[src]；UI 上会继续以 Mock 数据兜底，不白屏
+    })
+  },
+  { flush: 'post' },
+)
 
 onMounted(async () => {
   // 1) About 公开展示数据（含热力图配置 4 字段：heatmapSource / heatmapEnableGithub / ...）
   await aboutStore.fetchAbout()
-  // 2) 拉取真实贡献热力图（内存缓存命中则直接返回，不会重复请求）
-  await aboutStore.fetchHeatmap(HEATMAP_SOURCE)
+  // 2) 以博主配置的默认源作为激活 tab（通过 resolveAvailableSource 做 enableGithub 校验）
+  const cfg = aboutStore.safeAbout
+  activeHeatmapSource.value = resolveAvailableSource(cfg.heatmapSource, cfg.heatmapEnableGithub)
+  // 3) 拉取默认源的真实贡献热力图（内存缓存命中则直接返回，不会重复请求）
+  await aboutStore.fetchHeatmap(activeHeatmapSource.value)
 })
 
 /* ------ 简化取值 ------ */
@@ -42,26 +90,82 @@ const avatarUrl = computed(() => {
 })
 const nameInitial = computed(() => (aboutStore.displayName || 'T').charAt(0).toUpperCase())
 
-/* ------ Heatmap 组件 props 计算（从 store 拿状态 → 映射成 4 个 prop）------ */
-/** 传 null=让组件兜底 Mock；传 undefined 会被 ContributionHeatmap 视为 Mock（兼容）；有真实数据传对象 */
-const heatmapProp = computed(() => aboutStore.heatmapData(HEATMAP_SOURCE) ?? null)
-const heatmapLoading = computed(() => Boolean(aboutStore.heatmapLoading[HEATMAP_SOURCE]))
-const heatmapError = computed(() => aboutStore.heatmapError[HEATMAP_SOURCE] ?? null)
+/* ------ Heatmap 组件 props 计算（从 store 拿状态 → 映射到当前 active tab）------ */
+
+/** 传 null=让组件兜底 Mock；有真实数据传对象 */
+const heatmapProp = computed(() => aboutStore.heatmapData(activeHeatmapSource.value) ?? null)
+const heatmapLoading = computed(() => Boolean(aboutStore.heatmapLoading[activeHeatmapSource.value]))
 
 /**
- * 空态提示：真实数据 total=0 且后端 meta.fallback=true 才显示，
- * 文案里要区分"业务模块还没上线"和"确实没产出任何博客"—— 由 tablesFound 是否为空决定。
+ * 真实错误（网络异常 / 500 等）→ 显示 error banner + Mock 数据。
+ * 业务级「启用了 GitHub 但 PAT 没配 / GitHub 请求失败软过期」由后端通过 meta.githubFailed 返回，
+ * 我们把 meta 里的业务失败信息和 store.heatmapError 合成成一个给组件。
+ */
+const heatmapError = computed(() => {
+  const storeErr = aboutStore.heatmapError[activeHeatmapSource.value] ?? null
+  const rsp = aboutStore.heatmapData(activeHeatmapSource.value)
+  const meta = rsp?.meta
+  const hints: string[] = []
+  if (activeHeatmapSource.value === 'GITHUB' && meta?.githubFailed) {
+    hints.push('GitHub 贡献暂不可用，下图回退为本站示例数据（请稍后再试或联系博主检查后端配置）。')
+  }
+  if (activeHeatmapSource.value === 'MERGED' && meta?.mergedFallback && meta.mergedFallback !== 'both') {
+    const side = meta.mergedFallback === 'site' ? '本站' : 'GitHub'
+    hints.push(`合并视图仅 ${side} 端有数据（另一段数据源暂时拉取失败，稍后会自动恢复）。`)
+  }
+  if (storeErr) hints.push(storeErr)
+  return hints.length ? hints.join(' ') : null
+})
+
+/**
+ * 空态提示：真实数据 total=0 才显示。
+ * 不同源文案不同：
+ *   · SITE：按 tablesFound 区分「模块未接入」vs「真没写过博客」
+ *   · GITHUB：GitHub 账户过去一年没贡献
+ *   · MERGED：两边都为空；若 mergedFallback 退化成单侧，则按单侧对应文案走
  */
 const heatmapEmptyHint = computed(() => {
-  const d = aboutStore.heatmapData(HEATMAP_SOURCE)
+  const src = activeHeatmapSource.value
+  const d = aboutStore.heatmapData(src)
   if (!d) return null
   if (d.total !== 0) return null
-  const tablesFound = d.meta?.tablesFound ?? []
-  if (tablesFound.length === 0) {
-    return '博主还没发布第一篇内容（博客/生活/笔记模块数据尚未接入）。先看空网格占个位置，后续发文章这里会自动长出小方块。'
+  const meta = d.meta
+
+  // GitHub 失败的兜底 → 已经走 error banner 提示，这里不重复
+  if (src === 'GITHUB' && meta?.githubFailed) return null
+
+  // 计算「实际上使用哪一侧的文案」
+  type EffectiveSrc = 'SITE' | 'GITHUB' | 'BOTH'
+  let effectiveSrc: EffectiveSrc
+  if (src === 'SITE') effectiveSrc = 'SITE'
+  else if (src === 'GITHUB') effectiveSrc = 'GITHUB'
+  else {
+    // MERGED
+    const fb = meta?.mergedFallback
+    if (!fb || fb === 'both') effectiveSrc = 'BOTH'
+    else effectiveSrc = fb === 'site' ? 'SITE' : 'GITHUB'
   }
-  return '过去一年里博主还没发布内容，下一篇文章就是起点 ✨'
+
+  if (effectiveSrc === 'SITE') {
+    const tablesFound = meta?.tablesFound ?? []
+    if (tablesFound.length === 0) {
+      return '博主还没发布第一篇内容（博客/生活/笔记模块数据尚未接入）。先看空网格占个位置，后续发文章这里会自动长出小方块。'
+    }
+    return '过去一年里博主还没发布内容，下一篇文章就是起点 ✨'
+  }
+
+  if (effectiveSrc === 'GITHUB') {
+    return '过去一年 GitHub 暂无公开贡献记录 —— 第一次 commit 就是第一天 🌱'
+  }
+
+  // BOTH 都为空
+  return '过去一年博主还没产出任何内容（本站 + GitHub 两侧均为 0）—— 下一篇文章就是起点 ✨'
 })
+
+/** 传给热力图：是否允许使用 GitHub / MERGED Tab */
+const heatmapEnableGithub = computed(() => Boolean(a.value.heatmapEnableGithub))
+/** 传给热力图：GitHub 主页外链（safeAbout.githubLink 为空 → 不渲染图标按钮） */
+const heatmapGithubLink = computed(() => (a.value.githubLink ?? '').trim())
 
 /*
  * 把一行里的 "**粗体**" 语法用 <strong> 包起来，返回用于 v-html 的 HTML 串。
@@ -145,13 +249,21 @@ const safeSkillGroups = computed<SkillGroup[]>(() =>
       </div>
     </div>
 
-    <!-- 3. 贡献热力图（绑定真实数据 + loading + emptyHint + error） -->
+    <!-- 3. 贡献热力图（方案 D 三态 Tab 切换：本站 / GitHub / 合并）
+         · :source + @update:source 控制当前激活 Tab
+         · :enable-github 控制 GitHub / 合并 Tab 是否可点
+         · :github-link 渲染右上角外链图标
+         · data / loading / empty-hint / error-msg 动态按当前激活 tab 计算 -->
     <section data-reveal="0.08">
       <ContributionHeatmap
         :data="heatmapProp"
         :loading="heatmapLoading"
         :empty-hint="heatmapEmptyHint"
         :error-msg="heatmapError"
+        :source="activeHeatmapSource"
+        :enable-github="heatmapEnableGithub"
+        :github-link="heatmapGithubLink"
+        @update:source="onHeatmapSourceChange"
       />
     </section>
 
