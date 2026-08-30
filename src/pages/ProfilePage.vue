@@ -699,34 +699,33 @@ function resetAccount() {
                   <p class="mt-1 text-xs text-text-muted">显示在 AboutPage 页头 &amp; 首页 Hero 大标题下。</p>
                 </div>
 
-                <!-- displayName -->
-                <div class="space-y-1.5">
-                  <Label class="text-xs font-normal text-text-muted">展示名称</Label>
-                  <Input v-model="aboutDraft.displayName" maxlength="40" placeholder="比如：Trae" />
-                  <p class="m-0 text-[11px] text-text-muted/70">
-                    与账号昵称始终同步；这里改了，Tab2 账号资料里的昵称会自动同步。
-                  </p>
+                <!-- displayName · inline -->
+                <div class="flex items-center gap-4 py-2">
+                  <Label class="w-28 shrink-0 text-sm font-medium text-text">展示名称</Label>
+                  <Input v-model="aboutDraft.displayName" maxlength="40" placeholder="比如：Trae" class="flex-1" />
+                  <span class="shrink-0 text-[11px] text-text-muted/70">与账号昵称同步</span>
                 </div>
 
-                <!-- shortBio -->
-                <div class="space-y-1.5">
-                  <Label class="text-xs font-normal text-text-muted">个人简介 shortBio（一句话）</Label>
+                <!-- shortBio · inline（textarea Label top-aligned） -->
+                <div class="flex gap-4 py-2">
+                  <Label class="w-28 shrink-0 text-sm font-medium text-text pt-2">一句话简介</Label>
                   <textarea
                     v-model="aboutDraft.shortBio"
                     rows="2"
                     maxlength="200"
                     placeholder="一句话描述自己，约 30~60 字为宜"
-                    class="block min-h-[3.5rem] w-full rounded-md border border-border bg-surface-elevated px-3 py-2 text-sm shadow-sm placeholder:text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface disabled:cursor-not-allowed disabled:opacity-50 resize-y"
+                    class="block min-h-[3.5rem] flex-1 rounded-md border border-border bg-surface-elevated px-3 py-2 text-sm shadow-sm placeholder:text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface disabled:cursor-not-allowed disabled:opacity-50 resize-y"
                   />
                 </div>
 
-                <!-- location：独立一行全宽 -->
-                <div class="space-y-1.5">
-                  <Label class="text-xs font-normal text-text-muted">所在地 &amp; 协作方式</Label>
+                <!-- location · inline -->
+                <div class="flex items-center gap-4 py-2">
+                  <Label class="w-28 shrink-0 text-sm font-medium text-text">所在地</Label>
                   <Input
                     v-model="aboutDraft.location"
                     maxlength="80"
                     placeholder="例：中国 · 远程协作友好 (UTC+8)"
+                    class="flex-1"
                   />
                 </div>
 
@@ -747,10 +746,10 @@ function resetAccount() {
                   </div>
                 </div>
 
-                <!-- tags chip 输入 -->
-                <div class="space-y-1.5">
-                  <Label class="text-xs font-normal text-text-muted">身份标签 tags（首页终端 whoami 展示用）</Label>
-                  <div class="space-y-2 rounded-md border border-border bg-surface-elevated px-3 py-2 focus-within:ring-2 focus-within:ring-brand focus-within:ring-offset-2 focus-within:ring-offset-surface">
+                <!-- tags chip 输入 · inline -->
+                <div class="flex gap-4 py-2">
+                  <Label class="w-28 shrink-0 text-sm font-medium text-text pt-2">身份标签</Label>
+                  <div class="flex-1 space-y-2 rounded-md border border-border bg-surface-elevated px-3 py-2 focus-within:ring-2 focus-within:ring-brand focus-within:ring-offset-2 focus-within:ring-offset-surface">
                     <input
                       class="w-full bg-transparent text-sm outline-none placeholder:text-text-muted py-1"
                       placeholder="输入后回车或逗号新增：Vue 3, TypeScript, Tailwind…"
@@ -787,23 +786,25 @@ function resetAccount() {
                   </p>
                 </div>
 
-                <div class="space-y-1.5">
-                  <Label class="text-xs font-normal text-text-muted">关于我 longBio（每行一段）</Label>
+                <!-- longBio · inline textarea -->
+                <div class="flex gap-4 py-2">
+                  <Label class="w-28 shrink-0 text-sm font-medium text-text pt-2">关于我</Label>
                   <textarea
                     v-model="longBioText"
                     rows="5"
                     placeholder="第一段落…&#10;第二段落…"
-                    class="block w-full rounded-md border border-border bg-surface-elevated px-3 py-2 text-sm shadow-sm placeholder:text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface disabled:cursor-not-allowed disabled:opacity-50 resize-y font-sans leading-relaxed"
+                    class="block w-full flex-1 rounded-md border border-border bg-surface-elevated px-3 py-2 text-sm shadow-sm placeholder:text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface disabled:cursor-not-allowed disabled:opacity-50 resize-y font-sans leading-relaxed"
                   />
                 </div>
 
-                <div class="space-y-1.5">
-                  <Label class="text-xs font-normal text-text-muted">现在 Now Doing（每行一条，支持 **粗体**）</Label>
+                <!-- nowDoing · inline textarea -->
+                <div class="flex gap-4 py-2">
+                  <Label class="w-28 shrink-0 text-sm font-medium text-text pt-2">现在在做</Label>
                   <textarea
                     v-model="nowDoingText"
                     rows="4"
                     placeholder="🪴 **产品**：xxx 项目模板…&#10;📝 **写作**：保持 2~3 篇 / 月…"
-                    class="block w-full rounded-md border border-border bg-surface-elevated px-3 py-2 text-sm shadow-sm placeholder:text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface disabled:cursor-not-allowed disabled:opacity-50 resize-y font-mono leading-relaxed"
+                    class="block w-full flex-1 rounded-md border border-border bg-surface-elevated px-3 py-2 text-sm shadow-sm placeholder:text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface disabled:cursor-not-allowed disabled:opacity-50 resize-y font-mono leading-relaxed"
                   />
                 </div>
               </section>
@@ -824,33 +825,27 @@ function resetAccount() {
                   还没有数字统计，点右上角「新增一行」开始添加。
                 </div>
 
-                <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                   <div
-                     v-for="(stat, idx) in aboutDraft.highlightStats"
-                     :key="idx"
-                     class="flex items-stretch gap-2 rounded-md border border-border bg-surface-elevated p-3"
-                   >
-                     <div class="grid grid-cols-[140px_1fr] gap-3 flex-1 min-w-0">
-                       <div class="space-y-1 min-w-0">
-                         <Label class="text-[10.5px] font-normal text-text-muted/80">标签</Label>
-                         <Input v-model="stat.label" placeholder="例如：年前端经验" />
-                       </div>
-                       <div class="space-y-1 min-w-0">
-                         <Label class="text-[10.5px] font-normal text-text-muted/80">数值（原样显示，支持单位）</Label>
-                         <Input v-model="stat.value" placeholder="例如：5+ 或 3.2k" />
-                       </div>
-                     </div>
-                     <button
-                       type="button"
-                       class="shrink-0 size-8 self-center rounded-md border border-transparent text-text-muted hover:text-danger hover:border-danger/30 hover:bg-danger/5 transition inline-flex items-center justify-center"
-                       :disabled="aboutDraft.highlightStats.length <= 1"
-                       :title="aboutDraft.highlightStats.length <= 1 ? '至少保留 1 行' : '删除此行'"
-                       @click="removeStat(idx)"
-                     >
-                       <Minus class="size-3.5" />
-                     </button>
-                   </div>
-                 </div>
+                <div v-else class="space-y-2">
+                    <div
+                      v-for="(stat, idx) in aboutDraft.highlightStats"
+                      :key="idx"
+                      class="flex items-center gap-4 py-2 border-b border-border/60 last:border-b-0"
+                    >
+                      <Label class="w-20 shrink-0 text-sm font-medium text-text">标签</Label>
+                      <Input v-model="stat.label" placeholder="例如：年前端经验" class="flex-1" />
+                      <Label class="w-20 shrink-0 text-sm font-medium text-text text-right">数值</Label>
+                      <Input v-model="stat.value" placeholder="例如：5+ 或 3.2k" class="flex-1" />
+                      <button
+                        type="button"
+                        class="shrink-0 size-8 rounded-md border border-transparent text-text-muted hover:text-danger hover:bg-danger/10 transition inline-flex items-center justify-center"
+                        :disabled="aboutDraft.highlightStats.length <= 1"
+                        :title="aboutDraft.highlightStats.length <= 1 ? '至少保留 1 行' : '删除此行'"
+                        @click="removeStat(idx)"
+                      >
+                        <Minus class="size-3.5" />
+                      </button>
+                    </div>
+                  </div>
               </section>
 
               <!-- Section · 兴趣标签 interests（chip） -->
@@ -902,38 +897,33 @@ function resetAccount() {
                 </div>
 
                 <div
-                  v-for="(grp, gIdx) in aboutDraft.skillGroups"
-                  :key="grp.id"
-                  class="rounded-md border border-border bg-surface-elevated p-4 space-y-3"
-                >
-                  <div class="grid grid-cols-1 sm:grid-cols-[1fr_150px_36px] gap-2 items-start">
-                    <div class="space-y-1">
-                      <Label class="text-[10.5px] font-normal text-text-muted/80">分组标题</Label>
-                      <Input v-model="grp.title" placeholder="例：前端框架" />
-                    </div>
-                    <div class="space-y-1">
-                      <Label class="text-[10.5px] font-normal text-text-muted/80">样式 variant</Label>
-                      <select
-                        v-model="grp.variant"
-                        class="h-8 w-full rounded-md border border-border bg-surface px-2 text-xs shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
-                      >
-                        <option value="default">default（品牌色）</option>
-                        <option value="secondary">secondary（灰底）</option>
-                        <option value="outline">outline（描边）</option>
-                      </select>
-                    </div>
-                    <div class="sm:pt-5 flex justify-end">
-                      <button
-                        type="button"
-                        class="size-8 rounded-md border border-transparent text-text-muted hover:text-danger hover:border-danger/30 hover:bg-danger/5 transition inline-flex items-center justify-center"
-                        :disabled="aboutDraft.skillGroups.length <= 1"
-                        :title="aboutDraft.skillGroups.length <= 1 ? '至少保留 1 组' : '删除此分组'"
-                        @click="removeSkillGroup(gIdx)"
-                      >
-                        <Minus class="size-3.5" />
-                      </button>
-                    </div>
-                  </div>
+                   v-for="(grp, gIdx) in aboutDraft.skillGroups"
+                   :key="grp.id"
+                   class="rounded-md border border-border bg-surface-elevated p-4 space-y-3"
+                 >
+                   <!-- 分组标题 + variant · inline -->
+                   <div class="flex items-center gap-4">
+                     <Label class="w-20 shrink-0 text-sm font-medium text-text">分组</Label>
+                     <Input v-model="grp.title" placeholder="例：前端框架" class="flex-1" />
+                     <Label class="shrink-0 text-sm font-medium text-text">样式</Label>
+                     <select
+                       v-model="grp.variant"
+                       class="h-9 w-[140px] rounded-md border border-border bg-surface px-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+                     >
+                       <option value="default">品牌色</option>
+                       <option value="secondary">灰底</option>
+                       <option value="outline">描边</option>
+                     </select>
+                     <button
+                       type="button"
+                       class="shrink-0 size-8 rounded-md border border-transparent text-text-muted hover:text-danger hover:bg-danger/10 transition inline-flex items-center justify-center"
+                       :disabled="aboutDraft.skillGroups.length <= 1"
+                       :title="aboutDraft.skillGroups.length <= 1 ? '至少保留 1 组' : '删除此分组'"
+                       @click="removeSkillGroup(gIdx)"
+                     >
+                       <Minus class="size-3.5" />
+                     </button>
+                   </div>
 
                   <div class="space-y-2 rounded-md bg-surface-muted/30 border border-border/60 px-3 py-2 focus-within:ring-2 focus-within:ring-brand focus-within:ring-offset-2 focus-within:ring-offset-surface">
                     <input
@@ -989,12 +979,12 @@ function resetAccount() {
                 </div>
 
                 <div class="space-y-4 rounded-md border border-border bg-surface-elevated p-4">
-                  <!-- 1. 显示源 -->
-                  <div class="space-y-1.5">
-                    <Label class="text-xs font-normal text-text-muted">默认显示源</Label>
+                  <!-- 1. 显示源 · inline -->
+                  <div class="flex items-center gap-4 py-1">
+                    <Label class="w-28 shrink-0 text-sm font-medium text-text">默认显示源</Label>
                     <select
                       v-model="aboutDraft.heatmapSource"
-                      class="w-full h-9 rounded-md border border-border bg-surface px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+                      class="h-9 flex-1 rounded-md border border-border bg-surface px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
                     >
                       <option value="SITE">本站贡献（博客 / 生活 / 笔记）</option>
                       <option value="GITHUB">GitHub 贡献</option>
@@ -1002,53 +992,30 @@ function resetAccount() {
                     </select>
                   </div>
 
-                  <!-- 2. 启用 GitHub -->
-                  <div class="space-y-1.5">
-                    <div class="flex items-center justify-between">
-                      <Label class="text-xs font-normal text-text-muted">启用 GitHub 贡献</Label>
-                    </div>
-                    <div class="h-9 flex items-center gap-3 rounded-md border border-border bg-surface-elevated px-3">
-                      <button
-                        type="button"
-                        role="switch"
-                        :aria-checked="aboutDraft.heatmapEnableGithub"
-                        class="relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
-                        :class="aboutDraft.heatmapEnableGithub ? 'bg-success/90' : 'bg-surface-muted'"
-                        @click="aboutDraft.heatmapEnableGithub = !aboutDraft.heatmapEnableGithub"
+                  <!-- 2. 启用 GitHub · inline + Switch 组件 -->
+                  <div class="flex items-center justify-between gap-4 py-1">
+                    <Label class="w-28 shrink-0 text-sm font-medium text-text">启用 GitHub</Label>
+                    <div class="flex-1 flex items-center gap-3">
+                      <Switch v-model:checked="aboutDraft.heatmapEnableGithub" variant="default" />
+                      <span
+                        class="text-[12px] font-medium"
+                        :class="aboutDraft.heatmapEnableGithub ? 'text-success' : 'text-text-muted'"
                       >
-                        <span
-                          class="pointer-events-none inline-block size-4 rounded-full bg-white shadow-sm ring-1 ring-black/5 transition-transform"
-                          :class="aboutDraft.heatmapEnableGithub ? 'translate-x-[18px]' : 'translate-x-[2px]'"
-                        />
-                      </button>
-                      <span class="text-xs font-medium text-text-muted">关闭后 GitHub / 合并 视图将回退到本站数据</span>
+                        {{ aboutDraft.heatmapEnableGithub ? '已启用 · GitHub / 合并 Tab 可用' : '已关闭 · 回退本站数据' }}
+                      </span>
                     </div>
                   </div>
 
-                  <!-- 3. GitHub 用户名 -->
-                  <div class="space-y-1.5">
-                    <div class="flex items-center justify-between">
-                      <Label class="text-xs font-normal text-text-muted">GitHub 用户名</Label>
-                    </div>
-                    <Input
-                      v-model="aboutDraft.githubUsername"
-                      placeholder="例：TE-Fire"
-                      size="sm"
-                      class="!h-9 text-sm"
-                    />
+                  <!-- 3. GitHub 用户名 · inline -->
+                  <div class="flex items-center gap-4 py-1">
+                    <Label class="w-28 shrink-0 text-sm font-medium text-text">GitHub 用户名</Label>
+                    <Input v-model="aboutDraft.githubUsername" placeholder="例：TE-Fire" class="flex-1" />
                   </div>
 
-                  <!-- 4. GitHub 链接 -->
-                  <div class="space-y-1.5">
-                    <div class="flex items-center justify-between">
-                      <Label class="text-xs font-normal text-text-muted">GitHub 主页链接</Label>
-                    </div>
-                    <Input
-                      v-model="aboutDraft.githubLink"
-                      placeholder="例：https://github.com/TE-Fire"
-                      size="sm"
-                      class="!h-9 text-sm"
-                    />
+                  <!-- 4. GitHub 链接 · inline -->
+                  <div class="flex items-center gap-4 py-1">
+                    <Label class="w-28 shrink-0 text-sm font-medium text-text">GitHub 主页</Label>
+                    <Input v-model="aboutDraft.githubLink" placeholder="例：https://github.com/TE-Fire" class="flex-1" />
                   </div>
                 </div>
               </section>
@@ -1124,38 +1091,43 @@ function resetAccount() {
             </p>
           </Card>
 
-          <!-- 右栏：表单 -->
-          <Card class="p-6 space-y-5">
-            <div class="space-y-1.5">
-              <Label class="text-xs font-normal text-text-muted">
-                用户名 <span class="text-text-muted/50">· 账号创建后不可修改</span>
+          <!-- 右栏：表单 · 全部 inline -->
+          <Card class="p-6 space-y-3">
+            <!-- username -->
+            <div class="flex items-center gap-4 py-1">
+              <Label class="w-24 shrink-0 text-sm font-medium text-text">
+                用户名 <span class="text-[10.5px] text-text-muted/50 font-normal">不可修改</span>
               </Label>
               <Input
                 :value="authStore.user?.username ?? ''"
                 disabled
-                class="opacity-60 cursor-not-allowed"
+                class="flex-1 opacity-60 cursor-not-allowed"
               />
             </div>
-            <div class="space-y-1.5">
-              <Label class="text-xs font-normal text-text-muted">
-                昵称 <span class="text-text-muted/50">· 与 Tab1 的展示名称同步</span>
+            <!-- nickname -->
+            <div class="flex items-center gap-4 py-1">
+              <Label class="w-24 shrink-0 text-sm font-medium text-text">
+                昵称 <span class="text-[10.5px] text-text-muted/50 font-normal">与 Tab1 同步</span>
               </Label>
-              <Input v-model="accNickname" maxlength="50" placeholder="显示名称" />
+              <Input v-model="accNickname" maxlength="50" placeholder="显示名称" class="flex-1" />
             </div>
-            <div class="space-y-1.5">
-              <Label class="text-xs font-normal text-text-muted">
-                邮箱 <span class="text-text-muted/50">· 留空则清除</span>
+            <!-- email -->
+            <div class="flex items-center gap-4 py-1">
+              <Label class="w-24 shrink-0 text-sm font-medium text-text">
+                邮箱 <span class="text-[10.5px] text-text-muted/50 font-normal">留空清除</span>
               </Label>
               <Input
                 v-model="accEmail"
                 type="email"
                 maxlength="100"
                 placeholder="you@example.com"
+                class="flex-1"
               />
             </div>
-            <div class="space-y-1.5">
-              <Label class="text-xs font-normal text-text-muted">角色</Label>
-              <div class="flex items-center gap-2">
+            <!-- role -->
+            <div class="flex items-center gap-4 py-1">
+              <Label class="w-24 shrink-0 text-sm font-medium text-text">角色</Label>
+              <div class="flex-1 flex items-center gap-2">
                 <span class="inline-flex items-center gap-1.5 text-sm px-2.5 py-1 rounded-full bg-brand/10 text-brand ring-1 ring-brand/30">
                   <Check class="size-3.5" />
                   {{ authStore.user?.role === 'admin' ? '管理员' : authStore.user?.role }}
