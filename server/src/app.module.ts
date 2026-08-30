@@ -6,6 +6,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { UserModule } from './modules/user/user.module';
 import { AboutModule } from './modules/about/about.module';
 import { PostModule } from './modules/post/post.module';
+import { ContributionModule } from './modules/contribution/contribution.module';
 import { AppController } from './app.controller';
 
 /**
@@ -15,7 +16,7 @@ import { AppController } from './app.controller';
  *   1. ConfigModule —— 环境变量最先加载
  *   2. CommonModule —— 全局基础设施（PrismaService 等）
  *   3. RedisModule  —— 全局 Redis（验证码/缓存/Token）
- *   4. 业务模块 —— Auth / User / About / Post
+ *   4. 业务模块 —— Auth / User / About / Post / Contribution
  */
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { AppController } from './app.controller';
     UserModule,
     AboutModule,
     PostModule,
+    ContributionModule,
   ],
   controllers: [AppController],
   providers: [],

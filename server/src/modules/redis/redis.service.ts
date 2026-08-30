@@ -54,6 +54,12 @@ export class RedisService implements OnModuleInit {
     await this.client.del(key);
   }
 
+  /** 批量删除多个 key，空数组直接跳过（避免调用方判断空 spread） */
+  async delMany(...keys: string[]): Promise<void> {
+    if (!keys || keys.length === 0) return;
+    await this.client.del(...keys);
+  }
+
   async exists(key: string): Promise<boolean> {
     return (await this.client.exists(key)) === 1;
   }

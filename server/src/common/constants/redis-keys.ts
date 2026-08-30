@@ -29,6 +29,7 @@ export const REDIS_MODULE = {
   CACHE: 'cache',
   SESSION: 'session',
   LOCK: 'lock',
+  CONTRIBUTION: 'contribution',
 } as const;
 
 /* ============================================================
@@ -47,6 +48,12 @@ export const REDIS_TTL = {
   CACHE_POST_DETAIL: 60 * 60,
   /** 分布式锁：默认 30 秒（业务可覆盖） */
   LOCK_DEFAULT: 30,
+  /** 贡献热力图 · 本站聚合：6 小时（发博客时才需要删缓存） */
+  CONTRIB_SITE: 6 * 3600,
+  /** 贡献热力图 · GitHub 抓取：24 小时（GitHub 以 UTC+0 为日维度，1 天最多变化一次） */
+  CONTRIB_GITHUB: 24 * 3600,
+  /** 贡献热力图 · 合并视图：6 小时（跟随 SITE/GitHub 更新，失效时双源合并重算） */
+  CONTRIB_MERGED: 6 * 3600,
 } as const;
 
 /* ============================================================
@@ -115,6 +122,40 @@ export function LOCK_KEY(lockKey: string): string {
   return `${REDIS_PREFIX}:${REDIS_MODULE.LOCK}:${lockKey}`;
 }
 
+/* ---------- Contribution 贡献热力图缓存 ---------- */
+
+/**
+ * 贡献热力图 · 本站聚合结果（SITE）
+ *   personal_site:contribution:site:u{userId}
+ * value: ContributionRsp JSON（cells + total + bestDay + ... + source='SITE'）
+ * TTL: 6 小时（CONTRIB_SITE）
+ * 失效：① 发布/删除博客时 ② admin PUT /api/about 改热力图配置时 ③ TTL 自然过期
+ */
+export function CONTRIB_SITE_KEY(userId: number | string): string {
+  return `${REDIS_PREFIX}:${REDIS_MODULE.CONTRIBUTION}:site:u${userId}`;
+}
+
+/**
+ * 贡献热力图 · GitHub 抓取结果（Phase 2 启用）
+ *   personal_site:contribution:github:{username}
+ * value: ContributionRsp JSON（source='GITHUB'）
+ * TTL: 24 小时（CONTRIB_GITHUB）
+ * 限流兜底：key 已过期但 fetch 失败时直接返回旧值（软过期）
+ */
+export function CONTRIB_GITHUB_KEY(username: string): string {
+  return `${REDIS_PREFIX}:${REDIS_MODULE.CONTRIBUTION}:github:${username}`;
+}
+
+/**
+ * 贡献热力图 · 合并视图（SITE + GitHub）
+ *   personal_site:contribution:merged:u{userId}
+ * value: ContributionRsp JSON（source='MERGED'，count=summation, level 按合并后阈值重算）
+ * TTL: 6 小时（CONTRIB_MERGED）
+ */
+export function CONTRIB_MERGED_KEY(userId: number | string): string {
+  return `${REDIS_PREFIX}:${REDIS_MODULE.CONTRIBUTION}:merged:u${userId}`;
+}
+
 /* ============================================================
  *  码段 & 码表一览（防止命名冲突时查阅）
  * ============================================================ */
@@ -134,5 +175,10 @@ export const REDIS_KEY_SUMMARY = {
   ],
   lock: [
     { pattern: LOCK_KEY.name, example: LOCK_KEY('post_update_1'), ttl: REDIS_TTL.LOCK_DEFAULT },
+  ],
+  contribution: [
+    { pattern: CONTRIB_SITE_KEY.name,   example: CONTRIB_SITE_KEY(1),   ttl: REDIS_TTL.CONTRIB_SITE },
+    { pattern: CONTRIB_GITHUB_KEY.name, example: CONTRIB_GITHUB_KEY('TE-Fire'), ttl: REDIS_TTL.CONTRIB_GITHUB },
+    { pattern: CONTRIB_MERGED_KEY.name, example: CONTRIB_MERGED_KEY(1), ttl: REDIS_TTL.CONTRIB_MERGED },
   ],
 } as const;

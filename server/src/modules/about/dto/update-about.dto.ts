@@ -117,4 +117,26 @@ export class UpdateAboutDto {
   @IsOptional()
   @IsObject()
   meta?: Record<string, unknown>;
+
+  /* ----------- 热力图配置（方案 D SITE / GITHUB / MERGED） ----------- */
+
+  /** 默认显示源（Phase 1 只允许 SITE，Phase 2 后放开 GITHUB / MERGED） */
+  @IsOptional()
+  @IsIn(['SITE', 'GITHUB', 'MERGED'])
+  heatmapSource?: 'SITE' | 'GITHUB' | 'MERGED';
+
+  /** 是否启用 GitHub 贡献（Phase 1 存了也没用，前端强制隐藏 GitHub Tab） */
+  @IsOptional()
+  @IsBoolean()
+  heatmapEnableGithub?: boolean;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  githubUsername?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  githubLink?: string;
 }

@@ -7,9 +7,10 @@ import {
   ABOUT_PUBLIC_KEY,
   REDIS_TTL,
 } from '@/common/constants/redis-keys';
+import { ContributionService } from '../contribution/contribution.service';
 import { UpdateAboutDto } from './dto/update-about.dto';
 import { AboutBizError, getAboutErrorInfo } from './enums/about-biz-error.enum';
-import type { AboutRsp, HighlightStatRsp, SkillGroupRsp } from './dto/about.dto';
+import type { AboutRsp, HeatmapSource, HighlightStatRsp, SkillGroupRsp } from './dto/about.dto';
 
 /**
  * About 公开展示字段类型（直接映射 Prisma 返回的行对象结构，用于 TS 类型收窄）
@@ -28,6 +29,10 @@ interface AboutUserRow {
   aboutLocation: string;
   aboutAvailable: boolean;
   aboutNowDoing: unknown;
+  aboutHeatmapSource: string;
+  aboutHeatmapEnableGithub: boolean;
+  aboutGithubUsername: string;
+  aboutGithubLink: string;
 }
 
 @Injectable()
@@ -37,6 +42,7 @@ export class AboutService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
+    private readonly contributionService: ContributionService,
   ) {}
 
   /* ============================== 公开读：GET /api/about ============================== */
@@ -73,6 +79,10 @@ export class AboutService {
         aboutLocation: true,
         aboutAvailable: true,
         aboutNowDoing: true,
+        aboutHeatmapSource: true,
+        aboutHeatmapEnableGithub: true,
+        aboutGithubUsername: true,
+        aboutGithubLink: true,
       },
     })) as AboutUserRow | null;
 
@@ -120,6 +130,20 @@ export class AboutService {
           aboutNowDoing: dto.nowDoing as any,
           aboutHighlightStats: dto.highlightStats as any,
           aboutSkills: dto.skillGroups as any,
+          // ========== 热力图 4 配置字段 ==========
+          // 不传则不覆盖（保持 DB 默认值），传了按 DTO 校验结果写入
+          ...(typeof dto.heatmapSource === 'string'
+            ? { aboutHeatmapSource: dto.heatmapSource }
+            : {}),
+          ...(typeof dto.heatmapEnableGithub === 'boolean'
+            ? { aboutHeatmapEnableGithub: dto.heatmapEnableGithub }
+            : {}),
+          ...(typeof dto.githubUsername === 'string'
+            ? { aboutGithubUsername: dto.githubUsername }
+            : {}),
+          ...(typeof dto.githubLink === 'string'
+            ? { aboutGithubLink: dto.githubLink }
+            : {}),
         },
       });
     } catch (err) {
@@ -127,20 +151,44 @@ export class AboutService {
       throw new BusinessException(getAboutErrorInfo(AboutBizError.SAVE_FAILED));
     }
 
-    // 删缓存（失败忽略，因为缓存最多 1 分钟也会自然过期）
+    // 删 About 缓存（失败忽略，最多 1 分钟自然过期）
     try {
       await this.redis.del(ABOUT_PUBLIC_KEY);
     } catch (e) {
       this.logger.warn(`Redis 删 About 缓存失败：${(e as Error).message}`);
     }
 
-    // 直接再读一次 DB（走缓存 miss → 重建链路，保证返回的是最新值）
+    // B5 钩子：热力图配置变了 → 统一调用 ContributionService.invalidateAll 失效 SITE/MERGED/GITHUB 缓存
+    //       失效逻辑只在 Contribution 模块一处维护，后续 Phase 2/3 新增 key 时这里无需改动
+    try {
+      await this.contributionService.invalidateAll(userId);
+    } catch (e) {
+      this.logger.warn(`贡献缓存失效钩子失败（不影响 About 返回）：${(e as Error).message}`);
+    }
+
+    // 直接再读一次 DB（重建链路，保证返回最新值）
     return this.getPublicAbout();
+  }
+
+  /**
+   * [已废弃] 原手动删 SITE key 逻辑已迁移到 ContributionService.invalidateAll，
+   * 保留此方法签名是为了避免外部调用方编译挂，实际上已不被内部使用。
+   * @deprecated 请使用 ContributionService.invalidateAll(userId)
+   */
+  async invalidateContributionCache(userId: number): Promise<void> {
+    await this.contributionService.invalidateAll(userId);
   }
 
   /* ============================== 内部：映射 ============================== */
 
   private mapRowToRsp(row: AboutUserRow): AboutRsp {
+    // DB 中 aboutHeatmapSource 可能是脏值（历史遗留/手工改库），做合法枚举兜底
+    const VALID_SOURCES: HeatmapSource[] = ['SITE', 'GITHUB', 'MERGED'];
+    const heatmapSource: HeatmapSource =
+      VALID_SOURCES.includes((row.aboutHeatmapSource || 'SITE') as HeatmapSource)
+        ? (row.aboutHeatmapSource as HeatmapSource)
+        : 'SITE';
+
     return {
       name: row.nickname?.trim() || row.username,
       avatar: row.avatar || null,
@@ -153,6 +201,10 @@ export class AboutService {
       interests: this.safeStringArray(row.aboutInterests),
       skillGroups: this.safeSkillGroups(row.aboutSkills),
       nowDoing: this.safeStringArray(row.aboutNowDoing),
+      heatmapSource,
+      heatmapEnableGithub: Boolean(row.aboutHeatmapEnableGithub),
+      githubUsername: row.aboutGithubUsername ?? '',
+      githubLink: row.aboutGithubLink ?? '',
     };
   }
 

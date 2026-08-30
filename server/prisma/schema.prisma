@@ -61,5 +61,15 @@ model User {
   /// 现在在做什么 Card 条目数组 → string[] JSON（支持 **粗体** inline markdown 语法）
   aboutNowDoing     Json     @default("[]")                 @map("about_now_doing")
 
+  // ===== About 热力图配置（Contribution 模块 A/B/D 方案控制用） =====
+  /// 默认显示源：SITE 本站 / GITHUB / MERGED（方案 D 三态）
+  aboutHeatmapSource       String   @default("SITE")  @db.VarChar(20)   @map("about_heatmap_source")
+  /// 是否启用 GitHub 贡献（false 时前端只显示本站 Tab，后端 GitHub 接口返回空）
+  aboutHeatmapEnableGithub Boolean  @default(false)                      @map("about_heatmap_enable_github")
+  /// 博主 GitHub 用户名（公开，游客 About 页能看到）
+  aboutGithubUsername      String   @default("")      @db.VarChar(100)  @map("about_github_username")
+  /// 博主 GitHub 主页链接
+  aboutGithubLink          String   @default("")      @db.VarChar(500)  @map("about_github_link")
+
   @@map("user")
 }

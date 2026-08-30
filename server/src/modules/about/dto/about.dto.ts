@@ -18,6 +18,8 @@ export interface HighlightStatRsp {
   value: string;
 }
 
+export type HeatmapSource = 'SITE' | 'GITHUB' | 'MERGED';
+
 export interface AboutRsp {
   /** 显示名（直接复用 User.nickname，兜底 username） */
   name: string;
@@ -41,4 +43,12 @@ export interface AboutRsp {
   skillGroups: SkillGroupRsp[];
   /** 现在在做什么 Card 条目（支持 **粗体** inline markdown 语法，前端配合 <strong> 简单渲染） */
   nowDoing: string[];
+  /** 热力图默认显示源（方案 D 控制） */
+  heatmapSource: HeatmapSource;
+  /** 是否启用 GitHub 贡献（false → 前端只显示本站 Tab，GitHub/Merge 隐藏） */
+  heatmapEnableGithub: boolean;
+  /** GitHub 用户名（公开） */
+  githubUsername: string;
+  /** GitHub 主页链接 */
+  githubLink: string;
 }
