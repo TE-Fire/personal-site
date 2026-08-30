@@ -168,26 +168,24 @@ function closeMenu() { menuOpen.value = false }
         <div v-if="authStore.isLoggedIn" class="relative">
           <button
             type="button"
-            class="flex items-center gap-2 rounded-full p-1 pr-2 transition hover:bg-surface-muted/40"
+            class="rounded-full ring-2 ring-brand/20 transition hover:ring-brand/40 hover:shadow-md"
             :aria-expanded="userMenuOpen"
+            aria-label="用户菜单"
             @click="toggleUserMenu"
           >
-            <!-- 头像 -->
+            <!-- 真实头像 -->
             <span
               v-if="authStore.user?.avatar"
-              class="size-8 overflow-hidden rounded-full ring-2 ring-brand/20"
+              class="flex size-10 overflow-hidden rounded-full"
             >
               <img :src="authStore.user.avatar" alt="avatar" class="size-full object-cover" />
             </span>
+            <!-- 占位首字母 -->
             <span
               v-else
-              class="flex size-8 items-center justify-center rounded-full bg-brand/15 text-sm font-semibold text-brand ring-2 ring-brand/20"
+              class="flex size-10 items-center justify-center rounded-full bg-brand/15 text-[15px] font-semibold text-brand"
             >
               {{ avatarText }}
-            </span>
-            <!-- 昵称（桌面端显示） -->
-            <span class="hidden md:block text-sm font-medium text-text">
-              {{ authStore.user?.nickname || authStore.user?.username }}
             </span>
           </button>
 
@@ -199,43 +197,43 @@ function closeMenu() { menuOpen.value = false }
             >
               <RouterLink
                 to="/profile"
-                class="flex items-center gap-2 px-4 py-2 text-sm text-text-muted hover:bg-surface-muted/40 hover:text-text"
+                class="flex items-center gap-3 px-4 py-2.5 text-sm text-text-muted hover:bg-surface-muted/40 hover:text-text rounded-md transition-colors"
                 @click="closeUserMenu"
               >
-                <UserRound class="size-4" />
+                <UserRound class="size-[18px]" />
                 个人资料
               </RouterLink>
               <RouterLink
                 to="/blog/new"
-                class="flex items-center gap-2 px-4 py-2 text-sm text-text-muted hover:bg-surface-muted/40 hover:text-text"
+                class="flex items-center gap-3 px-4 py-2.5 text-sm text-text-muted hover:bg-surface-muted/40 hover:text-text rounded-md transition-colors"
                 @click="closeUserMenu"
               >
-                <FileText class="size-4" />
+                <FileText class="size-[18px]" />
                 写文章
               </RouterLink>
               <RouterLink
                 to="/blog/tags"
-                class="flex items-center gap-2 px-4 py-2 text-sm text-text-muted hover:bg-surface-muted/40 hover:text-text"
+                class="flex items-center gap-3 px-4 py-2.5 text-sm text-text-muted hover:bg-surface-muted/40 hover:text-text rounded-md transition-colors"
                 @click="closeUserMenu"
               >
-                <Sparkles class="size-4" />
+                <Sparkles class="size-[18px]" />
                 管理标签
               </RouterLink>
               <button
                 type="button"
-                class="flex w-full items-center gap-2 px-4 py-2 text-sm text-text-muted hover:bg-surface-muted/40 hover:text-text"
+                class="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-text-muted hover:bg-surface-muted/40 hover:text-text rounded-md transition-colors"
                 @click="openPasswordDialog"
               >
-                <KeyRound class="size-4" />
+                <KeyRound class="size-[18px]" />
                 重置密码
               </button>
               <div class="my-1 border-t border-border/40" />
               <button
                 type="button"
-                class="flex w-full items-center gap-2 px-4 py-2 text-sm text-danger hover:bg-danger/10"
+                class="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-danger hover:bg-danger/10 rounded-md transition-colors"
                 @click="handleLogout"
               >
-                <LogOut class="size-4" />
+                <LogOut class="size-[18px]" />
                 退出登录
               </button>
             </div>
