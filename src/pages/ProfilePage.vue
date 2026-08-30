@@ -561,7 +561,7 @@ function resetAccount() {
           <template v-if="activeTab === 'about'">
             <Button
               type="button"
-              variant="outline"
+              variant="secondary"
               :disabled="!aboutDirty || aboutSubmitting || aboutLoading"
               class="h-9 px-4"
               @click="resetAboutDraft"
@@ -583,7 +583,7 @@ function resetAccount() {
           <template v-else>
             <Button
               type="button"
-              variant="outline"
+              variant="secondary"
               :disabled="!accDirty || accSubmitting"
               class="h-9 px-4"
               @click="resetAccount"
@@ -659,14 +659,14 @@ function resetAccount() {
                   @change="onFileChange"
                 />
                 <div class="w-full space-y-2">
-                  <Button type="button" class="w-full" variant="outline" @click="triggerUpload">
+                  <Button type="button" class="w-full" variant="secondary" @click="triggerUpload">
                     <Camera class="size-4" />
                     <span>选择头像</span>
                   </Button>
                   <Button
                     v-if="authStore.user?.avatar"
                     type="button"
-                    variant="ghost"
+                    variant="secondary"
                     class="w-full text-danger hover:text-danger hover:bg-danger/10"
                     @click="onRemoveAvatar"
                   >
@@ -817,7 +817,7 @@ function resetAccount() {
                     <h3 class="m-0 text-sm font-semibold tracking-tight">数字统计 highlightStats</h3>
                     <p class="mt-1 text-xs text-text-muted">AboutPage 页头下方 &amp; 首页 Hero 下方的 4 个方形 chip；建议 2~6 个。</p>
                   </div>
-                  <Button type="button" size="sm" variant="outline" @click="addStat">
+                  <Button type="button" variant="default" @click="addStat">
                     <Plus class="size-3.5" /><span>新增一行</span>
                   </Button>
                 </div>
@@ -898,7 +898,7 @@ function resetAccount() {
                       AboutPage 的「技能 &amp; 工具」分区，建议 3~4 组；variant 控制 badges 颜色风格。
                     </p>
                   </div>
-                  <Button type="button" size="sm" variant="outline" @click="addSkillGroup">
+                  <Button type="button" variant="default" @click="addSkillGroup">
                     <Plus class="size-3.5" /><span>新增分组</span>
                   </Button>
                 </div>
@@ -1095,14 +1095,14 @@ function resetAccount() {
               @change="onFileChange"
             />
             <div class="w-full space-y-2">
-              <Button type="button" class="w-full" variant="outline" @click="triggerUpload">
+              <Button type="button" class="w-full" variant="secondary" @click="triggerUpload">
                 <Camera class="size-4" />
                 <span>选择头像</span>
               </Button>
               <Button
                 v-if="authStore.user?.avatar"
                 type="button"
-                variant="ghost"
+                variant="secondary"
                 class="w-full text-danger hover:text-danger hover:bg-danger/10"
                 @click="onRemoveAvatar"
               >

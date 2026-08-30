@@ -313,9 +313,33 @@ watch(visible, (v) => {
                   class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-success border-2 border-surface-elevated"
                 />
               </div>
-              <div class="flex-1 min-w-0">
-                <div class="font-semibold text-text leading-tight truncate text-[14px]">{{ authorName }}</div>
-                <div class="text-[11px] text-text-muted leading-tight truncate">可接单 · {{ authorLocation }}</div>
+              <div class="flex-1 min-w-0 space-y-0.5">
+                <div class="font-semibold text-text leading-tight truncate text-[14px]">
+                  {{ authorName }}
+                </div>
+                <div class="flex items-center gap-1.5 min-w-0">
+                  <!-- 可接单 Badge（独立，不再和 location 挤一行） -->
+                  <span
+                    class="shrink-0 inline-flex items-center gap-0.5 h-[14px] px-1.5 rounded-full text-[9.5px] font-medium"
+                    :class="authorAvailable
+                      ? 'bg-success/10 text-success ring-1 ring-success/20'
+                      : 'bg-warning/10 text-warning ring-1 ring-warning/20'"
+                  >
+                    <span
+                      class="size-1 rounded-full"
+                      :class="authorAvailable ? 'bg-success' : 'bg-warning'"
+                    />
+                    {{ authorAvailable ? '可接单' : '排期满' }}
+                  </span>
+                  <!-- location：独立 truncate，不和状态 badge 共用 -->
+                  <span
+                    v-if="authorLocation"
+                    class="min-w-0 flex-1 text-[10.5px] text-text-muted truncate leading-tight"
+                    :title="authorLocation"
+                  >
+                    {{ authorLocation }}
+                  </span>
+                </div>
               </div>
               <!-- 折叠按钮 -->
               <button
