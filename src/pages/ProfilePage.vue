@@ -658,20 +658,21 @@ function resetAccount() {
                   class="hidden"
                   @change="onFileChange"
                 />
-                <div class="w-full space-y-2">
-                  <Button type="button" class="w-full" variant="secondary" @click="triggerUpload">
-                    <Camera class="size-4" />
+                <div class="flex items-center gap-2">
+                  <Button type="button" variant="secondary" size="sm" class="h-8" @click="triggerUpload">
+                    <Camera class="size-3.5" />
                     <span>选择头像</span>
                   </Button>
                   <Button
                     v-if="authStore.user?.avatar"
                     type="button"
                     variant="secondary"
-                    class="w-full text-danger hover:text-danger hover:bg-danger/10"
+                    size="sm"
+                    class="h-8 text-danger hover:text-danger hover:bg-danger/10"
                     @click="onRemoveAvatar"
                   >
-                    <X class="size-4" />
-                    <span>清除头像</span>
+                    <X class="size-3.5" />
+                    <span>清除</span>
                   </Button>
                 </div>
                 <p class="text-[11px] text-text-muted/70 leading-relaxed m-0">
@@ -725,27 +726,25 @@ function resetAccount() {
                   <!-- available switch -->
                   <div class="space-y-1.5">
                     <Label class="text-xs font-normal text-text-muted">可接项目</Label>
-                    <div class="h-9 flex items-center gap-3 rounded-md border border-border bg-surface-elevated px-3">
-                      <button
-                        type="button"
-                        role="switch"
-                        :aria-checked="aboutDraft.available"
-                        class="relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface disabled:cursor-not-allowed disabled:opacity-50"
-                        :class="aboutDraft.available ? 'bg-success/90' : 'bg-surface-muted'"
-                        @click="aboutDraft.available = !aboutDraft.available"
-                      >
-                        <span
-                          class="pointer-events-none inline-block size-4 rounded-full bg-white shadow-sm ring-1 ring-black/5 transition-transform"
-                          :class="aboutDraft.available ? 'translate-x-[18px]' : 'translate-x-[2px]'"
-                        />
-                      </button>
+                    <button
+                      type="button"
+                      role="switch"
+                      :aria-checked="aboutDraft.available"
+                      class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface disabled:cursor-not-allowed disabled:opacity-50"
+                      :class="aboutDraft.available ? 'bg-emerald-500' : 'bg-surface-muted'"
+                      @click="aboutDraft.available = !aboutDraft.available"
+                    >
                       <span
-                        class="text-xs font-medium"
-                        :class="aboutDraft.available ? 'text-success' : 'text-text-muted'"
-                      >
-                        {{ aboutDraft.available ? '可接项目' : '排期满' }}
-                      </span>
-                    </div>
+                        class="pointer-events-none inline-block size-5 rounded-full bg-white shadow-md ring-0 transition-transform duration-200"
+                        :class="aboutDraft.available ? 'translate-x-5' : 'translate-x-0'"
+                      />
+                    </button>
+                    <p
+                      class="m-0 text-[10.5px] leading-tight"
+                      :class="aboutDraft.available ? 'text-emerald-600 dark:text-emerald-400' : 'text-text-muted'"
+                    >
+                      {{ aboutDraft.available ? '✓ 当前开放中' : '当前排期满' }}
+                    </p>
                   </div>
                 </div>
 
@@ -817,7 +816,7 @@ function resetAccount() {
                     <h3 class="m-0 text-sm font-semibold tracking-tight">数字统计 highlightStats</h3>
                     <p class="mt-1 text-xs text-text-muted">AboutPage 页头下方 &amp; 首页 Hero 下方的 4 个方形 chip；建议 2~6 个。</p>
                   </div>
-                  <Button type="button" variant="default" @click="addStat">
+                  <Button type="button" variant="default" class="shadow hover:shadow-md transition-shadow" @click="addStat">
                     <Plus class="size-3.5" /><span>新增一行</span>
                   </Button>
                 </div>
@@ -898,7 +897,7 @@ function resetAccount() {
                       AboutPage 的「技能 &amp; 工具」分区，建议 3~4 组；variant 控制 badges 颜色风格。
                     </p>
                   </div>
-                  <Button type="button" variant="default" @click="addSkillGroup">
+                  <Button type="button" variant="default" class="shadow hover:shadow-md transition-shadow" @click="addSkillGroup">
                     <Plus class="size-3.5" /><span>新增分组</span>
                   </Button>
                 </div>
@@ -1094,9 +1093,9 @@ function resetAccount() {
               class="hidden"
               @change="onFileChange"
             />
-            <div class="w-full space-y-2">
-              <Button type="button" class="w-full" variant="secondary" @click="triggerUpload">
-                <Camera class="size-4" />
+            <div class="flex items-center gap-2">
+              <Button type="button" variant="secondary" size="sm" class="h-8" @click="triggerUpload">
+                <Camera class="size-3.5" />
                 <span>选择头像</span>
               </Button>
               <Button
@@ -1106,8 +1105,8 @@ function resetAccount() {
                 class="w-full text-danger hover:text-danger hover:bg-danger/10"
                 @click="onRemoveAvatar"
               >
-                <X class="size-4" />
-                <span>清除头像</span>
+                <X class="size-3.5" />
+                <span>清除</span>
               </Button>
             </div>
             <p class="text-[11px] text-text-muted/70 leading-relaxed m-0">

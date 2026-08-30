@@ -24,6 +24,7 @@ import {
 import { useRouter } from 'vue-router'
 import { readingMinutes } from '@/data'
 import { useAboutStore } from '@/stores/about'
+import { useAuthStore } from '@/stores/auth'
 import { useDraggable } from '@/composables/useDraggable'
 import type { AttachedEdge } from '@/composables/useDraggable'
 import { useIdleTimer } from '@/composables/useIdleTimer'
@@ -34,25 +35,40 @@ const router = useRouter()
 const { allPosts } = useBlogApi()
 const posts = computed(() => allPosts.value)
 
-/* -------- About 展示信息：onMounted 拉一次，失败用 aboutStore 兜底 -------- */
+/* -------- About 展示信息 + authStore 头像 -------- */
 const aboutStore = useAboutStore()
+const authStore = useAuthStore()
+
 onMounted(async () => {
-  try {
-    await aboutStore.fetchAbout()
-  } catch {
-    // aboutStore 内部已兜底
+  try { await aboutStore.fetchAbout() } catch { /* 兜底 */ }
+  // 确保 authStore 也拉一次用户资料（拿 avatar URL）
+  if (!authStore.user) {
+    try { await authStore.fetchProfile() } catch { /* 兜底 */ }
   }
 })
 
-/** 作者首字母（球态 + 展开卡头像用） */
+/** 头像 URL：优先 authStore.user.avatar，fallback null 让模板显示渐变首字母圆 */
+const authorAvatar = computed<string | null>(() => {
+  const u = authStore.user
+  if (!u?.avatar) return null
+  // authStore.resolveAvatarUrl 会把相对路径补齐（/uploads/xxx → /uploads/xxx）
+  // 和 About 页头像同一个函数
+  return typeof (authStore as any).resolveAvatarUrl === 'function'
+    ? (authStore as any).resolveAvatarUrl(u.avatar)
+    : u.avatar
+})
+
+/** 作者首字母（头像没时的 fallback） */
 const authorInitial = computed(() =>
-  (aboutStore.displayName || 'T').charAt(0).toUpperCase(),
+  (aboutStore.displayName || authStore.user?.nickname || 'T').charAt(0).toUpperCase(),
 )
 /** 作者显示名 */
-const authorName = computed(() => aboutStore.displayName || 'Trae')
+const authorName = computed(() =>
+  aboutStore.displayName || authStore.user?.nickname || 'Trae',
+)
 /** 位置（展开卡副标题显示） */
 const authorLocation = computed(() => aboutStore.safeAbout.location || '')
-/** 可接单状态（控制右上角小圆点） */
+/** 可接单状态（控制 Badge + 圆点） */
 const authorAvailable = computed(() => Boolean(aboutStore.safeAbout.available))
 
 // ---------- 尺寸与折叠态 ----------
@@ -253,7 +269,14 @@ watch(visible, (v) => {
             <div
               class="relative w-11 h-11 rounded-full bg-gradient-to-br from-brand via-accent to-brand text-white shadow-[0_10px_32px_-6px_rgba(139,92,246,0.55)] flex items-center justify-center font-bold ring-2 ring-brand/30 overflow-hidden"
             >
-              <span class="text-[15px] tracking-tight">{{ authorInitial }}</span>
+              <img
+                v-if="authorAvatar"
+                :src="authorAvatar"
+                :alt="authorName"
+                class="size-full object-cover"
+                @error="(authorAvatar as any) = null"
+              />
+              <span v-else class="text-[15px] tracking-tight">{{ authorInitial }}</span>
               <span
                 v-if="authorAvailable"
                 class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-success border-2 border-surface-elevated"
@@ -304,9 +327,16 @@ watch(visible, (v) => {
             >
               <div class="relative shrink-0">
                 <div
-                  class="w-10 h-10 rounded-full bg-gradient-to-br from-brand via-accent to-brand text-white flex items-center justify-center text-[14px] font-bold shadow-inner ring-2 ring-brand/40"
+                  class="w-10 h-10 rounded-full bg-gradient-to-br from-brand via-accent to-brand text-white flex items-center justify-center text-[14px] font-bold shadow-inner ring-2 ring-brand/40 overflow-hidden"
                 >
-                  {{ authorInitial }}
+                  <img
+                    v-if="authorAvatar"
+                    :src="authorAvatar"
+                    :alt="authorName"
+                    class="size-full object-cover"
+                    @error="(authorAvatar as any) = null"
+                  />
+                  <span v-else>{{ authorInitial }}</span>
                 </div>
                 <span
                   v-if="authorAvailable"
