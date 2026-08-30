@@ -15,8 +15,13 @@ export default defineConfig({
     port: 5173,
     strictPort: false,
     proxy: {
-      // 所有 /api/* 请求代理到后端 NestJS 服务（避免硬编码端口 + 解决跨域）
+      // 后端 API
       '/api': {
+        target: 'http://127.0.0.1:3000',
+        changeOrigin: true,
+      },
+      // 静态资源（头像等上传文件）
+      '/uploads': {
         target: 'http://127.0.0.1:3000',
         changeOrigin: true,
       },
