@@ -25,3 +25,8 @@ Thumbs.db
 
 # Prisma
 prisma/migrations/
+
+# 本地用户上传产物（头像 / 其他文件）
+# 仅忽略实际文件，保留目录结构（通过 .gitkeep 提交空目录）
+public/uploads/**/*.*
+!public/uploads/**/.gitkeep
