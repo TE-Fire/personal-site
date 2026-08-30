@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 /**
  * HomePage · 首页（Hero 终端 + 3D/2D 背景 + 滚动揭示动效 + 数字统计 + 最近作品 + 最近博客）。
  *
@@ -79,7 +79,7 @@ const script = computed<TerminalStep[]>(() => {
       type: 'output',
       lines: [
         `${displayName} · full-stack vibe coder based in ${firstLocation.value}`,
-        `  方向：${(a.tags || []).slice(0, 4).join(' / ')}`
+        `  方向：${(a.tags || []).slice(0, 4).map(t => `· ${t}`).join(` `)}`
       ],
       pauseMs: 360
     },

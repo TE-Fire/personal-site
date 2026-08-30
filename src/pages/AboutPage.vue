@@ -233,6 +233,20 @@ const safeSkillGroups = computed<SkillGroup[]>(() =>
             <span class="inline-flex items-center gap-1.5"><Coffee class="size-4" />喜欢在 UTC+8 的下午干活</span>
             <span class="inline-flex items-center gap-1.5"><Heart class="size-4" />长期主义</span>
           </div>
+          <!-- 身份标签：横向一排 chip（和 skillGroups 分组不同，tags 是方向关键词） -->
+          <div
+            v-if="a.tags && a.tags.length"
+            class="flex flex-wrap gap-2 pt-1"
+          >
+            <Badge
+              v-for="tag in a.tags"
+              :key="tag"
+              variant="outline"
+              class="text-[12px] !px-2.5 !py-0.5 font-medium hover:bg-surface-muted transition-colors"
+            >
+              {{ tag }}
+            </Badge>
+          </div>
         </div>
       </div>
     </header>
