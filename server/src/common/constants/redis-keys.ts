@@ -25,6 +25,7 @@ export const REDIS_PREFIX = 'personal_site' as const;
 export const REDIS_MODULE = {
   CAPTCHA: 'captcha',
   AUTH: 'auth',
+  ABOUT: 'about',
   CACHE: 'cache',
   SESSION: 'session',
   LOCK: 'lock',
@@ -36,6 +37,8 @@ export const REDIS_MODULE = {
 export const REDIS_TTL = {
   /** 滑块验证码：5 分钟 */
   CAPTCHA: 5 * 60,
+  /** About 公开展示数据：1 分钟（公开读缓存，admin PUT 后删） */
+  ABOUT_PUBLIC: 60,
   /** Refresh Token 黑名单：7 天 */
   AUTH_REFRESH: 7 * 24 * 60 * 60,
   /** 文章列表缓存：10 分钟 */
@@ -69,6 +72,17 @@ export function CAPTCHA_KEY(uuid: string): string {
 export function AUTH_REFRESH_KEY(jti: string): string {
   return `${REDIS_PREFIX}:${REDIS_MODULE.AUTH}:refresh:${jti}`;
 }
+
+/**
+ * About 公开展示缓存（个人博客只有 1 个博主，无动态参数）
+ *   personal_site:about:public
+ * value: AboutRsp JSON
+ * TTL: 1 分钟（REDIS_TTL.ABOUT_PUBLIC）
+ * 失效时机：admin 调 PUT /api/about 成功后主动删除
+ * 降级：Redis 读/写失败时直接查 DB，不影响业务
+ */
+export const ABOUT_PUBLIC_KEY =
+  `${REDIS_PREFIX}:${REDIS_MODULE.ABOUT}:public` as const;
 
 /**
  * 文章列表分页缓存
@@ -110,6 +124,9 @@ export const REDIS_KEY_SUMMARY = {
   ],
   auth: [
     { pattern: AUTH_REFRESH_KEY.name, example: AUTH_REFRESH_KEY('jti123'), ttl: REDIS_TTL.AUTH_REFRESH },
+  ],
+  about: [
+    { pattern: 'ABOUT_PUBLIC_KEY', example: ABOUT_PUBLIC_KEY, ttl: REDIS_TTL.ABOUT_PUBLIC },
   ],
   cache: [
     { pattern: CACHE_POST_LIST_KEY.name, example: CACHE_POST_LIST_KEY(1, 10), ttl: REDIS_TTL.CACHE_POST_LIST },

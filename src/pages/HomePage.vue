@@ -1,8 +1,12 @@
 <script setup lang="ts">
 /**
  * HomePage · 首页（Hero 终端 + 3D/2D 背景 + 滚动揭示动效 + 数字统计 + 最近作品 + 最近博客）。
+ *
+ * About 展示数据源：
+ *   · 统一从 aboutStore.safeAbout 取（后端 GET /api/about + 本地兜底），不再直接 import @/data/about 的写死值。
+ *   · onMounted 触发 aboutStore.fetchAbout()，接口失败会自动回退到 aboutStore 内部的兜底数据。
  */
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import {
   ArrowRight,
   BookOpen,
@@ -22,16 +26,27 @@ import {
   CardTitle
 } from '@/components/ui'
 import {
-  aboutMe,
   posts,
   projects,
   readingMinutes,
   type BlogPost,
   type Project
 } from '@/data'
+import { useAboutStore } from '@/stores/about'
 import { useTerminal, type TerminalStep } from '@/composables/useTerminal'
 import { useVantaBackground } from '@/composables/useVantaBackground'
 import { useScrollReveal } from '@/composables/useScrollReveal'
+
+/* ---------------- About 数据 ---------------- */
+
+const aboutStore = useAboutStore()
+onMounted(async () => {
+  try {
+    await aboutStore.fetchAbout()
+  } catch {
+    // aboutStore 内部已自动兜底，这里不抛
+  }
+})
 
 /* ---------------- 数据 ---------------- */
 
@@ -41,12 +56,16 @@ const featuredProjects = computed<Project[]>(() =>
 const featuredPosts = computed<BlogPost[]>(() =>
   posts.filter((p) => p.featured).slice(0, 3)
 )
-const stats = aboutMe.highlightStats
-const firstLocation = computed(() => aboutMe.location.split(' · ')[0] ?? aboutMe.location)
+const stats = computed(() => aboutStore.safeAbout.highlightStats)
+const firstLocation = computed(() =>
+  (aboutStore.safeAbout.location || '').split(' · ')[0] ?? aboutStore.safeAbout.location,
+)
 
 /* ---------------- 终端脚本 ---------------- */
 
 const script = computed<TerminalStep[]>(() => {
+  const a = aboutStore.safeAbout
+  const displayName = aboutStore.displayName
   const projLines = featuredProjects.value.map(
     (p, i) => `  - [${i + 1}] ${p.title}  ·  ${p.category}  ·  ${p.finishedAt}`
   )
@@ -59,8 +78,8 @@ const script = computed<TerminalStep[]>(() => {
     {
       type: 'output',
       lines: [
-        `${aboutMe.name} · full-stack vibe coder based in ${firstLocation.value}`,
-        `  方向：${aboutMe.tags.slice(0, 4).join(' / ')}`
+        `${displayName} · full-stack vibe coder based in ${firstLocation.value}`,
+        `  方向：${(a.tags || []).slice(0, 4).join(' / ')}`
       ],
       pauseMs: 360
     },
@@ -127,7 +146,7 @@ useScrollReveal(pageRoot)
           <h1 class="font-sans text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight leading-[1.1] m-0">
             你好，我是
             <span class="bg-gradient-to-r from-brand via-accent to-brand bg-clip-text text-transparent bg-[length:200%_auto] animate-[shimmer_6s_linear_infinite]">
-              Trae
+              {{ aboutStore.displayName }}
             </span>
             <br />
             <span class="text-text-muted text-2xl md:text-3xl lg:text-4xl font-medium">
@@ -137,7 +156,7 @@ useScrollReveal(pageRoot)
           </h1>
 
           <p class="text-base md:text-lg text-text-muted leading-relaxed m-0">
-            {{ aboutMe.shortBio }}
+            {{ aboutStore.safeAbout.shortBio }}
           </p>
 
           <div class="flex flex-wrap items-center gap-3 pt-2">
@@ -157,10 +176,10 @@ useScrollReveal(pageRoot)
 
           <div class="pt-2 flex items-center gap-2 text-xs text-text-muted">
             <span
-              v-if="aboutMe.available"
+              v-if="aboutStore.safeAbout.available"
               class="inline-block size-2 rounded-full bg-success/90 shadow-[0_0_0_3px_rgba(34,197,94,0.12)] animate-pulse"
             />
-            <span>{{ aboutMe.available ? '目前可接单 · 远程协作友好 · UTC+8' : '暂不接项目' }} · {{ aboutMe.location }}</span>
+            <span>{{ aboutStore.safeAbout.available ? '目前可接单 · 远程协作友好 · UTC+8' : '暂不接项目' }} · {{ aboutStore.safeAbout.location }}</span>
           </div>
         </div>
 

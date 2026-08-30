@@ -26,11 +26,11 @@ model User {
   username  String   @unique @db.VarChar(50)
   /// bcrypt 加密的密码（不返回前端）
   password  String   @db.VarChar(100)
-  /// 昵称
+  /// 昵称 → About 展示 name 直接复用
   nickname  String?  @db.VarChar(50)
   /// 邮箱
   email     String?  @db.VarChar(100)
-  /// 头像URL
+  /// 头像URL → About 展示头像直接复用
   avatar    String?  @db.VarChar(500)
   /// 角色：admin / guest
   role      String   @default("admin") @db.VarChar(20)
@@ -40,6 +40,26 @@ model User {
   createdAt DateTime @default(now()) @map("created_at")
   /// 更新时间
   updatedAt DateTime @updatedAt @map("updated_at")
+
+  // ===== About 公开资料（AboutPage / HomePage / DraggableWidget 公开展示用） =====
+  /// 短简介（About 副标题 / Home Hero 简介）
+  aboutShortBio     String   @default("") @db.VarChar(300)  @map("about_short_bio")
+  /// 长文介绍段落数组（About "关于我" section）string[] → JSON
+  aboutLongBio      Json     @default("[]")                 @map("about_long_bio")
+  /// 技能分组（proficient / familiar / tools ...）→ SkillGroup[] JSON
+  aboutSkills       Json     @default("[]")                 @map("about_skills")
+  /// 4 个高亮数字统计 chip → {label:string, value:string}[] JSON
+  aboutHighlightStats Json  @default("[]")                 @map("about_highlight_stats")
+  /// 兴趣标签 chips → string[] JSON
+  aboutInterests    Json     @default("[]")                 @map("about_interests")
+  /// Hero 终端"方向：xxx / yyy / ..." → string[] JSON（约定 4 项）
+  aboutTags         Json     @default("[]")                 @map("about_tags")
+  /// 位置（MapPin 图标显示，如"中国 · 远程协作友好（UTC+8）"）
+  aboutLocation     String   @default("") @db.VarChar(100)  @map("about_location")
+  /// 当前是否可接单 → 绿色成功 / 灰色排期满
+  aboutAvailable    Boolean  @default(true)                 @map("about_available")
+  /// 现在在做什么 Card 条目数组 → string[] JSON（支持 **粗体** inline markdown 语法）
+  aboutNowDoing     Json     @default("[]")                 @map("about_now_doing")
 
   @@map("user")
 }

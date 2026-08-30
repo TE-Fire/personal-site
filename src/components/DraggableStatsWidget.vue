@@ -2,18 +2,16 @@
 /**
  * DraggableStatsWidget · 可拖动的博客数据悬浮面板（数据卡）
  *
+ * 数据来源（About 展示相关）：
+ *   · 作者名 / 位置 / 可接单状态 → aboutStore.safeAbout
+ *   · 博客数据（文章数/字数/分类/标签）→ useBlogApi（本地 localStorage + 内置）
+ *
  * 状态机（三档）：
  *   ① BALL      — 44×44 圆形悬浮球：默认首次进入 / 闲置 6s 自动收球 / 手动折叠 / 点球展开
  *   ② EXPANDED  — 256×380 完整卡片：点击球 / hover 球 500ms / 关闭后点击"恢复"按钮进入
  *   ③ CLOSED    — 只有 `top-[92px] left-5` 的"数据面板"小按钮（用户主动点 × 后）
- *
- * 新特性：
- *   - 🧲 松手后自动磁吸到最近的左/右边缘（useDraggable 的 magneticEdges: 'horizontal'）
- *   - ⏱ 连续 6 秒无活动：从 EXPANDED 自动收为 BALL（hover 在卡片上 / 有焦点不触发）
- *   - 🎨 贴边时对应边缘显示紫色高光条（attachedEdge 控制 left/right 显示）
- *   - 📐 尺寸压缩到 w=256，不再横向遮盖作品/博客的三列主体
  */
-import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
   BookOpen,
   FileEdit,
@@ -24,7 +22,8 @@ import {
   LayoutPanelLeft
 } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
-import { aboutMe, readingMinutes } from '@/data'
+import { readingMinutes } from '@/data'
+import { useAboutStore } from '@/stores/about'
 import { useDraggable } from '@/composables/useDraggable'
 import type { AttachedEdge } from '@/composables/useDraggable'
 import { useIdleTimer } from '@/composables/useIdleTimer'
@@ -34,6 +33,27 @@ import { Badge } from '@/components/ui'
 const router = useRouter()
 const { allPosts } = useBlogApi()
 const posts = computed(() => allPosts.value)
+
+/* -------- About 展示信息：onMounted 拉一次，失败用 aboutStore 兜底 -------- */
+const aboutStore = useAboutStore()
+onMounted(async () => {
+  try {
+    await aboutStore.fetchAbout()
+  } catch {
+    // aboutStore 内部已兜底
+  }
+})
+
+/** 作者首字母（球态 + 展开卡头像用） */
+const authorInitial = computed(() =>
+  (aboutStore.displayName || 'T').charAt(0).toUpperCase(),
+)
+/** 作者显示名 */
+const authorName = computed(() => aboutStore.displayName || 'Trae')
+/** 位置（展开卡副标题显示） */
+const authorLocation = computed(() => aboutStore.safeAbout.location || '')
+/** 可接单状态（控制右上角小圆点） */
+const authorAvailable = computed(() => Boolean(aboutStore.safeAbout.available))
 
 // ---------- 尺寸与折叠态 ----------
 const COLS = {
@@ -233,9 +253,9 @@ watch(visible, (v) => {
             <div
               class="relative w-11 h-11 rounded-full bg-gradient-to-br from-brand via-accent to-brand text-white shadow-[0_10px_32px_-6px_rgba(139,92,246,0.55)] flex items-center justify-center font-bold ring-2 ring-brand/30 overflow-hidden"
             >
-              <span class="text-[15px] tracking-tight">{{ aboutMe.name.charAt(0) }}</span>
+              <span class="text-[15px] tracking-tight">{{ authorInitial }}</span>
               <span
-                v-if="aboutMe.available"
+                v-if="authorAvailable"
                 class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-success border-2 border-surface-elevated"
               />
               <!-- 贴边高光球：被磁吸时增加一条贴边高光圈 -->
@@ -286,16 +306,16 @@ watch(visible, (v) => {
                 <div
                   class="w-10 h-10 rounded-full bg-gradient-to-br from-brand via-accent to-brand text-white flex items-center justify-center text-[14px] font-bold shadow-inner ring-2 ring-brand/40"
                 >
-                  {{ aboutMe.name.charAt(0) }}
+                  {{ authorInitial }}
                 </div>
                 <span
-                  v-if="aboutMe.available"
+                  v-if="authorAvailable"
                   class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-success border-2 border-surface-elevated"
                 />
               </div>
               <div class="flex-1 min-w-0">
-                <div class="font-semibold text-text leading-tight truncate text-[14px]">{{ aboutMe.name }}</div>
-                <div class="text-[11px] text-text-muted leading-tight truncate">可接单 · {{ aboutMe.location }}</div>
+                <div class="font-semibold text-text leading-tight truncate text-[14px]">{{ authorName }}</div>
+                <div class="text-[11px] text-text-muted leading-tight truncate">可接单 · {{ authorLocation }}</div>
               </div>
               <!-- 折叠按钮 -->
               <button

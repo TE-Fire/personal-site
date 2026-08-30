@@ -1,0 +1,212 @@
+import { Injectable, Logger } from '@nestjs/common';
+import { PrismaService } from '@/common/prisma.service';
+import { RedisService } from '../redis/redis.service';
+import { BusinessException } from '@/common/exception';
+import { Result } from '@/common/result';
+import {
+  ABOUT_PUBLIC_KEY,
+  REDIS_TTL,
+} from '@/common/constants/redis-keys';
+import { UpdateAboutDto } from './dto/update-about.dto';
+import { AboutBizError, getAboutErrorInfo } from './enums/about-biz-error.enum';
+import type { AboutRsp, HighlightStatRsp, SkillGroupRsp } from './dto/about.dto';
+
+/**
+ * About 公开展示字段类型（直接映射 Prisma 返回的行对象结构，用于 TS 类型收窄）
+ */
+interface AboutUserRow {
+  id: number;
+  nickname: string | null;
+  username: string;
+  avatar: string | null;
+  aboutShortBio: string;
+  aboutLongBio: unknown;
+  aboutSkills: unknown;
+  aboutHighlightStats: unknown;
+  aboutInterests: unknown;
+  aboutTags: unknown;
+  aboutLocation: string;
+  aboutAvailable: boolean;
+  aboutNowDoing: unknown;
+}
+
+@Injectable()
+export class AboutService {
+  private readonly logger = new Logger(AboutService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly redis: RedisService,
+  ) {}
+
+  /* ============================== 公开读：GET /api/about ============================== */
+
+  /**
+   * 获取 About 公开展示数据
+   * 流程：Redis 命中 → 返回；否则查 DB → 写 Redis（60s）→ 返回
+   * Redis 任何异常（挂/未启动/超时）→ 降级直连 DB，不影响业务。
+   */
+  async getPublicAbout(): Promise<AboutRsp> {
+    // 1. 先读 Redis
+    try {
+      const cached = await this.redis.get(ABOUT_PUBLIC_KEY);
+      if (cached) {
+        return JSON.parse(cached) as AboutRsp;
+      }
+    } catch (err) {
+      this.logger.warn(`Redis 读 About 缓存失败，降级查 DB：${(err as Error).message}`);
+    }
+
+    // 2. 查 DB：取第一行 user（个人博客只有一个博主）
+    const row = (await this.prisma.user.findFirst({
+      select: {
+        id: true,
+        nickname: true,
+        username: true,
+        avatar: true,
+        aboutShortBio: true,
+        aboutLongBio: true,
+        aboutSkills: true,
+        aboutHighlightStats: true,
+        aboutInterests: true,
+        aboutTags: true,
+        aboutLocation: true,
+        aboutAvailable: true,
+        aboutNowDoing: true,
+      },
+    })) as AboutUserRow | null;
+
+    if (!row) {
+      throw new BusinessException(
+        getAboutErrorInfo(AboutBizError.DATA_MISSING),
+      );
+    }
+
+    const rsp = this.mapRowToRsp(row);
+
+    // 3. 写 Redis（1 分钟）
+    try {
+      await this.redis.set(
+        ABOUT_PUBLIC_KEY,
+        JSON.stringify(rsp),
+        REDIS_TTL.ABOUT_PUBLIC,
+      );
+    } catch (err) {
+      this.logger.warn(`Redis 写 About 缓存失败（不影响返回）：${(err as Error).message}`);
+    }
+
+    return rsp;
+  }
+
+  /* ============================== 管理员改：PUT /api/about ============================== */
+
+  /**
+   * 当前登录 admin 保存 About 展示字段
+   * 1. Prisma update 当前行 id
+   * 2. 删除 Redis 缓存（让下次 GET 重建）
+   * 3. 返回完整 AboutRsp（前端立即 setState，不用再 GET）
+   */
+  async saveAbout(userId: number, dto: UpdateAboutDto): Promise<AboutRsp> {
+    try {
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: {
+          aboutShortBio: dto.shortBio,
+          aboutLocation: dto.location,
+          aboutAvailable: dto.available,
+          aboutLongBio: dto.longBio as any,
+          aboutTags: dto.tags as any,
+          aboutInterests: dto.interests as any,
+          aboutNowDoing: dto.nowDoing as any,
+          aboutHighlightStats: dto.highlightStats as any,
+          aboutSkills: dto.skillGroups as any,
+        },
+      });
+    } catch (err) {
+      this.logger.error(`saveAbout Prisma failed: ${(err as Error).message}`);
+      throw new BusinessException(getAboutErrorInfo(AboutBizError.SAVE_FAILED));
+    }
+
+    // 删缓存（失败忽略，因为缓存最多 1 分钟也会自然过期）
+    try {
+      await this.redis.del(ABOUT_PUBLIC_KEY);
+    } catch (e) {
+      this.logger.warn(`Redis 删 About 缓存失败：${(e as Error).message}`);
+    }
+
+    // 直接再读一次 DB（走缓存 miss → 重建链路，保证返回的是最新值）
+    return this.getPublicAbout();
+  }
+
+  /* ============================== 内部：映射 ============================== */
+
+  private mapRowToRsp(row: AboutUserRow): AboutRsp {
+    return {
+      name: row.nickname?.trim() || row.username,
+      avatar: row.avatar || null,
+      shortBio: row.aboutShortBio || '',
+      longBio: this.safeStringArray(row.aboutLongBio),
+      highlightStats: this.safeHighlightStats(row.aboutHighlightStats),
+      location: row.aboutLocation || '',
+      available: Boolean(row.aboutAvailable),
+      tags: this.safeStringArray(row.aboutTags),
+      interests: this.safeStringArray(row.aboutInterests),
+      skillGroups: this.safeSkillGroups(row.aboutSkills),
+      nowDoing: this.safeStringArray(row.aboutNowDoing),
+    };
+  }
+
+  /** JSON → string[]，防御：非数组 / null / 类型不一致一律转空数组，避免 500 */
+  private safeStringArray(v: unknown): string[] {
+    if (!Array.isArray(v)) return [];
+    return v.filter((x) => typeof x === 'string') as string[];
+  }
+
+  private safeHighlightStats(v: unknown): HighlightStatRsp[] {
+    if (!Array.isArray(v)) return [];
+    return v
+      .filter(
+        (x) =>
+          x &&
+          typeof x === 'object' &&
+          typeof (x as any).label === 'string' &&
+          typeof (x as any).value === 'string',
+      )
+      .map((x) => ({
+        label: (x as any).label as string,
+        value: (x as any).value as string,
+      }));
+  }
+
+  private safeSkillGroups(v: unknown): SkillGroupRsp[] {
+    if (!Array.isArray(v)) return [];
+    return v
+      .filter(
+        (x) =>
+          x &&
+          typeof x === 'object' &&
+          typeof (x as any).id === 'string' &&
+          typeof (x as any).title === 'string' &&
+          Array.isArray((x as any).items),
+      )
+      .map((x) => {
+        const g = x as any;
+        const variant = ['default', 'secondary', 'outline'].includes(g.variant)
+          ? g.variant
+          : 'default';
+        return {
+          id: g.id as string,
+          title: g.title as string,
+          variant,
+          items: this.safeStringArray(g.items),
+        };
+      });
+  }
+}
+
+/* ============================================================
+ *  Export Result.ok 辅助（Controller 直接返回）
+ * ============================================================ */
+export function aboutResult<T>(data: T, msg?: string) {
+  return Result.ok(data, msg);
+}

@@ -8,7 +8,7 @@
  */
 import { ref, computed, onMounted } from 'vue'
 import { useWindowScroll } from '@vueuse/core'
-import { Menu, X, Sparkles, LogOut, FileText, KeyRound } from 'lucide-vue-next'
+import { Menu, X, Sparkles, LogOut, FileText, KeyRound, UserRound } from 'lucide-vue-next'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import ThemeToggle from './ThemeToggle.vue'
 import ChangePasswordDialog from '@/components/ChangePasswordDialog.vue'
@@ -16,6 +16,21 @@ import { useAuthStore } from '@/stores/auth'
 
 const route = useRoute()
 const router = useRouter()
+
+/**
+ * 点击 LOGO 兜底跳首页：
+ *   正常 RouterLink 会跳 '/'; 同时我们显式 @click.prevent 再走一次 router.replace('/')
+ *   作为双保险：防止路由匹配异常时把用户留在非首页（比如之前观察到的
+ *   「明明是 / 却渲染 blog/new」的缓存错位）。
+ */
+function goHome(ev: Event) {
+  ev.preventDefault()
+  if (import.meta.env.DEV) {
+    // eslint-disable-next-line no-console
+    console.debug('[header:logo] 强制回到首页', '当前 route.path=', route.path)
+  }
+  router.replace('/')
+}
 const { y } = useWindowScroll({ behavior: 'smooth' })
 const scrolled = computed(() => y.value > 24)
 
@@ -99,6 +114,7 @@ function closeMenu() { menuOpen.value = false }
         to="/"
         class="flex items-center gap-2.5 select-none group no-underline"
         aria-label="返回首页"
+        @click="goHome"
       >
         <span
           class="inline-flex size-10 items-center justify-center rounded-lg bg-brand/10 text-brand ring-1 ring-brand/30 transition-transform group-hover:scale-105"
@@ -171,6 +187,14 @@ function closeMenu() { menuOpen.value = false }
               v-if="userMenuOpen"
               class="absolute right-0 top-full mt-2 w-44 rounded-lg border border-border/60 bg-surface/95 py-1 shadow-lg backdrop-blur-xl"
             >
+              <RouterLink
+                to="/profile"
+                class="flex items-center gap-2 px-4 py-2 text-sm text-text-muted hover:bg-surface-muted/40 hover:text-text"
+                @click="closeUserMenu"
+              >
+                <UserRound class="size-4" />
+                个人资料
+              </RouterLink>
               <RouterLink
                 to="/blog/new"
                 class="flex items-center gap-2 px-4 py-2 text-sm text-text-muted hover:bg-surface-muted/40 hover:text-text"

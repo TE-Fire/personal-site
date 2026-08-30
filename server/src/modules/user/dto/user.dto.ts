@@ -1,49 +1,41 @@
-import { IsEmail, IsOptional, IsString, MinLength } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import { IsEmail, IsOptional, IsString, MaxLength, ValidateIf } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
-export class CreateUserDto {
-  @ApiProperty({ example: 'admin' })
-  @IsString()
-  @MinLength(2)
-  username: string;
-
-  @ApiProperty({ example: '123456', minLength: 6 })
-  @IsString()
-  @MinLength(6)
-  password: string;
-
-  @ApiProperty({ example: 'TE-Fire', required: false })
-  @IsString()
-  @IsOptional()
+/**
+ * PUT/POST /users/me 请求体
+ * 允许修改：nickname / email / avatar
+ * 不允许修改：username / role / status（账号级字段写死在注册/初始化时）
+ */
+export class UpdateProfileDto {
+  @ApiPropertyOptional({ description: '昵称', example: 'TE-Fire', maxLength: 50 })
+  @ValidateIf((o) => o.nickname !== undefined && o.nickname !== null)
+  @IsString({ message: '昵称必须是字符串' })
+  @MaxLength(50, { message: '昵称最多 50 字符' })
   nickname?: string;
 
-  @ApiProperty({ example: 'admin@example.com', required: false })
-  @IsEmail()
-  @IsOptional()
+  @ApiPropertyOptional({ description: '邮箱', example: 'admin@example.com' })
+  @ValidateIf((o) => o.email !== undefined && o.email !== null && o.email !== '')
+  @IsEmail({}, { message: '邮箱格式不正确' })
+  @MaxLength(100, { message: '邮箱最多 100 字符' })
   email?: string;
-}
 
-export class UpdateUserDto {
-  @ApiProperty({ required: false })
-  @IsString()
-  @IsOptional()
-  nickname?: string;
-
-  @ApiProperty({ required: false })
-  @IsEmail()
-  @IsOptional()
-  email?: string;
+  @ApiPropertyOptional({ description: '头像 URL（也可通过 POST /users/avatar 上传获取）', example: 'https://.../avatar.jpg' })
+  @ValidateIf((o) => o.avatar !== undefined && o.avatar !== null && o.avatar !== '')
+  @IsString({ message: '头像 URL 必须是字符串' })
+  @MaxLength(500, { message: '头像 URL 最多 500 字符' })
+  avatar?: string;
 }
 
 /**
- * 用户实体骨架（等 Prisma generate 后替换为 @prisma/client 类型）
+ * POST /users/avatar 上传成功响应
  */
-export interface UserVo {
-  id: number;
-  username: string;
-  nickname?: string;
-  email?: string;
-  role: string;
-  createdAt: string;
-  updatedAt: string;
+export interface AvatarUploadRsp {
+  /** 可直接访问的头像 URL（前端可立即用作 <img src>） */
+  url: string;
+  /** 文件大小（字节） */
+  size: number;
+  /** 文件 MIME 类型 */
+  mimeType: string;
+  /** 原始文件名 */
+  originalName: string;
 }

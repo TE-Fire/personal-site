@@ -42,6 +42,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '博客', icon: 'BookOpen' }
   },
   {
+    path: '/profile',
+    name: 'Profile',
+    component: () => import('@/pages/ProfilePage.vue'),
+    meta: { title: '个人资料', requiresAuth: true }
+  },
+  {
     path: '/blog/new',
     name: 'BlogNew',
     component: () => import('@/pages/BlogEditorPage.vue'),
@@ -126,10 +132,24 @@ const router = createRouter({
 /**
  * beforeEach 钩子：需要登录的页面检查 Token
  * meta.requiresAuth = true 的路由，未登录 → 跳转 /login?redirect=原路径
+ *
+ * 额外防御（诊断 & 防跳转错位）：
+ *   · DEV 环境打印每次导航，便于定位「首页莫名跳到 /blog/new」问题
+ *   · 登录后 redirect 参数只允许站内相对路径（不以 http/// 开头、必须以 / 开头），
+ *     否则丢弃直接用 /，避免旧 URL 缓存（比如 redirect=/blog/new）把用户拉到奇怪页面
  */
-router.beforeEach((to, _from, next) => {
+router.beforeEach((to, from, next) => {
   const authStore = useAuthStore()
 
+  // ---- DEV 导航日志（方便定位路由错位）----
+  if (import.meta.env.DEV) {
+    // eslint-disable-next-line no-console
+    console.debug(
+      `[router] ${from.fullPath || '(init)'} → ${to.fullPath}  matched: ${to.matched.map((r) => r.path).join(' > ') || '(none)'}`,
+    )
+  }
+
+  // ---- 需要登录：拦到 /login?redirect=原路径 ----
   if (to.meta?.requiresAuth && !authStore.isLoggedIn) {
     next({
       path: '/login',
@@ -138,7 +158,7 @@ router.beforeEach((to, _from, next) => {
     return
   }
 
-  // 已登录用户访问登录页 → 重定向首页
+  // ---- 已登录用户访问登录页 → 重定向首页 ----
   if (to.path === '/login' && authStore.isLoggedIn) {
     next({ path: '/' })
     return
@@ -146,6 +166,21 @@ router.beforeEach((to, _from, next) => {
 
   next()
 })
+
+/**
+ * 把 login 页面的 redirect 参数做安全校验：
+ *   - 必须是站内相对路径（以 / 开头）
+ *   - 不能是 http(s) 协议或 // 开头（避免开放重定向漏洞 & 避免跳到别站）
+ * 返回 '/', '/about', '/blog/xxx' 这种安全路径
+ */
+export function sanitizeLoginRedirect(raw: unknown, fallback = '/'): string {
+  if (typeof raw !== 'string' || !raw) return fallback
+  if (raw.startsWith('http:') || raw.startsWith('https:') || raw.startsWith('//')) {
+    return fallback
+  }
+  if (!raw.startsWith('/')) return fallback
+  return raw
+}
 
 /**
  * afterEach 钩子：自动把 document.title 改成「页面名 · 站点名」。

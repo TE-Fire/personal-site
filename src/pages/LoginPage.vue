@@ -28,6 +28,7 @@ import LoginHero from '@/components/LoginHero.vue';
 import CaptchaModal from '@/components/CaptchaModal.vue';
 import Button from '@/components/ui/Button.vue';
 import Input from '@/components/ui/Input.vue';
+import { sanitizeLoginRedirect } from '@/router';
 
 const router = useRouter();
 const route = useRoute();
@@ -83,8 +84,8 @@ async function onCaptchaVerified(data: { captchaId: string; slideX: number }) {
       slideX: data.slideX,
     });
 
-    // 登录成功 → 跳转
-    const redirect = (route.query.redirect as string) || '/';
+    // 登录成功 → 跳转（redirect 做安全白名单校验，异常值一律回首页）
+    const redirect = sanitizeLoginRedirect(route.query.redirect, '/');
     router.replace(redirect);
   } catch (e: any) {
     errorMsg.value = e?.message || '登录失败';

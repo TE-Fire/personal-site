@@ -9,11 +9,13 @@
 
 | 序号 | 模块 | 状态 | 说明 |
 |------|------|------|------|
-| 1 | Auth 认证 | ✅ 已分析 | 博主登录 / 游客只读，不开放注册 |
-| 2 | Post 文章 | ⬜ 待分析 | 核心实体，关联 Category + Tag |
-| 3 | Category 分类 | ⬜ 待分析 | |
-| 4 | Tag 标签 | ⬜ 待分析 | 含共现关系 / 3D 星链数据 |
-| 5 | Life 生活碎片 | ⬜ 待分析 | 照片 / 音乐 / 随笔 |
+| 1 | Auth 认证 | ✅ 已完成 | 博主登录 / 游客只读，不开放注册；滑块验证码 + JWT；接口 `/auth/captcha` `/auth/login` `/auth/profile` `/auth/change-password` |
+| 2 | **User 账号资料** | ✅ 已完成 | 博主账号自我管理：`GET/POST /users/me`（nickname/email）、`POST/DELETE /users/avatar`（本地上传 5MB 4 格式）。Header 下拉菜单 + `/profile` 页面 |
+| 3 | **About 关于我展示** | 📝 本章节分析 | **前端写死数据 → 后端动态化**。公开页面 `/about` + 首页 Hero + 悬浮迷你卡片 共 3 处消费 About 字段。本文档分析 → 扩表 → About 模块接口 → 前端改造 → Profile 页加 Tab 编辑器 |
+| 4 | Post 文章 | ⬜ 待分析 | 核心实体，关联 Category + Tag |
+| 5 | Category 分类 | ⬜ 待分析 | |
+| 6 | Tag 标签 | ⬜ 待分析 | 含共现关系 / 3D 星链数据 |
+| 7 | Life 生活碎片 | ⬜ 待分析 | 照片 / 音乐 / 随笔 |
 
 ---
 
@@ -329,6 +331,324 @@ model User {
   // posts     Post[]
 }
 ```
+
+---
+
+## 模块三：About · 关于我公开展示
+
+> **目标**：把前端 `src/data/about.ts` 中写死的 `aboutMe` + `skillGroups` 数据改为从后端动态拉取，
+> 并提供 admin 管理端（Profile 页 Tab 编辑器）可随时编辑保存。
+> 公开接口免登录（游客看 `/#/about` 页面不用鉴权）。
+
+### 3.1 需求概述
+
+| 角色 | 权限 | 说明 |
+|------|------|------|
+| 游客 (guest) | 只读公开 About | 浏览 About 页面 / 首页 Hero 展示 / 左下角迷你卡片 |
+| 博主 (admin) | 读 + 改 | 登录后通过 `/profile` 页「关于我展示」Tab 编辑所有字段 |
+| 新增字段总数 | — | 8 个标量列 + 5 个 JSON 列（见 3.3 总表） |
+
+### 3.2 前端页面 × 区域 × 字段 拆解（按 UI 组件来源反推）
+
+前端 About 数据目前有 **3 个消费页/组件**，共 **11 个渲染区域**。
+下方表是逐行拆出来的「哪个 UI 元素 → 绑定哪个字段 → 字段形态」。
+
+#### 消费端 1：`AboutPage.vue`（`/#/about`，公开页面，核心消费端）
+
+| 区域编号 | UI 区域 | 绑定字段 | 形态 | 截图对应位置 |
+|----------|---------|----------|------|--------------|
+| A-1 | 圆形头像（首字母渐变图，可扩展为真实 avatar） | `name`（取 charAt(0)）**+ 可复用 `avatar`** | string | 页头左侧 28×28 圆形 |
+| A-2 | Hi, I'm **Trae** 标题 | `name` | string，≤50 | 页头右侧大标题 |
+| A-3 | 副标题短简介 | `shortBio` | string，≤300 | 标题下方正文 |
+| A-4 | 位置（MapPin 图标） | `location` | string，≤100 | A-3 下方小 chips |
+| A-5 | 状态「可接项目 / 排期满」+ 心跳指示点 | `available` | boolean | 同 A-4 行 |
+| A-6 | 4 个高亮统计数字卡片（5+/20+/3.2k/8k） | `highlightStats[]` | `{label:string, value:string}[]`，常长 4 项，JSON | 页头下方 2×2 grid |
+| A-7 | 长文介绍 1~3 段 | `longBio[]` | `string[]` 段落数组，JSON | Section 4 「关于我」 |
+| A-8 | 技能分组 3 组：主技术栈/熟悉/工具链 | `skillGroups[]` | `{id:string, title:string, variant:string, items:string[]}[]`，JSON | Section 6 技能栈 |
+| A-9 | 最近感兴趣 chip 列表（6 颗） | `interests[]` | `string[]`，JSON | Section 7 底部 |
+| A-10 | 「现在在做什么」Card —— 2026 下半年 3 条文字（目前组件写死，建议也入库） | `nowDoing[]` | `string[]`（支持 **粗体内嵌 markdown** `**xxx**`），JSON | Section 5 Card |
+
+#### 消费端 2：`HomePage.vue`（`/#/`，首页 Hero）
+
+| 区域编号 | UI 区域 | 绑定字段 | 备注 |
+|----------|---------|----------|------|
+| H-1 | 副标题：「Trae · full-stack vibe coder based in 中国」 | `name` + `location.split(' · ')[0]` | 复用，不新增 |
+| H-2 | 终端打字 2 行：「方向：Vue 3 生态 / TS 工程化 / ...」 | `tags[]`（前 4 项） | `string[]`，JSON，建议固定 4 项，新增字段 |
+| H-3 | 短简介段落 | `shortBio` | 与 About A-3 复用 |
+| H-4 | 状态行：「目前可接单 · 远程协作友好 · UTC+8 · 中国」 | `available` + `location` | 与 About A-4/A-5 复用 |
+| H-5 | 4 个统计 chip（5+/20+/3.2k/8k） | `highlightStats[]` | 与 About A-6 复用 |
+
+#### 消费端 3：`DraggableStatsWidget.vue`（左下角悬浮迷你卡片）
+
+| 区域编号 | UI 区域 | 绑定字段 | 备注 |
+|----------|---------|----------|------|
+| D-1 | 迷你卡片头像（首字母圆形） | `name.charAt(0)` | 与 A-1 复用 |
+| D-2 | 在线状态绿色圆点 | `available` | 与 A-5 复用 |
+| D-3 | 卡片底部：`TE-Fire` + `可接单 · 中国` | `name` + `available` + `location` | 全部复用，不新增 |
+
+### 3.3 字段统一总表（User 表扩列方案 A）
+
+> 说明：**与 User 模块的重叠字段**：`name` 可与 `nickname` 逻辑等价（显示名），头像直接复用 `avatar` 列。
+> 其余 About 独有字段用独立列。下划线命名的 `about_*` 前缀只是"视觉分组"，不影响 SQL 查询。
+
+| # | 字段（DB 列） | TS 类型 | Prisma/MySQL 类型 | 来源/消费位置 | 默认值（种子） |
+|---|--------------|---------|-------------------|--------------|---------------|
+| 0（复用） | `id` | number | Int @id @default(autoincrement()) | PK | — |
+| 1（复用） | `nickname` | string | `VARCHAR(50)` NOT NULL | About: name / Home: name / Widget: name | `'Trae'` |
+| 2（复用） | `avatar` | string \| null | `VARCHAR(255)` NULLABLE | About A-1 圆形头像（可升级成真实图片代替首字母） | `NULL` |
+| 3 | `about_short_bio` | string | `VARCHAR(300)` NOT NULL | About A-3 / Home H-3 | 前端 shortBio 默认文案 |
+| 4 | `about_long_bio` | string[] | `JSON` (MySQL JSON) | About A-7 段落数组 | 前端 longBio[] 3 段 |
+| 5 | `about_skills` | SkillGroup[] | `JSON` | About A-8 技能 3 组 | 前端 skillGroups[] |
+| 6 | `about_highlight_stats` | `{label:string,value:string}[]` | `JSON` | About A-6 / Home H-5 | 前端 highlightStats 4 项 |
+| 7 | `about_interests` | string[] | `JSON` | About A-9 兴趣 chip | 前端 interests[] 6 项 |
+| 8 | `about_tags` | string[] | `JSON`（约定固定 4 项） | Home H-2 终端「方向：xx / yy / zz / aa」 | 前端 tags[] 4 项 |
+| 9 | `about_location` | string | `VARCHAR(100)` NOT NULL | About A-4 / Home H-1 & H-4 / Widget D-3 | `'中国 · 远程协作友好（UTC+8）'` |
+| 10 | `about_available` | boolean | `BOOLEAN` NOT NULL @default(true) | About A-5 / Home H-4 / Widget D-2 | `true` |
+| 11（新增） | `about_now_doing` | string[] | `JSON`（支持 `**粗体**` 语法） | About A-10「现在在做什么」Card | 4 条当前文案 |
+
+**字段总数**：扩 `User` 表新增 **9 列**（1 varchar(300) + 1 varchar(100) + 1 boolean + 5×JSON + 标量等），其中 **3 列复用已有**（id/nickname/avatar）。
+
+### 3.4 功能拆解
+
+| 编号 | 功能 | 前端位置 | 后端接口 | 鉴权 |
+|------|------|---------|---------|------|
+| F-1 | About 公开数据读取 | `AboutPage.vue` mounted 时请求 1 次，缓存到 Pinia 全端共享 | **GET /api/about** | ✅ 无（公开） |
+| F-2 | 首页 Hero 展示字段 | `HomePage.vue` onMounted，与 F-1 共用缓存 | GET /api/about（走缓存） | 无 |
+| F-3 | 左下角悬浮迷你卡片 | `DraggableStatsWidget.vue` onMounted | GET /api/about（走缓存） | 无 |
+| F-4 | 保存「关于我展示」全部字段 | `/profile` 页「关于我展示」Tab → 点「保存」 | **PUT /api/about** | 🔒 必须 admin |
+
+### 3.5 后端接口设计
+
+> 统一响应规范：`Result<T> = { code: number, message: string, data: T }`
+> 接口前缀：`/api/about`
+
+---
+
+#### 接口 A：公开查询 About
+
+**GET /api/about** — 游客 + admin 都能调
+
+- **缓存建议**：响应加 `Cache-Control: max-age=60, public`（1 分钟缓存，改动后最多 1 分钟刷新生效）；避免游客高频访问打 DB。
+- **实现逻辑**：Service 层直接 `prisma.user.findFirst({ select: { nickname, avatar, about_short_bio, ... } })` —— 因为系统只有 1 个博主用户，永远取第一条。
+
+成功响应（200）：
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "name": "Trae",
+    "avatar": "/uploads/avatar/xxx.png",
+    "shortBio": "一个热爱构建的前端工程师……",
+    "longBio": ["2019 年从…", "过去 5 年…", "工作之外…"],
+    "highlightStats": [
+      { "label": "年前端经验", "value": "5+" },
+      { "label": "上线项目数", "value": "20+" },
+      { "label": "开源 Star", "value": "3.2k" },
+      { "label": "月均博客字数", "value": "8k" }
+    ],
+    "location": "中国 · 远程协作友好（UTC+8）",
+    "available": true,
+    "tags": ["Vue 3 生态", "TypeScript 工程化", "设计系统与 UI 质感", "AI Agent 工作流"],
+    "interests": ["设计系统", "AI Agent 工作流", "独立游戏", "字体与排版", "WebGL 视觉", "长期主义"],
+    "skillGroups": [
+      { "id": "proficient", "title": "主技术栈 · 熟练使用", "variant": "default", "items": ["Vue 3", "TypeScript", "…"] },
+      { "id": "familiar",  "title": "熟悉 · 可以直接上手",   "variant": "secondary", "items": ["React 18", "…"] },
+      { "id": "tools",     "title": "协作 · 工具链",         "variant": "outline",   "items": ["Git", "…"] }
+    ],
+    "nowDoing": [
+      "🪴 **产品**：把「AI 辅助开发工作流」做成一个可复现的模板项目。",
+      "📝 **写作**：保持 2~3 篇 / 月的节奏。",
+      "🔍 **寻找**：有趣的独立项目 / 长期开源协作。",
+      "🛠️ **技能打磨**：正在啃 Three.js + WebGPU 教程。"
+    ]
+  }
+}
+```
+
+> 字段名使用 **camelCase（返回给前端）**；Prisma User 表里存 snake_case。Service 层要做一次 DB 列 → camelCase 的 DTO 映射。
+
+---
+
+#### 接口 B：admin 保存 About
+
+**PUT /api/about** — 仅 admin（JWT 鉴权）
+
+请求体（application/json）：
+```json
+{
+  "shortBio": "string [必填] ≤300",
+  "longBio": ["..."],
+  "highlightStats": [{ "label": "...", "value": "..." }],
+  "location": "string [必填] ≤100",
+  "available": true,
+  "tags": ["...", "...", "...", "..."],
+  "interests": ["..."],
+  "skillGroups": [
+    { "id": "proficient", "title": "...", "variant": "default|secondary|outline", "items": ["Vue 3"] }
+  ],
+  "nowDoing": ["**粗体**也可以"]
+}
+```
+
+> **注意**：`name`（=nickname）和 `avatar` 不在本接口改——这两个走已有的 User 模块 `POST /users/me` + `POST /users/avatar`。Tab1「账号资料」Tab2「关于我展示」各管自己的接口。
+
+成功响应（200）：返回 **完整最新 About 对象**（跟 GET /api/about 的 data 结构完全相同），前端可以直接 setState，避免再发一次 GET。
+
+**DTO 校验规则（class-validator）**：
+
+| 字段 | 规则 |
+|------|------|
+| `shortBio` | `@IsString()` `@MaxLength(300)` `@IsNotEmpty()` |
+| `longBio` | `@IsArray()` `@ArrayMaxSize(20)` 每项 `@IsString()` `@MaxLength(2000)` |
+| `highlightStats` | `@IsArray()` `@ArrayMaxSize(8)` 每项 `{label: MaxLen(30), value: MaxLen(20)}` |
+| `location` | `@IsString()` `@MaxLength(100)` `@IsNotEmpty()` |
+| `available` | `@IsBoolean()` |
+| `tags` | `@IsArray()` `@ArrayMinSize(1)` `@ArrayMaxSize(4)` 每项 `@IsString()` `@MaxLength(40)` |
+| `interests` | `@IsArray()` `@ArrayMaxSize(20)` 每项 `@MaxLength(30)` |
+| `skillGroups` | `@IsArray()` `@ArrayMaxSize(6)` 子项校验：id/title/variant(items: default/secondary/outline)/items[] |
+| `nowDoing` | `@IsArray()` `@ArrayMaxSize(10)` 每项 `@MaxLength(500)` |
+
+---
+
+#### 错误枚举（遵守 `nestjs_standards.md` 的异常契约）
+
+新增 `AboutBizError` 枚举（放 `server/src/modules/about/enums/about-biz-error.enum.ts`）：
+
+| 枚举值 | 含义 | HTTP 语义 |
+|--------|------|-----------|
+| `ABOUT_DATA_MISSING = 5001` | DB 里没有任何 user 行（种子未初始化） | 500 |
+| `ABOUT_SAVE_FAILED = 5002` | 保存失败（Prisma 错误） | 500 |
+
+> 字段级校验失败由全局 ValidationPipe + class-validator 自动返回 400 BizError.VALIDATION_FAILED，
+> 无需 About 模块自己处理。
+
+---
+
+### 3.6 数据库 / Prisma Schema 扩列设计
+
+**User model 新增字段**（Prisma `schema.prisma` 声明）：
+
+```prisma
+model User {
+  // ===== 已有列 =====
+  id           Int       @id @default(autoincrement())
+  username     String    @unique @db.VarChar(50)
+  password     String    @db.VarChar(100)
+  nickname     String    @db.VarChar(50)            // ← About.name 直接复用
+  email        String?   @db.VarChar(100)
+  avatar       String?   @db.VarChar(255)           // ← About 头像直接复用
+  role         String    @default("admin") @db.VarChar(20)
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  // ===== ★ 新增 About 展示列 =====
+  aboutShortBio     String   @default("") @db.VarChar(300)  @map("about_short_bio")
+  aboutLongBio      Json     @default("[]")                 @map("about_long_bio")
+  aboutSkills       Json     @default("[]")                 @map("about_skills")
+  aboutHighlightStats Json  @default("[]")                 @map("about_highlight_stats")
+  aboutInterests    Json     @default("[]")                 @map("about_interests")
+  aboutTags         Json     @default("[]")                 @map("about_tags")
+  aboutLocation     String   @default("") @db.VarChar(100)  @map("about_location")
+  aboutAvailable    Boolean  @default(true)                 @map("about_available")
+  aboutNowDoing     Json     @default("[]")                 @map("about_now_doing")
+
+  @@map("user")
+}
+```
+
+**种子数据（Prisma seed）**：初始化 admin 行时把前端 `data/about.ts` 的写死内容写入上述列，
+保证旧页面无缝过渡（即使后端刚上线、admin 还没手动改）。
+
+### 3.7 前端改造方案
+
+#### 3.7.1 新增状态层（Pinia store）：`useAboutStore`
+
+```
+stores/about.ts
+  └─ state:   about: AboutRsp | null
+              loading: boolean
+  └─ getters: displayName（兜底 authStore.user?.nickname ?? 'Trae'）
+              displayAvatar（兜底 avatar → 首字母圆形图）
+  └─ actions:
+       fetchAbout() : Promise<AboutRsp>
+         · 如果已有 about 直接返回（内存缓存）
+         · 否则 request('/about') → 存 state → 返回
+       saveAbout(params) : PUT /api/about → 更新本地 state
+       invalidateCache() : about = null （强制下次重新拉）
+```
+
+#### 3.7.2 改造 3 个消费端 → 用 aboutStore
+
+| 组件 | 改动要点 |
+|------|---------|
+| **AboutPage.vue** | 删除 `import { aboutMe, skillGroups } from '@/data'`；改为 `onMounted → aboutStore.fetchAbout()`。所有绑定路径：`aboutMe.xxx` → `aboutStore.about?.xxx`；`skillGroups` → `aboutStore.about?.skillGroups ?? []`。加载态加骨架屏。 |
+| **HomePage.vue** | 同上。注意：`stats` 从 `aboutMe.highlightStats` 改为 `aboutStore.about?.highlightStats ?? []`；tags 同理。 |
+| **DraggableStatsWidget.vue** | 同上。name/available/location 3 个点改绑定。 |
+
+#### 3.7.3 兜底策略（数据缺失不白屏）
+
+如果 DB 里 About 数据未初始化或接口报错 → store 自动 fallback 到 `@/data/about.ts` 的旧 mock 数据，
+保证页面不会白屏或出现 undefined。生产环境可以去掉 fallback，保证数据唯一来源是 DB。
+
+### 3.8 管理编辑器（Profile 页 Tab 化设计）
+
+`/profile` 现有「账号资料」卡片 + 头像 → 加顶部 2 个 Tab 切换：
+
+```
+ ┌─────────────────────────────────────┐
+ │  [ Tab1 · 账号资料 ]   [ Tab2 · 关于我展示 ]  ← 新增
+ ├─────────────────────────────────────┤
+ │                                     │
+ │  （Tab1 现有内容：昵称/邮箱/头像）    │
+ │          OR                         │
+ │  （Tab2 新增编辑器）                 │
+ │    · 短简介 Input (textarea 3 行)    │
+ │    · 位置 Input                      │
+ │    · 可接单状态 Switch               │
+ │    · 标签 tags 4 颗 Input Chips      │
+ │    · 长文段落 List Editor（段落数±）  │
+ │    · highlightStats 4 组 Key-Value   │
+ │    · 兴趣标签 Chips 编辑器            │
+ │    · 技能分组 3 组 Editors（组名+variant+items） │
+ │    · nowDoing 条目编辑器（支持 **加粗** 语法提示） │
+ │                                     │
+ │                     [ 取消 ]  [ 保存 ]
+ └─────────────────────────────────────┘
+```
+
+编辑器每个子区域实现规范：
+- 用 `shadcn-vue` `Tabs` 组件 + `TabList` + `TabContent`
+- 数组类（longBio / skills / stats / interests / tags / nowDoing）用：`增 (+)` / `删 (-)` / `排序拖拽 (::)` ListEditor 模式
+- skillGroups：用折叠 `<details>` 或子 Card，每一组内可以编辑：组标题（Input）+ 变体（Radio: default/secondary/outline）+ 技能项 Chips
+- 保存：`PUT /api/about` → 返回完整对象 → 刷新 aboutStore → 顶部 Toast「保存成功」
+- 取消：整 Tab 所有字段重置为 aboutStore.about 原值（不写入 store）
+
+### 3.9 接口路由注册 / 模块位置
+
+```
+server/src/modules/about/
+  ├── about.module.ts          # AboutModule：imports [PrismaModule]，controllers + providers
+  ├── about.controller.ts      # @Controller('about')：GET + PUT
+  ├── about.service.ts         # AboutService：getPublicAbout() + saveAbout(userId, body)
+  ├── dto/
+  │   ├── update-about.dto.ts  # UpdateAboutDto（class-validator 校验规则见 3.5）
+  │   └── about.dto.ts         # AboutRsp 接口（GET 返回的 camelCase DTO）
+  └── enums/
+      └── about-biz-error.enum.ts  # AboutBizError + getAboutErrorInfo()
+```
+
+### 3.10 Redis Key & 缓存（可选）
+
+为避免游客每访问一次 About 页就打一次 DB，可在 AboutService 里加一层 **1 分钟 Redis 缓存**：
+
+| Key（遵守规范：项目:模块:用途） | TTL | 存值 |
+|---|---|---|
+| `personal_site:about:public` | 60 秒（1 min） | AboutRsp JSON 字符串 |
+
+- **读**：先查 Redis → 命中 → 直接返回；否则查 DB → 写 Redis → 返回。
+- **写**：PUT /api/about 成功后 → `del personal_site:about:public` → 下次 GET 自动重建缓存。
+- **降级**：Redis 挂了 → 走 DB（try/finally 包一层），不影响业务。
 
 ---
 

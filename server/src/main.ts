@@ -3,6 +3,8 @@ import { Logger } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
+import { join } from 'path';
+import { existsSync, mkdirSync } from 'fs';
 import { AppModule } from './app.module';
 import { GlobalExceptionFilter } from './common/global-exception.filter';
 import { buildValidationPipe } from './common/validation.pipe';
@@ -16,6 +18,16 @@ async function bootstrap() {
   const logger = new Logger('Bootstrap');
   const port = process.env.PORT ? Number(process.env.PORT) : 3000;
   const apiPrefix = process.env.API_PREFIX ?? 'api';
+
+  /* ---------- 静态资源：server/public/* 可直接通过 /uploads/... 访问 ---------- */
+  const publicDir = join(__dirname, '..', 'public');
+  app.useStaticAssets(publicDir, { prefix: '/' });
+  // 预热头像目录（启动时不存在则创建，避免首次上传才创建）
+  const avatarDir = join(publicDir, 'uploads', 'avatar');
+  if (!existsSync(avatarDir)) {
+    mkdirSync(avatarDir, { recursive: true });
+    logger.log(`📁 Created avatar upload dir: ${avatarDir}`);
+  }
 
   /* ---------- 全局中间件 ---------- */
   app.use(helmet());
