@@ -27,15 +27,20 @@ const roleOrange = ref<HTMLElement | null>(null);
 const roleDark = ref<HTMLElement | null>(null);
 const roleYellow = ref<HTMLElement | null>(null);
 
+// 注意：Vue 3 + 严格 TS 环境下 callback ref 签名是 (ref: Element|ComponentPublicInstance|null, refs: Record)=>void，
+// HTMLElement 和 Element 都会跟 ComponentPublicInstance 产生冲突。这里放宽成 any，内部再做
+// 空值检查和 HTMLElement 强转。运行时行为与之前完全一致（两个 ref 都挂在普通 HTML DOM 节点上）。
 const pupils = ref<HTMLElement[]>([]);
-function registerPupil(el: HTMLElement | null) {
-  if (el && !pupils.value.includes(el)) pupils.value.push(el);
+function registerPupil(el: any) {
+  if (el && el instanceof HTMLElement) {
+    if (!pupils.value.includes(el)) pupils.value.push(el)
+  }
 }
 const handLeft = ref<HTMLElement | null>(null);
 const handRight = ref<HTMLElement | null>(null);
 const dots = ref<HTMLElement[]>([]);
-function registerDot(el: HTMLElement | null) {
-  if (el) dots.value.push(el);
+function registerDot(el: any) {
+  if (el instanceof HTMLElement) dots.value.push(el);
 }
 
 /* ---------- 计算属性 ---------- */

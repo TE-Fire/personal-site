@@ -33,8 +33,6 @@ const avatarUrl = computed(() => {
   return authStore.resolveAvatarUrl(raw)
 })
 const nameInitial = computed(() => (aboutStore.displayName || 'T').charAt(0).toUpperCase())
-/** location 短版：取 "中国 · 远程..." 第一段，用于首页之外的场景（这里目前没用到，保留给后续 widget） */
-const locationShort = computed(() => a.value.location.split(' · ')[0] ?? a.value.location)
 
 /*
  * 把一行里的 "**粗体**" 语法用 <strong> 包起来，返回用于 v-html 的 HTML 串。

@@ -1,9 +1,21 @@
 import {
   createRouter,
   createWebHashHistory,
-  type RouteRecordRaw
+  type RouteRecordRaw,
 } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+/**
+ * 首页组件改成静态 import（不懒加载）。
+ *   原全部用 () => import(...) 懒加载时，Vite dev HMR 偶尔出现「组件引用错位」的缓存问题：
+ *   明明 URL 是 / 却渲染 BlogEditorPage。把首页这条改成静态导入后，路由表初始化时
+ *   HomePage 的组件引用就钉死了，不会被后续 chunk 加载的其他组件引用污染。
+ */
+import HomePage from '@/pages/HomePage.vue'
+
+/**
+ * 用一个全局唯一 Symbol 标记「首页兜底重定向」，避免同一条路由反复重定向造成死循环。
+ */
+const HOME_FORCE_REDIRECT = /* @__PURE__ */ Symbol('HOME_FORCE_REDIRECT')
 
 /**
  * 路由表（v1.0 · 首版只注册 6 条主路由 + 通配 404）。
@@ -14,7 +26,7 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/',
     name: 'Home',
-    component: () => import('@/pages/HomePage.vue'),
+    component: HomePage, // 静态导入，避免 HMR 缓存下组件错位
     meta: { title: '首页', icon: 'Home' }
   },
   {
@@ -145,8 +157,31 @@ router.beforeEach((to, from, next) => {
   if (import.meta.env.DEV) {
     // eslint-disable-next-line no-console
     console.debug(
-      `[router] ${from.fullPath || '(init)'} → ${to.fullPath}  matched: ${to.matched.map((r) => r.path).join(' > ') || '(none)'}`,
+      `[router] ${from.fullPath || '(init)'} → ${to.fullPath}  matched: ${to.matched.map((r) => String(r.name || r.path)).join(' > ') || '(none)'}`,
     )
+  }
+
+  // -------- 首页兜底：URL = '/' 但匹配到的第一条路由不是 Home 时，强制干净重定向 --------
+  //   这是 Vite HMR 懒加载偶发的"组件引用错位"最终防线：
+  //   比如 '/blog/new' 组件被串到 Home 路由上时，这里会发现 to.matched[0].name !== 'Home'，
+  //   于是用 HOME_FORCE_REDIRECT 做一次 replace。注意用 Symbol 做一次性标记，
+  //   避免同一条 '/ → /' 守卫再命中，形成无限循环。
+  if (
+    to.path === '/' &&
+    // 只要匹配到路由，且第一条不是 Home → 需要修正
+    to.matched.length > 0 &&
+    to.matched[0].name !== 'Home' &&
+    // 已经被兜底重定向过一次 → 不再重复触发
+    !(from as any)[HOME_FORCE_REDIRECT]
+  ) {
+    if (import.meta.env.DEV) {
+      console.warn(
+        `[router] 检测到首页路由错位：path=/ 匹配到的是 [${to.matched.map((r) => String(r.name || r.path)).join(', ')}]，强制 replace('/') 重新对齐`,
+      )
+    }
+    ;(to as any)[HOME_FORCE_REDIRECT] = true
+    next({ path: '/', replace: true })
+    return
   }
 
   // ---- 需要登录：拦到 /login?redirect=原路径 ----

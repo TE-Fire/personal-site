@@ -18,16 +18,26 @@ const route = useRoute()
 const router = useRouter()
 
 /**
- * 点击 LOGO 兜底跳首页：
- *   正常 RouterLink 会跳 '/'; 同时我们显式 @click.prevent 再走一次 router.replace('/')
- *   作为双保险：防止路由匹配异常时把用户留在非首页（比如之前观察到的
- *   「明明是 / 却渲染 blog/new」的缓存错位）。
+ * 点击 LOGO 跳首页。
+ *
+ * 关键改动：故意把 LOGO 从 <RouterLink to="/" @click.prevent="..."> 改成
+ * 一个纯 <a href="#/"> 元素 + 单一的 @click.prevent handler。
+ *   原因：RouterLink 默认导航行为 与 手动 @click.prevent+replace 在 Hash 模式下
+ *   会出现 pushState 队列竞态——偶发情况是 RouterLink 先把组件换成 /blog/new
+ *   （比如上次访问过 /blog/new，HMR 缓存下的历史记录注入），然后 replace('/')
+ *   只更新了 URL bar，组件引用没对齐。改单一 click handler 彻底消除竞态。
  */
 function goHome(ev: Event) {
   ev.preventDefault()
   if (import.meta.env.DEV) {
     // eslint-disable-next-line no-console
-    console.debug('[header:logo] 强制回到首页', '当前 route.path=', route.path)
+    console.debug(
+      '[header:logo] 点击 LOGO → replace("/") 回到首页',
+      '当前 route.path=',
+      route.path,
+      '当前 matched=',
+      route.matched.map((r) => String(r.name || r.path)).join(' > ') || '(none)',
+    )
   }
   router.replace('/')
 }
@@ -109,12 +119,12 @@ function closeMenu() { menuOpen.value = false }
     ]"
   >
     <div class="mx-auto h-[68px] w-full max-w-screen-2xl px-4 md:px-8 flex items-center justify-between gap-4">
-      <!-- LOGO 区 -->
-      <RouterLink
-        to="/"
+      <!-- LOGO 区：纯 <a> + @click.prevent 单一导航，避免 RouterLink 竞态 -->
+      <a
+        href="#/"
         class="flex items-center gap-2.5 select-none group no-underline"
         aria-label="返回首页"
-        @click="goHome"
+        @click.prevent="goHome"
       >
         <span
           class="inline-flex size-10 items-center justify-center rounded-lg bg-brand/10 text-brand ring-1 ring-brand/30 transition-transform group-hover:scale-105"
@@ -126,7 +136,7 @@ function closeMenu() { menuOpen.value = false }
           <span class="text-text">rae</span>
           <span class="text-text-muted text-[13px] font-normal ml-1.5">/ portfolio</span>
         </span>
-      </RouterLink>
+      </a>
 
       <!-- 桌面端导航（md 以上显示） -->
       <nav class="hidden md:flex items-center gap-1">
