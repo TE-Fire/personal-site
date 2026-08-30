@@ -2,13 +2,23 @@ import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
-import { BizCode, BusinessException } from '@/common/exception';
+import { BusinessException } from '@/common/exception';
 import { PrismaService } from '@/common/prisma.service';
 import { CaptchaService } from '../captcha/captcha.service';
+import { CaptchaBizError } from '../captcha/enums/captcha-biz-error.enum';
+import { AuthBizError } from './enums/auth-biz-error.enum';
 import { ChangePasswordDto, LoginDto, TokenPayload, UserProfile } from './dto/auth.dto';
 
 /**
- * 认证 Service（阶段二：真实查数据库 + bcrypt 校验）
+ * 认证 Service（真实查数据库 + bcrypt 校验）
+ *
+ * 异常统一用模块枚举抛出：
+ *   CaptchaBizError.VERIFY_FAILED    1101  验证码校验失败
+ *   AuthBizError.PASSWORD_INVALID    1004  用户名或密码错误
+ *   AuthBizError.USER_NOT_FOUND      1003  用户不存在
+ *   AuthBizError.USER_DISABLED       1006  账号已禁用
+ *   AuthBizError.OLD_PASSWORD_INVALID 1007 原密码错误
+ *   AuthBizError.PASSWORD_NOT_CHANGED 1008 新旧密码相同
  */
 @Injectable()
 export class AuthService {
@@ -23,16 +33,13 @@ export class AuthService {
    * 登录：先校验验证码，再查 user 表 + bcrypt.compare，最后签发 JWT
    */
   async login(dto: LoginDto): Promise<TokenPayload> {
-    // 1. 校验滑块验证码
+    // 1. 校验滑块验证码（验证码自己会抛 CaptchaBizError.MISSING_PARAM / EXPIRED 等）
     const captchaOk = await this.captchaService.verify(
       dto.captchaId,
       dto.slideX,
     );
     if (!captchaOk) {
-      throw new BusinessException(
-        '验证码校验失败，请重试',
-        BizCode.CAPTCHA_INVALID,
-      );
+      throw new BusinessException(CaptchaBizError.VERIFY_FAILED);
     }
 
     // 2. 查 user 表
@@ -40,19 +47,14 @@ export class AuthService {
       where: { username: dto.username },
     });
     if (!user || user.status !== 1) {
-      throw new BusinessException(
-        '用户名或密码错误',
-        BizCode.PASSWORD_INVALID,
-      );
+      // 用户不存在或禁用 → 统一"用户名或密码错误"（避免用户名枚举攻击）
+      throw new BusinessException(AuthBizError.PASSWORD_INVALID);
     }
 
     // 3. bcrypt 校验密码
     const ok = await bcrypt.compare(dto.password, user.password);
     if (!ok) {
-      throw new BusinessException(
-        '用户名或密码错误',
-        BizCode.PASSWORD_INVALID,
-      );
+      throw new BusinessException(AuthBizError.PASSWORD_INVALID);
     }
 
     // 4. 签发 JWT
@@ -92,7 +94,7 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new BusinessException('用户不存在', BizCode.USER_NOT_FOUND);
+      throw new BusinessException(AuthBizError.USER_NOT_FOUND);
     }
 
     // Prisma nickname 可空，兜底为 username，保持对外接口 nickname 必有值
@@ -112,19 +114,22 @@ export class AuthService {
       where: { id: userId },
       select: { id: true, password: true, status: true },
     });
-    if (!user || user.status !== 1) {
-      throw new BusinessException('用户不存在或已禁用', BizCode.USER_NOT_FOUND);
+    if (!user) {
+      throw new BusinessException(AuthBizError.USER_NOT_FOUND);
+    }
+    if (user.status !== 1) {
+      throw new BusinessException(AuthBizError.USER_DISABLED);
     }
 
     // 2. 校验旧密码
     const ok = await bcrypt.compare(dto.oldPassword, user.password);
     if (!ok) {
-      throw new BusinessException('旧密码错误', BizCode.PASSWORD_INVALID);
+      throw new BusinessException(AuthBizError.OLD_PASSWORD_INVALID);
     }
 
     // 3. 新旧不能相同
     if (dto.oldPassword === dto.newPassword) {
-      throw new BusinessException('新密码不能与旧密码相同', BizCode.BAD_REQUEST);
+      throw new BusinessException(AuthBizError.PASSWORD_NOT_CHANGED);
     }
 
     // 4. 加密 + 更新

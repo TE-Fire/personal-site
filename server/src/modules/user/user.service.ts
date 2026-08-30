@@ -1,9 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { BizCode, BusinessException } from '@/common/exception';
+import { BusinessException } from '@/common/exception';
+import { UserBizError } from './enums/user-biz-error.enum';
 import { CreateUserDto, UpdateUserDto, UserVo } from './dto/user.dto';
 
 /**
- * User Service：CRUD 骨架，目前走内存 mock
+ * User Service：CRUD 骨架（目前走内存 mock）
  * 后续接入 Prisma 后直接替换为 this.prisma.user.*
  */
 @Injectable()
@@ -24,7 +25,7 @@ export class UserService {
 
   async findById(id: number): Promise<UserVo> {
     if (id !== this.mockUser.id) {
-      throw new BusinessException('用户不存在', BizCode.USER_NOT_FOUND);
+      throw new BusinessException(UserBizError.NOT_FOUND);
     }
     return this.mockUser;
   }

@@ -5,6 +5,12 @@ import { randomUUID } from 'crypto';
 import sharp from 'sharp';
 import { RedisService } from '../redis/redis.service';
 import { CaptchaResponse } from './dto/captcha.dto';
+import { BusinessException } from '../../common/exception';
+import { CaptchaBizError } from './enums/captcha-biz-error.enum';
+import {
+  CAPTCHA_KEY,
+  REDIS_TTL,
+} from '../../common/constants/redis-keys';
 
 /**
  * 滑块验证码 Service
@@ -16,7 +22,7 @@ import { CaptchaResponse } from './dto/captcha.dto';
  *   4. 从背景图裁剪 48×48 拼图块
  *   5. 在背景图上叠加半透明阴影矩形（模拟"缺口"）
  *   6. captchaId → targetX 存入 Redis（TTL 5min）
- *   7. 返回两张 base64 图 + 尺寸参数
+ *   7. 返回 CaptchaResponse（使用 Fluent Builder，后续可扩展）
  */
 @Injectable()
 export class CaptchaService {
@@ -29,12 +35,10 @@ export class CaptchaService {
   private readonly PUZZLE_SIZE = 48;
   /** 验证容差（像素） */
   private readonly TOLERANCE = 5;
-  /** Redis TTL */
-  private readonly CAPTCHA_TTL = 300; // 5 分钟
   /** 背景图目录 */
   private readonly BG_DIR = path.join(process.cwd(), 'public', 'captcha-bg');
 
-  /** 内存 fallback（Redis 不可用时） */
+  /** 内存 fallback（Redis 不可用时）—— TTL 跟 REDIS_TTL.CAPTCHA 保持同步 */
   private readonly memoryStore = new Map<string, number>();
 
   constructor(private readonly redis: RedisService) {}
@@ -43,10 +47,10 @@ export class CaptchaService {
    * 生成滑块验证码
    */
   async generate(): Promise<CaptchaResponse> {
-    // 1. 读取随机背景图
+    // 1. 读取随机背景图（缺失 → 业务枚举异常，不再抛裸 Error）
     const bgPath = this.pickRandomBg();
     if (!bgPath) {
-      throw new Error('未找到验证码背景图，请将图片放入 server/public/captcha-bg/');
+      throw new BusinessException(CaptchaBizError.NO_BACKGROUND_IMAGE);
     }
 
     // 2. resize 到标准尺寸
@@ -93,21 +97,21 @@ export class CaptchaService {
       .jpeg({ quality: 90 })
       .toBuffer();
 
-    // 6. 存储 captchaId → targetX
+    // 6. 存储 captchaId → targetX（统一走 Redis Key 构造函数）
     const captchaId = randomUUID();
-    const redisKey = `captcha:${captchaId}`;
+    const redisKey = CAPTCHA_KEY(captchaId);
     try {
-      await this.redis.set(redisKey, String(targetX), this.CAPTCHA_TTL);
+      await this.redis.set(redisKey, String(targetX), REDIS_TTL.CAPTCHA);
     } catch {
       this.logger.warn('Redis 不可用，降级到内存存储');
       this.memoryStore.set(captchaId, targetX);
       setTimeout(
         () => this.memoryStore.delete(captchaId),
-        this.CAPTCHA_TTL * 1000,
+        REDIS_TTL.CAPTCHA * 1000,
       );
     }
 
-    // 7. 返回
+    // 7. 返回（直接返回 CaptchaResponse；字段较少暂不上 Fluent Builder，后续复杂可改造）
     return {
       captchaId,
       bgImage: `data:image/jpeg;base64,${bgWithHole.toString('base64')}`,
@@ -115,16 +119,20 @@ export class CaptchaService {
       canvasWidth: this.CANVAS_W,
       canvasHeight: this.CANVAS_H,
       puzzleSize: this.PUZZLE_SIZE,
-      puzzleY: targetY, // 拼图块的 Y 坐标（前端用于对齐缺口高度）
+      puzzleY: targetY,
     };
   }
 
   /**
    * 校验滑块位置
-   * @returns true=校验通过
+   * @returns true=校验通过  false=失败（过期/偏差大/已使用）
    */
   async verify(captchaId: string, slideX: number): Promise<boolean> {
-    const redisKey = `captcha:${captchaId}`;
+    if (!captchaId || slideX == null) {
+      throw new BusinessException(CaptchaBizError.MISSING_PARAM);
+    }
+
+    const redisKey = CAPTCHA_KEY(captchaId);
 
     // 取出 targetX
     let targetX: number | undefined;
@@ -136,7 +144,8 @@ export class CaptchaService {
     }
 
     if (targetX === undefined) {
-      return false; // 验证码不存在或已过期
+      // 过期 / 已使用过 → 全局过滤器统一消息
+      throw new BusinessException(CaptchaBizError.EXPIRED);
     }
 
     // 一次性消费：无论成功失败都删除

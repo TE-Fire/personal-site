@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { BizCode, BusinessException } from '@/common/exception';
+import { BusinessException } from '@/common/exception';
+import { PostBizError } from './enums/post-biz-error.enum';
 import {
   CreatePostDto,
   PostPageVo,
@@ -33,7 +34,7 @@ export class PostService {
   async findById(id: number): Promise<PostVo> {
     const post = this.mockPosts.find((p) => p.id === id);
     if (!post) {
-      throw new BusinessException('文章不存在', BizCode.POST_NOT_FOUND);
+      throw new BusinessException(PostBizError.NOT_FOUND);
     }
     return post;
   }
@@ -41,7 +42,7 @@ export class PostService {
   async findBySlug(slug: string): Promise<PostVo> {
     const post = this.mockPosts.find((p) => p.slug === slug);
     if (!post) {
-      throw new BusinessException('文章不存在', BizCode.POST_NOT_FOUND);
+      throw new BusinessException(PostBizError.NOT_FOUND);
     }
     return post;
   }
@@ -79,7 +80,7 @@ export class PostService {
     const before = this.mockPosts.length;
     this.mockPosts = this.mockPosts.filter((p) => p.id !== id);
     if (this.mockPosts.length === before) {
-      throw new BusinessException('文章不存在', BizCode.POST_NOT_FOUND);
+      throw new BusinessException(PostBizError.NOT_FOUND);
     }
   }
 }
