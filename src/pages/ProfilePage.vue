@@ -557,50 +557,52 @@ function resetAccount() {
         </p>
 
         <!-- 保存 / 重置按钮（根据当前 Tab 切换动作） -->
-        <template v-if="activeTab === 'about'">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            :disabled="!aboutDirty || aboutSubmitting || aboutLoading"
-            @click="resetAboutDraft"
-          >
-            <RotateCcw class="size-3.5" />
-            <span>还原</span>
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            :disabled="!aboutDirty || aboutSubmitting || aboutLoading"
-            @click="saveAboutDraft"
-          >
-            <Loader2 v-if="aboutSubmitting" class="size-3.5 animate-spin" />
-            <Save v-else class="size-3.5" />
-            <span>{{ aboutSubmitting ? '保存中…' : '保存展示内容' }}</span>
-          </Button>
-        </template>
-        <template v-else>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            :disabled="!accDirty || accSubmitting"
-            @click="resetAccount"
-          >
-            <RotateCcw class="size-3.5" />
-            <span>还原</span>
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            :disabled="!accDirty || accSubmitting"
-            @click="saveAccount"
-          >
-            <Loader2 v-if="accSubmitting" class="size-3.5 animate-spin" />
-            <Save v-else class="size-3.5" />
-            <span>{{ accSubmitting ? '保存中…' : '保存账号资料' }}</span>
-          </Button>
-        </template>
+        <div class="flex items-center gap-2">
+          <template v-if="activeTab === 'about'">
+            <Button
+              type="button"
+              variant="outline"
+              :disabled="!aboutDirty || aboutSubmitting || aboutLoading"
+              class="h-9 px-4"
+              @click="resetAboutDraft"
+            >
+              <RotateCcw class="size-4" />
+              <span>还原</span>
+            </Button>
+            <Button
+              type="button"
+              :disabled="!aboutDirty || aboutSubmitting || aboutLoading"
+              class="h-9 px-4 shadow hover:shadow-md transition-shadow"
+              @click="saveAboutDraft"
+            >
+              <Loader2 v-if="aboutSubmitting" class="size-4 animate-spin" />
+              <Save v-else class="size-4" />
+              <span>{{ aboutSubmitting ? '保存中…' : '保存展示内容' }}</span>
+            </Button>
+          </template>
+          <template v-else>
+            <Button
+              type="button"
+              variant="outline"
+              :disabled="!accDirty || accSubmitting"
+              class="h-9 px-4"
+              @click="resetAccount"
+            >
+              <RotateCcw class="size-4" />
+              <span>还原</span>
+            </Button>
+            <Button
+              type="button"
+              :disabled="!accDirty || accSubmitting"
+              class="h-9 px-4 shadow hover:shadow-md transition-shadow"
+              @click="saveAccount"
+            >
+              <Loader2 v-if="accSubmitting" class="size-4 animate-spin" />
+              <Save v-else class="size-4" />
+              <span>{{ accSubmitting ? '保存中…' : '保存账号资料' }}</span>
+            </Button>
+          </template>
+        </div>
       </div>
 
       <!-- ==================== Tab1 · 关于我展示编辑器 ==================== -->
