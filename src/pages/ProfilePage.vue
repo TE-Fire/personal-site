@@ -825,27 +825,35 @@ function resetAccount() {
                   还没有数字统计，点右上角「新增一行」开始添加。
                 </div>
 
-                <div v-else class="space-y-2">
-                    <div
-                      v-for="(stat, idx) in aboutDraft.highlightStats"
-                      :key="idx"
-                      class="flex items-center gap-4 py-2 border-b border-border/60 last:border-b-0"
-                    >
-                      <Label class="w-20 shrink-0 text-sm font-medium text-text">标签</Label>
-                      <Input v-model="stat.label" placeholder="例如：年前端经验" class="flex-1" />
-                      <Label class="w-20 shrink-0 text-sm font-medium text-text text-right">数值</Label>
-                      <Input v-model="stat.value" placeholder="例如：5+ 或 3.2k" class="flex-1" />
-                      <button
-                        type="button"
-                        class="shrink-0 size-8 rounded-md border border-transparent text-text-muted hover:text-danger hover:bg-danger/10 transition inline-flex items-center justify-center"
-                        :disabled="aboutDraft.highlightStats.length <= 1"
-                        :title="aboutDraft.highlightStats.length <= 1 ? '至少保留 1 行' : '删除此行'"
-                        @click="removeStat(idx)"
-                      >
-                        <Minus class="size-3.5" />
-                      </button>
-                    </div>
-                  </div>
+                <div
+                   v-if="aboutDraft.highlightStats.length"
+                   class="rounded-md border border-border overflow-hidden"
+                 >
+                   <!-- 表头（只出现一次） -->
+                   <div class="grid grid-cols-[1fr_140px_40px] gap-3 px-3 py-2 bg-surface-muted/40 border-b border-border text-[11px] font-medium text-text-muted uppercase tracking-wider">
+                     <span>标签</span>
+                     <span>数值</span>
+                     <span class="sr-only">操作</span>
+                   </div>
+                   <!-- 行 -->
+                   <div
+                     v-for="(stat, idx) in aboutDraft.highlightStats"
+                     :key="idx"
+                     class="grid grid-cols-[1fr_140px_40px] gap-3 px-3 py-2 border-b border-border/60 last:border-b-0 items-center hover:bg-surface-muted/20 transition-colors"
+                   >
+                     <Input v-model="stat.label" placeholder="例如：年前端经验" />
+                     <Input v-model="stat.value" placeholder="5+" />
+                     <button
+                       type="button"
+                       class="justify-self-center size-8 rounded-md text-text-muted hover:text-danger hover:bg-danger/10 transition inline-flex items-center justify-center"
+                       :disabled="aboutDraft.highlightStats.length <= 1"
+                       :title="aboutDraft.highlightStats.length <= 1 ? '至少保留 1 行' : '删除此行'"
+                       @click="removeStat(idx)"
+                     >
+                       <Minus class="size-3.5" />
+                     </button>
+                   </div>
+                 </div>
               </section>
 
               <!-- Section · 兴趣标签 interests（chip） -->
@@ -897,65 +905,73 @@ function resetAccount() {
                 </div>
 
                 <div
-                   v-for="(grp, gIdx) in aboutDraft.skillGroups"
-                   :key="grp.id"
-                   class="rounded-md border border-border bg-surface-elevated p-4 space-y-3"
+                   v-if="aboutDraft.skillGroups.length"
+                   class="rounded-md border border-border overflow-hidden"
                  >
-                   <!-- 分组标题 + variant · inline -->
-                   <div class="flex items-center gap-4">
-                     <Label class="w-20 shrink-0 text-sm font-medium text-text">分组</Label>
-                     <Input v-model="grp.title" placeholder="例：前端框架" class="flex-1" />
-                     <Label class="shrink-0 text-sm font-medium text-text">样式</Label>
-                     <select
-                       v-model="grp.variant"
-                       class="h-9 w-[140px] rounded-md border border-border bg-surface px-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
-                     >
-                       <option value="default">品牌色</option>
-                       <option value="secondary">灰底</option>
-                       <option value="outline">描边</option>
-                     </select>
-                     <button
-                       type="button"
-                       class="shrink-0 size-8 rounded-md border border-transparent text-text-muted hover:text-danger hover:bg-danger/10 transition inline-flex items-center justify-center"
-                       :disabled="aboutDraft.skillGroups.length <= 1"
-                       :title="aboutDraft.skillGroups.length <= 1 ? '至少保留 1 组' : '删除此分组'"
-                       @click="removeSkillGroup(gIdx)"
-                     >
-                       <Minus class="size-3.5" />
-                     </button>
+                   <!-- 表头 -->
+                   <div class="grid grid-cols-[1fr_140px_40px] gap-3 px-3 py-2 bg-surface-muted/40 border-b border-border text-[11px] font-medium text-text-muted uppercase tracking-wider">
+                     <span>分组标题</span>
+                     <span>样式</span>
+                     <span class="sr-only">操作</span>
                    </div>
-
-                  <div class="space-y-2 rounded-md bg-surface-muted/30 border border-border/60 px-3 py-2 focus-within:ring-2 focus-within:ring-brand focus-within:ring-offset-2 focus-within:ring-offset-surface">
-                    <input
-                      class="w-full bg-transparent text-xs outline-none placeholder:text-text-muted py-1"
-                      placeholder="输入技能名称后回车 / 逗号新增：Vue 3, React, Svelte…"
-                      @keydown.enter.prevent="(e: any) => { addChip(grp.items, e.target.value); e.target.value = '' }"
-                      @keydown.comma.prevent="(e: any) => { addChip(grp.items, e.target.value); e.target.value = '' }"
-                    />
-                    <div v-if="grp.items.length" class="flex flex-wrap gap-1.5 pt-1 pb-0.5">
-                      <span
-                        v-for="(item, idx) in grp.items"
-                        :key="item + idx"
-                        class="inline-flex items-center gap-1 rounded-md text-[11px] px-2.5 py-1"
-                        :class="[
-                          grp.variant === 'secondary' ? 'bg-surface-muted text-text ring-1 ring-border/60' : '',
-                          grp.variant === 'outline'   ? 'bg-surface text-text ring-1 ring-border' : '',
-                          grp.variant === 'default'   ? 'bg-brand/10 text-brand ring-1 ring-brand/20' : '',
-                        ]"
-                      >
-                        {{ item }}
-                        <button
-                          type="button"
-                          class="size-3.5 inline-flex items-center justify-center rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition"
-                          @click="removeChip(grp.items, idx)"
-                          aria-label="删除技能"
-                        >
-                          <X class="size-2.5" />
-                        </button>
-                      </span>
-                    </div>
-                  </div>
-                </div>
+                   <!-- 每个分组：主行 + chip 子行 -->
+                   <template v-for="(grp, gIdx) in aboutDraft.skillGroups" :key="grp.id">
+                     <!-- 主行 -->
+                     <div class="grid grid-cols-[1fr_140px_40px] gap-3 px-3 py-2 border-b border-border/60 last:border-b-0 items-center hover:bg-surface-muted/20 transition-colors">
+                       <Input v-model="grp.title" placeholder="例：前端框架" />
+                       <select
+                         v-model="grp.variant"
+                         class="h-9 rounded-md border border-border bg-surface px-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+                       >
+                         <option value="default">品牌色</option>
+                         <option value="secondary">灰底</option>
+                         <option value="outline">描边</option>
+                       </select>
+                       <button
+                         type="button"
+                         class="justify-self-center size-8 rounded-md text-text-muted hover:text-danger hover:bg-danger/10 transition inline-flex items-center justify-center"
+                         :disabled="aboutDraft.skillGroups.length <= 1"
+                         :title="aboutDraft.skillGroups.length <= 1 ? '至少保留 1 组' : '删除此分组'"
+                         @click="removeSkillGroup(gIdx)"
+                       >
+                         <Minus class="size-3.5" />
+                       </button>
+                     </div>
+                     <!-- chip 子行（col-span-3 横跨） -->
+                     <div class="px-3 py-2 bg-surface-muted/20 border-b border-border/40 last:border-b-0">
+                       <div class="rounded-md border border-border/60 bg-surface px-3 py-2 focus-within:ring-2 focus-within:ring-brand focus-within:ring-offset-2 focus-within:ring-offset-surface">
+                         <input
+                           class="w-full bg-transparent text-xs outline-none placeholder:text-text-muted py-1"
+                           placeholder="输入技能名称后回车 / 逗号新增：Vue 3, React, Svelte…"
+                           @keydown.enter.prevent="(e: any) => { addChip(grp.items, e.target.value); e.target.value = '' }"
+                           @keydown.comma.prevent="(e: any) => { addChip(grp.items, e.target.value); e.target.value = '' }"
+                         />
+                         <div v-if="grp.items.length" class="flex flex-wrap gap-1.5 pt-1 pb-0.5">
+                           <span
+                             v-for="(item, idx) in grp.items"
+                             :key="item + idx"
+                             class="inline-flex items-center gap-1 rounded-md text-[11px] px-2.5 py-1"
+                             :class="[
+                               grp.variant === 'secondary' ? 'bg-surface-muted text-text ring-1 ring-border/60' : '',
+                               grp.variant === 'outline'   ? 'bg-surface text-text ring-1 ring-border' : '',
+                               grp.variant === 'default'   ? 'bg-brand/10 text-brand ring-1 ring-brand/20' : '',
+                             ]"
+                           >
+                             {{ item }}
+                             <button
+                               type="button"
+                               class="size-3.5 inline-flex items-center justify-center rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition"
+                               @click="removeChip(grp.items, idx)"
+                               aria-label="删除技能"
+                             >
+                               <X class="size-2.5" />
+                             </button>
+                           </span>
+                         </div>
+                       </div>
+                     </div>
+                   </template>
+                 </div>
 
                 <div v-if="!aboutDraft.skillGroups.length" class="rounded-md border border-dashed border-border/80 bg-surface-muted/20 px-4 py-8 text-center text-xs text-text-muted">
                   还没有技能分组，点右上角「新增分组」开始添加。

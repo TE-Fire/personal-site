@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 /**
  * ContributionHeatmap · GitHub 风格贡献热力图
  *
@@ -21,7 +21,7 @@
  */
 import { computed, ref } from 'vue'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui'
-import { Activity, Flame, Calendar, TrendingUp, AlertTriangle, Sparkles, ExternalLink } from 'lucide-vue-next'
+import { Activity, Flame, Calendar, TrendingUp, AlertTriangle, Sparkles } from 'lucide-vue-next'
 import type { HeatmapSource } from '@/lib/api-types'
 
 /* ---------- 类型 ---------- */
