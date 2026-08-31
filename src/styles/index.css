@@ -458,3 +458,74 @@
   .no-scrollbar::-webkit-scrollbar { display: none; }
   .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 }
+
+/* ============================================================================
+ * 全局路由转场动画（定义在 @layer base 之外，避免任何 Tailwind 优先级干扰）
+ *
+ * ⚠️ 绝对不能写在 AppLayout.vue 的 <style scoped> 里：
+ *     scoped 会把 .page-enter-from 编译成 .page-enter-from[data-v-xxx]
+ *     但 <Transition> 是在子组件的根 DOM 节点上直接加类，不会带这个 hash
+ *     → 规则完全不命中，动画根本不生效！这是最常见的 Vue Transition 坑。
+ * ========================================================================== */
+
+/* --------------- 方案：Fade + Mild Slide（并行交叠） ---------------
+ *
+ * 时长：450ms（0.3s 像闪一下，0.6s 以上会感觉慢）
+ * 缓动：cubic-bezier(0.22, 0.61, 0.36, 1) — 起始微快，收尾顺滑，现代感
+ * 模式：并行（不设 mode）— 两页交叠替换，绝无"空窗断档"
+ * 进场：opacity 0→1  +  translateY(16px)→0   (页面轻轻"升"上来)
+ * 退场：opacity 1→0  +  不移 Y            (交给下一页，不"被弹走")
+ */
+.page-enter-active,
+.page-leave-active {
+  transition:
+    opacity 450ms cubic-bezier(0.22, 0.61, 0.36, 1),
+    transform 450ms cubic-bezier(0.22, 0.61, 0.36, 1);
+  /* 用 will-change 给浏览器 hint，减少首次过渡时的合成抖动 */
+  will-change: opacity, transform;
+}
+.page-enter-from {
+  opacity: 0;
+  transform: translateY(16px);
+}
+.page-leave-to {
+  opacity: 0;
+  /* 退场故意不加 translateY：
+   *   加了会变成"旧页被弹开"的不悦感。
+   *   让旧页静静淡出、新页从下方浮上来，视觉上是"叠印"，不是"甩页"。
+   */
+}
+
+/* 并行过渡的小优化：让进场页有更高 stacking context，避免两页重叠时交互点穿透 */
+.page-enter-active {
+  z-index: 1;
+}
+
+/* --------------- 登录页：更轻的纯淡入（300ms） ---------------
+ * 登录页是左右分栏的全屏布局，带滑块验证码 3D 动效，位移会与内部布局动画冲突。
+ * 只做 opacity，干净利落。
+ */
+.page-login-enter-active,
+.page-login-leave-active {
+  transition: opacity 300ms cubic-bezier(0.22, 0.61, 0.36, 1);
+  will-change: opacity;
+}
+.page-login-enter-from,
+.page-login-leave-to {
+  opacity: 0;
+}
+
+/* --------------- 无障碍：跟随系统 prefers-reduced-motion 关闭所有动效 --------------- */
+@media (prefers-reduced-motion: reduce) {
+  .page-enter-active,
+  .page-leave-active,
+  .page-login-enter-active,
+  .page-login-leave-active {
+    transition: none !important;
+    will-change: auto;
+  }
+  .page-enter-from,
+  .page-leave-to {
+    transform: none !important;
+  }
+}

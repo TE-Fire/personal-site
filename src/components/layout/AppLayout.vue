@@ -35,7 +35,8 @@ const isLoginPage = computed(() => route.path === '/login')
       <main class="flex-1 w-full relative z-10">
         <div class="mx-auto w-full max-w-6xl px-6 md:px-10 lg:px-14 py-8 md:py-12">
           <RouterView v-slot="{ Component, route: r }">
-            <Transition name="page" mode="out-in">
+            <!-- 并行交叠过渡：两页同时淡入淡出，无"断档"；全局 CSS 定义 -->
+            <Transition name="page">
               <component :is="Component" :key="r.fullPath" />
             </Transition>
           </RouterView>
@@ -54,7 +55,8 @@ const isLoginPage = computed(() => route.path === '/login')
     <template v-else>
       <main class="flex-1 w-full">
         <RouterView v-slot="{ Component, route: r }">
-          <Transition name="page" mode="out-in">
+          <!-- 登录页轻过渡：只做 opacity，避免与左右分栏/全屏布局冲突 -->
+          <Transition name="page-login">
             <component :is="Component" :key="r.fullPath" />
           </Transition>
         </RouterView>
@@ -63,28 +65,8 @@ const isLoginPage = computed(() => route.path === '/login')
   </div>
 </template>
 
-<style scoped>
-/* 页面切换：平滑淡入淡出 + 纵向位移 */
-.page-enter-active,
-.page-leave-active {
-  transition: opacity 0.45s ease, transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
-}
-.page-enter-from {
-  opacity: 0;
-  transform: translateY(16px);
-}
-.page-leave-to {
-  opacity: 0;
-  transform: translateY(-10px);
-}
-@media (prefers-reduced-motion: reduce) {
-  .page-enter-active,
-  .page-leave-active {
-    transition: none;
-  }
-  .page-enter-from,
-  .page-leave-to {
-    transform: none;
-  }
-}
-</style>
+<!--
+  ⚠️ 过渡类（.page-* / .page-login-*）定义在 src/styles/index.css 的 @layer base 中。
+     不能写在 <style scoped> 内（scoped 会追加 [data-v-hash]，而 <Transition> 在子组件
+     根 DOM 上直接加类、不带 hash → scoped 规则匹配失败 → 动画完全不生效）。
+-->
