@@ -14,8 +14,11 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
-  url      = env("DATABASE_URL")
+  provider     = "mysql"
+  url          = env("DATABASE_URL")
+  // 逻辑外键：Prisma 不生成 MySQL FOREIGN KEY 约束，只建普通 INDEX
+  // @relation / include / cascade referential integrity 全部照常工作
+  relationMode = "prisma"
 }
 
 /// 博主账号表
@@ -71,5 +74,103 @@ model User {
   /// 博主 GitHub 主页链接
   aboutGithubLink          String   @default("https://github.com/TE-Fire") @db.VarChar(500) @map("about_github_link")
 
+  // ===== Post 模块关联 =====
+  posts       Post[]
+  categories  Category[]
+
   @@map("user")
+}
+
+/// 文章发布状态（软删除：ARCHIVED 不公开，但保留热力图贡献计数）
+enum PostStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+/// 文章分类（严格关系模型：Post.category_id 外键关联）
+model Category {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique @db.VarChar(50)
+  /// 排序号：Category 列表前端按此从小到大排
+  sort      Int      @default(0) @db.Int
+  authorId  Int      @map("author_id")
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  /// 分类下的文章
+  posts     Post[]
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([authorId])
+  @@map("category")
+}
+
+/// 文章标签（严格关系模型：Tag 全局唯一，renameTag 只需要 UPDATE 一行）
+model Tag {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique @db.VarChar(50)
+  /// 文章-标签 多对多关联
+  posts     PostTag[]
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("tag")
+}
+
+/// 文章表（主体）· 正文存 MySQL TEXT，不额外拆 key-value
+model Post {
+  /// 主键
+  id          Int       @id @default(autoincrement())
+  /// 路由用 slug（唯一，URL 友好）
+  slug        String    @unique @db.VarChar(200)
+  /// 标题
+  title       String    @db.VarChar(300)
+  /// 摘要（不填时自动取 content 前 200 字）
+  excerpt     String    @default("") @db.VarChar(500)
+  /// Markdown 正文（TEXT 64KB，足够 3000 字的文章 ×20，够用后续 ALTER 成 LONGTEXT）
+  content     String    @db.Text
+  /// 封面图 URL（可选）
+  cover       String?   @db.VarChar(500)
+  /// 首页精选：HomePage / 列表页 highlight 高亮
+  featured    Boolean   @default(false)
+  /// 发布状态（DRAFT 草稿 / PUBLISHED 已发布 / ARCHIVED 软删）
+  status      PostStatus @default(DRAFT)
+  /// 阅读字数（保存时自动计算，列表 / 详情页展示用）
+  wordCount   Int       @default(0)                    @map("word_count")
+  /// 预估阅读分钟数（= max(1, ceil(wordCount/500))，保存时自动计算）
+  readMinutes Int       @default(1)                    @map("read_minutes")
+
+  /// 作者
+  authorId   Int        @map("author_id")
+  author     User       @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  /// 分类（外键）
+  categoryId Int?       @map("category_id")
+  category   Category?  @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  /// 标签（多对多）
+  tags       PostTag[]
+
+  /// 创建时间：PUBLISHED 时用于博客发布时间 & 热力图计数
+  createdAt DateTime @default(now()) @map("created_at")
+  /// 最后修改时间
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([slug])
+  @@index([status])
+  @@index([createdAt])
+  @@index([categoryId])
+  @@index([authorId])
+  @@map("post")
+}
+
+/// Post ↔ Tag 多对多中间表（显式定义，方便后续加 tagOrder 这类字段）
+model PostTag {
+  postId    Int
+  tagId     Int
+  post      Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tag       Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([postId, tagId])
+  @@map("post_tag")
 }
