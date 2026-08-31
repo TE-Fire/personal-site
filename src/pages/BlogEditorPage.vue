@@ -640,8 +640,8 @@ function previewCurrent() {
 
 <template>
   <div class="space-y-6" data-reveal>
-    <!-- 页面头部：返回 + 标题 + 操作按钮 -->
-    <div class="flex flex-wrap items-center justify-between gap-4">
+    <!-- 页面头部：返回 + 标题 | 元数据设置·导入·导出·预览·删除·保存 -->
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-4">
       <div class="flex items-center gap-3 min-w-0">
         <Button variant="ghost" size="icon" @click="router.back()" aria-label="返回">
           <ArrowLeft class="size-5" />
@@ -657,8 +657,8 @@ function previewCurrent() {
         </div>
       </div>
 
-      <!-- 操作按钮：图标带外边距 + 可见边框 + 圆角矩形 + Tooltip 悬停 -->
-      <div class="flex items-center gap-2.5">
+      <!-- 操作按钮组：图标填满边框 + 圆角矩形 + 明显粗边框 + 元数据入口也在这一排 -->
+      <div class="flex flex-wrap items-center gap-2 md:gap-2.5 justify-end">
         <input
           ref="fileInputRef"
           type="file"
@@ -666,90 +666,91 @@ function previewCurrent() {
           class="hidden"
           @change="onFileSelected"
         />
+        <!-- 元数据弹窗入口（这里放第一个，解决"弹窗不见"找不到入口的问题） -->
+        <Button
+          variant="outline"
+          class="h-10 px-3.5 rounded-xl
+                 border-[2.5px] !border-warning/50 hover:!border-warning/80
+                 bg-surface-elevated/40 backdrop-blur-sm hover:bg-warning/5
+                 inline-flex items-center gap-2 text-sm font-semibold"
+          @click="openMeta"
+        >
+          <SlidersHorizontal class="size-5 shrink-0" />
+          <span>文章设置</span>
+        </Button>
+
+        <Separator orientation="vertical" class="mx-0.5 h-8" />
+
         <!-- 导入 MD -->
         <Button
           variant="outline"
-          class="h-11 w-11 rounded-xl
-                 border-[2.5px] !border-brand/45 hover:!border-brand/75
+          class="h-10 w-10 !rounded-xl
+                 border-[2.5px] !border-brand/50 hover:!border-brand/80
                  bg-surface-elevated/40 backdrop-blur-sm hover:bg-surface-muted/60
-                 p-1.5 inline-flex items-center justify-center gap-0"
+                 p-0.5 inline-flex items-center justify-center"
           @click="triggerImport"
           data-tip="导入 Markdown 文件"
           :aria-label="$attrs['aria-label-import'] || '导入 MD'"
         >
-          <Upload class="size-[18px]" />
+          <Upload class="size-5" />
         </Button>
         <!-- 导出 MD -->
         <Button
           variant="outline"
-          class="h-11 w-11 rounded-xl
-                 border-[2.5px] !border-brand/45 hover:!border-brand/75
+          class="h-10 w-10 !rounded-xl
+                 border-[2.5px] !border-brand/50 hover:!border-brand/80
                  bg-surface-elevated/40 backdrop-blur-sm hover:bg-surface-muted/60
-                 p-1.5 inline-flex items-center justify-center"
+                 p-0.5 inline-flex items-center justify-center"
           @click="doExport"
           data-tip="导出为 .md 文件"
         >
-          <Download class="size-[18px]" />
+          <Download class="size-5" />
         </Button>
         <!-- 草稿预览 -->
         <Button
           variant="outline"
-          class="h-11 w-11 rounded-xl
-                 border-[2.5px] !border-brand/45 hover:!border-brand/75
+          class="h-10 w-10 !rounded-xl
+                 border-[2.5px] !border-brand/50 hover:!border-brand/80
                  bg-surface-elevated/40 backdrop-blur-sm hover:bg-surface-muted/60
-                 p-1.5 inline-flex items-center justify-center"
+                 p-0.5 inline-flex items-center justify-center"
           @click="previewCurrent"
           data-tip="草稿预览（新标签页）"
         >
-          <Eye class="size-[18px]" />
+          <Eye class="size-5" />
         </Button>
         <!-- 删除（编辑态显示） -->
         <Button
           v-if="isEditMode"
           variant="outline"
-          class="h-11 w-11 rounded-xl
-                 border-[2.5px] !border-danger/40 hover:!border-danger/75
+          class="h-10 w-10 !rounded-xl
+                 border-[2.5px] !border-danger/50 hover:!border-danger/85
                  bg-surface-elevated/40 backdrop-blur-sm hover:bg-danger/5
                  text-danger hover:text-danger
-                 p-1.5 inline-flex items-center justify-center"
+                 p-0.5 inline-flex items-center justify-center"
           @click="deleteConfirming = true"
           data-tip="删除当前文章（不可恢复）"
         >
-          <Trash2 class="size-[18px]" />
+          <Trash2 class="size-5" />
         </Button>
         <!-- 保存（主色，fill） -->
         <Button
-          class="h-11 w-11 rounded-xl
+          class="h-10 w-10 !rounded-xl
                  border-[2.5px] !border-brand hover:!border-brand/85
-                 bg-brand hover:bg-brand/90 text-white shadow-md shadow-brand/20
-                 p-1.5 inline-flex items-center justify-center"
+                 bg-brand hover:bg-brand/90 text-white shadow-md shadow-brand/25
+                 p-0.5 inline-flex items-center justify-center"
           :disabled="saving"
           @click="doSave"
           data-tip-placement="bottom"
           :data-tip="saving ? '保存中…' : (isEditMode ? '保存修改' : '保存为新文章')"
         >
-          <template v-if="saving"><Sparkles class="size-[18px] animate-pulse" /></template>
-          <template v-else><Save class="size-[18px]" /></template>
+          <template v-if="saving"><Sparkles class="size-5 animate-pulse" /></template>
+          <template v-else><Save class="size-5" /></template>
         </Button>
       </div>
     </div>
 
     <!-- 正文：编辑器全屏（左元数据改为弹窗，释放编辑区宽度） -->
-    <div class="relative">
-      <!-- 打开元数据弹窗的浮动按钮 -->
-      <div class="absolute -top-2 right-2 z-10 md:static md:flex md:justify-end md:mb-3 pointer-events-none">
-        <Button
-          variant="outline"
-          size="sm"
-          class="pointer-events-auto shadow-md backdrop-blur-sm bg-surface-elevated/90"
-          @click="openMeta"
-          data-tip="编辑文章元数据（分类 / 标签 / 封面 / 摘要…）"
-        >
-          <SlidersHorizontal class="size-4" />
-          <span class="text-xs font-medium">文章设置</span>
-        </Button>
-      </div>
-
+    <div>
       <MarkdownEditor
         ref="editorRef"
         v-model="content"
