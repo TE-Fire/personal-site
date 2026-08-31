@@ -149,34 +149,41 @@ function onCategoryDialogClose() {
           </span>
         </Button>
       </div>
-      <div class="flex flex-wrap items-center gap-2">
+      <div class="flex flex-wrap items-center gap-2.5">
         <Button
           v-if="hasActiveFilter"
-          size="sm"
           variant="outline"
           @click="resetFilter"
-          class="bg-surface-elevated/50 backdrop-blur-sm hover:bg-surface-muted/70 text-text-muted hover:text-text"
+          class="h-10 px-4 rounded-2xl
+                 border-[3px] !border-brand/45 hover:!border-brand/75
+                 bg-surface-elevated/40 backdrop-blur-md hover:bg-surface-muted/60
+                 text-text-muted hover:text-text
+                 text-sm font-semibold gap-2"
         >
-          <X class="size-4 shrink-0" />
-          <span class="text-xs font-medium">清除筛选</span>
+          <X class="size-[18px] shrink-0" />
+          <span>清除筛选</span>
         </Button>
         <Button
-          size="sm"
           variant="outline"
           @click="categoryDialogOpen = true"
-          class="bg-surface-elevated/50 backdrop-blur-sm hover:bg-surface-muted/70"
+          class="h-10 px-4 rounded-2xl
+                 border-[3px] !border-brand/45 hover:!border-brand/75
+                 bg-surface-elevated/40 backdrop-blur-md hover:bg-surface-muted/60
+                 text-sm font-semibold gap-2"
         >
-          <Settings2 class="size-4 shrink-0" />
-          <span class="text-xs font-medium">分类管理</span>
+          <Settings2 class="size-[18px] shrink-0" />
+          <span>分类管理</span>
         </Button>
         <Button
-          size="sm"
           variant="outline"
           @click="router.push('/blog/tags')"
-          class="bg-surface-elevated/50 backdrop-blur-sm hover:bg-surface-muted/70"
+          class="h-10 px-4 rounded-2xl
+                 border-[3px] !border-brand/45 hover:!border-brand/75
+                 bg-surface-elevated/40 backdrop-blur-md hover:bg-surface-muted/60
+                 text-sm font-semibold gap-2"
         >
-          <Hash class="size-4 shrink-0" />
-          <span class="text-xs font-medium">标签管理</span>
+          <Hash class="size-[18px] shrink-0" />
+          <span>标签管理</span>
         </Button>
       </div>
     </section>
