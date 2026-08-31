@@ -6,6 +6,8 @@ import { AuthModule } from './modules/auth/auth.module';
 import { UserModule } from './modules/user/user.module';
 import { AboutModule } from './modules/about/about.module';
 import { PostModule } from './modules/post/post.module';
+import { CategoryModule } from './modules/category/category.module';
+import { TagModule } from './modules/tag/tag.module';
 import { ContributionModule } from './modules/contribution/contribution.module';
 import { AppController } from './app.controller';
 
@@ -30,6 +32,8 @@ import { AppController } from './app.controller';
     UserModule,
     AboutModule,
     PostModule,
+    CategoryModule,
+    TagModule,
     ContributionModule,
   ],
   controllers: [AppController],
