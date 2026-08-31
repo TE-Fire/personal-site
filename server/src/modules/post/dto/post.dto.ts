@@ -10,6 +10,7 @@ import {
   Max,
   Min,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { PostStatus as PrismaPostStatus } from '@prisma/client';
 
@@ -102,6 +103,7 @@ export class CreatePostDto {
   status?: PostStatusDto;
 
   @ApiPropertyOptional({ example: 1, description: 'category.id（严格模型外键）' })
+  @Type(() => Number)
   @IsInt()
   @IsOptional()
   categoryId?: number;
@@ -112,6 +114,7 @@ export class CreatePostDto {
     description: 'tag.id 数组（严格模型，通过中间表 PostTag 关联）',
   })
   @IsArray()
+  @Type(() => Number)
   @IsInt({ each: true })
   @IsOptional()
   tagIds?: number[];
@@ -164,12 +167,14 @@ export class UpdatePostDto {
   status?: PostStatusDto;
 
   @ApiPropertyOptional({ description: '传 null 表示清空分类' })
+  @Type(() => Number)
   @IsInt()
   @IsOptional()
   categoryId?: number | null;
 
   @ApiPropertyOptional({ type: [Number], description: 'tag.id 全量数组（replace 策略）' })
   @IsArray()
+  @Type(() => Number)
   @IsInt({ each: true })
   @IsOptional()
   tagIds?: number[];
@@ -186,12 +191,14 @@ export class UpdatePostDto {
 
 export class QueryPostDto {
   @ApiPropertyOptional({ example: 1 })
+  @Type(() => Number)
   @IsInt()
   @Min(1)
   @IsOptional()
   page?: number;
 
   @ApiPropertyOptional({ example: 10 })
+  @Type(() => Number)
   @IsInt()
   @Min(1)
   @Max(100)
@@ -204,6 +211,7 @@ export class QueryPostDto {
   keyword?: string;
 
   @ApiPropertyOptional({ example: 1, description: 'category.id' })
+  @Type(() => Number)
   @IsInt()
   @IsOptional()
   categoryId?: number;
@@ -220,6 +228,7 @@ export class QueryPostDto {
 
   @ApiPropertyOptional({ type: [Number], description: 'tag.id 数组（命中任一即可）' })
   @IsArray()
+  @Type(() => Number)
   @IsInt({ each: true })
   @IsOptional()
   tagIds?: number[];

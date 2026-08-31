@@ -35,7 +35,7 @@ import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard';
  *   · POST/PUT/DELETE → JwtAuthGuard（强制登录）
  */
 @ApiTags('文章 Post')
-@Controller('api/posts')
+@Controller('posts')
 export class PostController {
   constructor(private readonly postService: PostService) {}
 
