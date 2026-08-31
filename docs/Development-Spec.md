@@ -12,9 +12,9 @@
 | 1 | Auth 认证 | ✅ 已完成 | 博主登录 / 游客只读，不开放注册；滑块验证码 + JWT；接口 `/auth/captcha` `/auth/login` `/auth/profile` `/auth/change-password` |
 | 2 | **User 账号资料** | ✅ 已完成 | 博主账号自我管理：`GET/POST /users/me`（nickname/email）、`POST/DELETE /users/avatar`（本地上传 5MB 4 格式）。Header 下拉菜单 + `/profile` 页面 |
 | 3 | **About 关于我展示** | 📝 本章节分析 | **前端写死数据 → 后端动态化**。公开页面 `/about` + 首页 Hero + 悬浮迷你卡片 共 3 处消费 About 字段。本文档分析 → 扩表 → About 模块接口 → 前端改造 → Profile 页加 Tab 编辑器 |
-| 4 | Post 文章 | ⬜ 待分析 | 核心实体，关联 Category + Tag |
-| 5 | Category 分类 | ⬜ 待分析 | |
-| 6 | Tag 标签 | ⬜ 待分析 | 含共现关系 / 3D 星链数据 |
+| 4 | **Post 文章** | 📝 本章节分析 | 核心实体，关联 Category + Tag；逻辑外键 `relationMode=prisma`；Markdown 存 TEXT 前端渲染 |
+| 5 | Category 分类 | 📝 本章节含 | Post 章节内一并设计（严格关系模型独立表） |
+| 6 | Tag 标签 | 📝 本章节含 | Post 章节内一并设计（全局唯一 + 多对多中间表） |
 | 7 | Life 生活碎片 | ⬜ 待分析 | 照片 / 音乐 / 随笔 |
 
 ---
@@ -653,3 +653,337 @@ server/src/modules/about/
 ---
 
 > **下一个模块：Post 文章** — 请回复「继续」以开始分析。
+
+---
+
+## 模块四：Post 文章 + Category 分类 + Tag 标签
+
+> **目标**：个人博客核心实体。采用**严格关系模型**（Post / Category / Tag / PostTag 四张表），
+> 正文 Markdown 存 MySQL `TEXT`，前端浏览器端 `marked + DOMPurify` 渲染。
+> 遵循 [NestJS-Architecture-Guide.md](./NestJS-Architecture-Guide.md) 分层架构：Controller → Service → Prisma（不抽 Repository）。
+
+### 4.1 需求概述
+
+| 角色 | 权限 | 说明 |
+|------|------|------|
+| 博主 (admin) | 全部 CRUD | 登录后创建/编辑/删除文章；管理分类、标签 |
+| 游客 (guest) | 只读已发布 | 无需登录，浏览 `status=published` 文章列表与详情；草稿/归档不可见 |
+
+### 4.2 数据模型设计（Prisma Schema）
+
+**逻辑外键策略**：`datasource.relationMode = "prisma"` — MySQL 不生成 `FOREIGN KEY` 约束，
+Prisma `@relation` / `include` / `onDelete` 照常工作（referential integrity 由 Prisma 模拟）。
+
+```prisma
+/// 文章发布状态（软删除：ARCHIVED 不公开，但保留热力图贡献计数）
+enum PostStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+/// 文章分类（严格关系模型：Post.category_id 外键关联）
+model Category {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique @db.VarChar(50)
+  sort      Int      @default(0) @db.Int
+  authorId  Int      @map("author_id")
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  posts     Post[]
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([authorId])
+  @@map("category")
+}
+
+/// 文章标签（严格关系模型：Tag 全局唯一，renameTag 只需 UPDATE 一行）
+model Tag {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique @db.VarChar(50)
+  posts     PostTag[]
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("tag")
+}
+
+/// 文章表（主体）· 正文存 MySQL TEXT
+model Post {
+  id          Int       @id @default(autoincrement())
+  slug        String    @unique @db.VarChar(200)
+  title       String    @db.VarChar(300)
+  excerpt     String    @default("") @db.VarChar(500)
+  content     String    @db.Text
+  cover       String?   @db.VarChar(500)
+  featured    Boolean   @default(false)
+  status      PostStatus @default(DRAFT)
+  wordCount   Int       @default(0) @map("word_count")
+  readMinutes Int       @default(1) @map("read_minutes")
+
+  authorId   Int        @map("author_id")
+  author     User       @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  categoryId Int?       @map("category_id")
+  category   Category?  @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  tags       PostTag[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([slug])
+  @@index([status])
+  @@index([createdAt])
+  @@index([categoryId])
+  @@index([authorId])
+  @@map("post")
+}
+
+/// Post ↔ Tag 多对多中间表（显式定义，方便后续加 tagOrder 这类字段）
+model PostTag {
+  postId    Int
+  tagId     Int
+  post      Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tag       Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([postId, tagId])
+  @@map("post_tag")
+}
+```
+
+#### 表关系图
+
+```
+  ┌──────────┐         ┌──────────┐
+  │   User   │1───────*│ Category │1──────*│
+  └──────────┘  author └──────────┘ category └──┐
+        │                                        │
+        │ author                           ┌─────┴─────┐
+        │                                  │    Post    │
+        │                                  │ (主体表)   │
+        │                                  └─────┬──────┘
+        │                              category │
+        │           ┌──────────────────────────┘
+        │           │            tags (M:N)
+        │           │                │
+        │     ┌─────┴─────┐   ┌─────┴─────┐
+        └────│  PostTag  │*──*│    Tag    │
+             │ (中间表)  │   │ (全局唯一) │
+             └───────────┘   └───────────┘
+```
+
+| 关系 | 类型 | onDelete 策略 | 说明 |
+|------|------|---------------|------|
+| User → Post | 1:N | Cascade | 删博主 → 文章全删 |
+| User → Category | 1:N | Cascade | 删博主 → 分类全删 |
+| Category → Post | 1:N | **SetNull** | 删分类 → 文章 category_id 置空（不连坐删文章） |
+| Post ↔ Tag | M:N | Cascade | 删 Post → 中间表行删；删 Tag → 中间表行删 |
+
+#### 逻辑外键验证（已完成）
+
+| 验证项 | 结果 |
+|--------|------|
+| MySQL 表 | `category, post, post_tag, tag, user`（5 张全齐）✅ |
+| 物理 FK 约束 | `[]`（空 — `relationMode=prisma` 生效）✅ |
+| 二级索引 | `post_author_id_idx` / `post_category_id_idx` / `post_created_at_idx` / `post_status_idx` / `post_slug_idx+key` / `category_author_id_idx` / `category_name_key` / `tag_name_key` ✅ |
+
+### 4.3 接口设计
+
+路由前缀 `@Controller('api/posts')`，与其他模块（`/api/about`、`/api/users`、`/api/contribution`）风格统一。
+
+| 方法 | 路由 | 权限 | 说明 |
+|------|------|------|------|
+| `GET` | `/api/posts` | 公开（游客） / 可选 JWT（博主看草稿） | 分页 + 过滤（keyword/categoryId/status/featured/tagIds） |
+| `GET` | `/api/posts/:id` | 公开 | 文章详情（含 Markdown content） |
+| `GET` | `/api/posts/slug/:slug` | 公开 | 按 URL 别名查详情 |
+| `POST` | `/api/posts` | 需登录（JwtAuthGuard） | 新建文章 |
+| `PUT` | `/api/posts/:id` | 需登录 | 更新文章（全量 replace tagIds） |
+| `DELETE` | `/api/posts/:id` | 需登录 | 软删除（status → ARCHIVED）或硬删除 |
+
+> **DELETE 策略**：默认软删除（`status = ARCHIVED`），保留热力图贡献计数；
+> 若传 `?hard=true` 查询参数则物理删除（仅博主）。
+
+### 4.4 DTO 字段规范
+
+#### CreatePostDto
+
+| 字段 | 类型 | 校验 | 说明 |
+|------|------|------|------|
+| `slug` | string | `@Length(1,200)` `@IsNotEmpty` | URL 别名，全局唯一 |
+| `title` | string | `@Length(1,300)` `@IsNotEmpty` | 标题 |
+| `excerpt` | string? | `@Length(0,500)` | 摘要，默认空字符串 |
+| `content` | string | `@IsNotEmpty` | Markdown 正文（存 TEXT） |
+| `cover` | string? | `@Length(0,500)` | 封面图 URL |
+| `featured` | boolean? | `@IsBoolean` | 是否精选 |
+| `status` | PostStatusDto? | `@IsIn(['draft','published','archived'])` | 状态，默认 DRAFT |
+| `categoryId` | number? | `@IsInt` | 分类 ID（外键） |
+| `tagIds` | number[]? | `@IsArray` `@IsInt({each:true})` | 标签 ID 数组 |
+
+> **wordCount / readMinutes 不在 DTO 中暴露** — Service 层 `calcMetrics(content)` 计算，防止客户端伪造。
+
+#### UpdatePostDto
+
+所有字段可选（PartialType 语义）。`tagIds` 为全量数组（replace 策略：Service 先 deleteMany 旧关联再 create 新关联）。
+
+#### QueryPostDto
+
+| 字段 | 类型 | 校验 | 说明 |
+|------|------|------|------|
+| `page` | number? | `@Min(1)` | 页码，默认 1 |
+| `pageSize` | number? | `@Min(1)` `@Max(100)` | 每页条数，默认 10，上限 100 |
+| `keyword` | string? | - | 模糊搜索 title OR excerpt |
+| `categoryId` | number? | `@IsInt` | 精确匹配分类 |
+| `status` | PostStatusDto? | `@IsIn` | 状态过滤（游客默认 published） |
+| `featured` | boolean? | `@IsBoolean` | 仅精选 |
+| `tagIds` | number[]? | `@IsInt({each:true})` | 命中任一标签 |
+
+#### PostVo（视图对象）
+
+```typescript
+interface PostVo {
+  id: number;
+  slug: string;
+  title: string;
+  excerpt: string;
+  content?: string;          // 列表接口 undefined，详情接口返回 Markdown 原文
+  cover: string | null;
+  featured: boolean;
+  status: PostStatusDto;     // 'draft' | 'published' | 'archived'
+  wordCount: number;
+  readMinutes: number;
+  category: { id, name, sort } | null;   // CategoryRefVo
+  tags: { id, name }[];                  // TagRefVo[]
+  author: { id, nickname, avatar };       // AuthorRefVo
+  createdAt: string;
+  updatedAt: string;
+}
+```
+
+### 4.5 PostStatus 状态机
+
+```
+         create (default)
+              │
+              ▼
+        ┌─────────┐  publish   ┌───────────┐
+        │  DRAFT  │───────────▶│ PUBLISHED │
+        │ (草稿)  │◀───────────│ (已发布)   │
+        └─────────┘  unpublish └───────────┘
+              │                       │
+              │         archive       │
+              └──────────┬────────────┘
+                         ▼
+                   ┌──────────┐
+                   │ ARCHIVED │  软删除：列表不展示，热力图保留计数
+                   └──────────┘
+```
+
+| 状态 | 列表可见 | 详情可见 | 热力图计数 | 说明 |
+|------|---------|---------|-----------|------|
+| `DRAFT` | 仅博主 | 仅博主 | ✅ | 草稿，未发布 |
+| `PUBLISHED` | 所有人 | 所有人 | ✅ | 已发布，公开可见 |
+| `ARCHIVED` | 仅博主 | 仅博主 | ✅ | 归档（软删除），不公开但不丢贡献记录 |
+
+### 4.6 Markdown 存储与渲染
+
+```
+存储方向                                    渲染方向
+─────────────                           ─────────────
+
+用户写 Markdown                         浏览器 GET /api/posts/:slug
+       │                                         │
+       ▼                                         ▼
+BlogEditorPage                          后端 PostService.findById()
+(前端 textarea)                                 │
+       │                                         │ 返回 JSON
+       ▼                                         ▼
+POST /api/posts                        { content: "### 标题\n正文..." }
+Body: { content: "###..." }
+       │                                         │
+       ▼                                         ▼
+Prisma post.content                    前端 BlogDetailPage
+→ MySQL TEXT                            │
+  存的就是纯字符串                       ▼
+  包含真实 \n 换行                     marked.parse(content)
+  不存 HTML                             → DOMPurify.sanitize(html)
+       │                                → v-html 安全渲染
+       ▼
+  磁盘实际值:
+  "### 标题\n\n- list 1\n正文 **bold**"
+```
+
+| 问题 | 答案 |
+|------|------|
+| 数据库存什么类型？ | MySQL `TEXT` — 本质是字符串，最大 64KB，包含真实 `\n` 换行符 |
+| 后端查出来也是字符串吗？ | 是。`prisma.post.findUnique()` → `post.content` 类型为 `string`，原样返回 |
+| 谁解析成 Markdown？ | **100% 前端浏览器端解析**。后端永不渲染 HTML |
+| 用什么库？ | `marked`（Markdown→HTML）+ `DOMPurify`（XSS 清洗）两段式 |
+| 正文 key-value 分离？ | 不实施。个人博客量级（几 MB）用 MySQL TEXT 足够。优化走 Redis 缓存详情接口 |
+
+### 4.7 业务规则
+
+| 规则 | 实现方式 |
+|------|----------|
+| **wordCount / readMinutes** | DTO 不暴露字段 → Service `calcMetrics(content)` 计算：`wordCount = content.length`，`readMinutes = max(1, ceil(wordCount/500))` |
+| **slug 全局唯一** | schema `@unique` + Service 层 catch Prisma `P2002` → 抛 `PostBizError.SLUG_CONFLICT` |
+| **tagIds 关联** | Create/Update 时，先校验所有 tagId 存在（`prisma.tag.findMany({ where: { id: { in: tagIds } } })`），不存在抛 `TAG_NOT_FOUND`；Update 用 replace 策略（deleteMany 旧 + create 新） |
+| **categoryId 校验** | 传值时校验分类存在 → 不存在抛 `CATEGORY_NOT_FOUND`；删分类时 schema `onDelete: SetNull` 自动置空 |
+| **公开接口 status 过滤** | 游客（无 JWT）→ Service 硬塞 `status: 'published'`；博主（有 JWT）→ 按 DTO 传的 status 过滤 |
+| **列表不含 content** | 查询列表时 `select` 不含 content 字段，减少传输体积；详情接口才返回 content |
+
+### 4.8 权限守卫设计
+
+遵循 [NestJS-Architecture-Guide.md §3.2 ⑥](./NestJS-Architecture-Guide.md) Guard 设计：
+
+```typescript
+// 1. JwtAuthGuard — 强制登录（博主专属接口）
+//    @UseGuards(JwtAuthGuard) 标注 POST / PUT / DELETE
+//    → JwtStrategy.validate() 解析 payload → 注入 req.user
+
+// 2. OptionalJwtAuthGuard — 游客可访问，博主可看草稿
+//    @UseGuards(OptionalJwtAuthGuard) 标注 GET 列表
+//    → Guard 不拦截无 Token 请求，Controller 内判断 req.user?.role
+//    → 游客只看 published，博主看全部
+```
+
+### 4.9 Redis Key & 缓存（可选）
+
+| Key（遵守规范：项目:模块:用途） | TTL | 存值 | 失效时机 |
+|---|---|---|---|
+| `personal_site:post:list:{queryHash}` | 60 秒 | 列表分页 JSON | POST/PUT/DELETE 后批量 del `post:list:*` |
+| `personal_site:post:detail:{slug}` | 300 秒 | 文章详情 JSON | PUT/DELETE 该文章后 del |
+
+- **读**：先查 Redis → 命中返回；否则查 DB → 写 Redis → 返回。
+- **写**：CUD 操作后 `del` 对应 key，下次 GET 自动重建。
+- **降级**：Redis 挂了 → 走 DB（try/finally），不影响业务。
+- **列表缓存粒度**：按 `queryHash = md5(JSON.stringify(query))` 做 key，不同筛选条件独立缓存。
+
+### 4.10 PostBizError 错误码
+
+遵循项目异常体系（`IErrorInfo` 接口契约 + 模块级枚举），码段 `2000~2099`：
+
+| 枚举 | 码 | message | 触发场景 |
+|------|----|---------|---------|
+| `NOT_FOUND` | 2001 | 文章不存在 | findById/findBySlug 查空 |
+| `CATEGORY_NOT_FOUND` | 2002 | 分类不存在 | categoryId 校验失败 |
+| `TAG_NOT_FOUND` | 2003 | 标签不存在 | tagIds 校验失败 |
+| `SLUG_CONFLICT` | 2004 | 文章 URL 别名已存在 | slug unique 冲突 |
+| `NOT_AUTHOR` | 2005 | 无权限操作该文章 | 非 admin 试图 CUD |
+| `CATEGORY_HAS_POSTS` | 2006 | 该分类下还有文章，无法删除 | 删分类前检查 |
+| `TAG_HAS_POSTS` | 2007 | 该标签下还有文章，无法删除 | 删标签前检查 |
+
+### 4.11 开发进度
+
+| 阶段 | 任务 | 状态 |
+|------|------|------|
+| Phase 1-1 | Prisma schema — Post/Category/Tag/PostTag 四张表 + User 外键 | ✅ 完成 |
+| Phase 1-2 | `relationMode=prisma` 逻辑外键 + `db push` 同步数据库 + 验证 | ✅ 完成 |
+| Phase 2-1 | Post DTO 重写 — PostStatus 映射 / slug / excerpt / cover / featured / categoryId / tagIds / calcMetrics | ✅ 完成 |
+| Phase 2-2 | PostService 重写 — Prisma 分页 CRUD + include category/tags/author | 📝 待开发 |
+| Phase 3-1 | PostController `@Controller('api/posts')` + JWT 校验 authorId | 📝 待开发 |
+| Phase 3-2 | ContributionService `tableExists('post')` 接通，热力图统计真实数据 | 📝 待开发 |
+| Phase 4 | Category + Tag 模块（CRUD + rename/merge/delete） | 📝 待开发 |
+| Phase 5 | `seed-posts.mjs` 导入 8 篇内置 mock + `verify-post.mjs` 端到端 | 📝 待开发 |
+
+> **架构遵循**：本模块严格遵循 [NestJS-Architecture-Guide.md](./NestJS-Architecture-Guide.md) 的分层架构（Controller → Service → Prisma，不抽 Repository）、模块化设计（`@Module` 注册 controllers + providers）、依赖注入（`PrismaService` 全局注入）、统一异常处理（`BusinessException` + 全局过滤器）、统一响应封装（`Result<T>`）。
