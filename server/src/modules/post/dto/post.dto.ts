@@ -161,7 +161,8 @@ export class UpdatePostDto {
   @Length(0, 8_000_000)
   cover?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ example: true, description: '是否首页精选' })
+  @Type(() => Boolean)
   @IsBoolean()
   @IsOptional()
   featured?: boolean;
@@ -226,7 +227,8 @@ export class QueryPostDto {
   @IsOptional()
   status?: PostStatusDto;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ example: true, description: '是否首页精选。query 传参支持 true/false/1/0，会自动转 boolean。' })
+  @Type(() => Boolean)
   @IsBoolean()
   @IsOptional()
   featured?: boolean;

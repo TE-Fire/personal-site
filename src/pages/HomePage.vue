@@ -64,6 +64,9 @@ const featuredProjects = computed<Project[]>(() =>
 const featuredPosts = ref<PostVo[]>([])
 const loadingFeaturedPosts = ref(true)
 const featuredPostsFailed = ref(false)
+/** 精选接口失败时自动 fallback 到"拉最新 3 篇"，此时显示一条柔和提示徽章 */
+const isFallbackLatest = ref(false)
+const featuredPostsErrMsg = ref('')
 
 function readingMinutes(wordCount: number) {
   return Math.max(1, Math.ceil(wordCount / 500))
@@ -72,13 +75,40 @@ function readingMinutes(wordCount: number) {
 async function loadFeaturedPosts() {
   loadingFeaturedPosts.value = true
   featuredPostsFailed.value = false
+  isFallbackLatest.value = false
+  featuredPostsErrMsg.value = ''
   try {
-    const page = await fetchPosts({ featured: true, page: 1, pageSize: 3 })
-    featuredPosts.value = page.list ?? []
-  } catch (e) {
+    try {
+      const page = await fetchPosts({ featured: true, page: 1, pageSize: 3 })
+      const list = page.list ?? []
+      if (list.length > 0) {
+        featuredPosts.value = list
+        return
+      }
+    } catch (e) {
+      featuredPostsErrMsg.value = (e as Error).message || '未知错误'
+      // fall-through → 执行 fallback
+    }
+
+    // Fallback：不指定 featured，只拉最新 published 3 条
+    try {
+      const fallbackPage = await fetchPosts({ page: 1, pageSize: 3 })
+      const fallbackList = fallbackPage.list ?? []
+      if (fallbackList.length > 0) {
+        featuredPosts.value = fallbackList
+        isFallbackLatest.value = true
+        return
+      }
+    } catch (_e) {
+      /* fallback 也失败了 → 最终走失败 UI */
+    }
+
+    // 两条路都拿不到数据：视为失败
     featuredPostsFailed.value = true
     featuredPosts.value = []
   } finally {
+    // 无论走哪个分支（成功/失败/提前 return），这里一定复位 loading
+    // 避免骨架屏一直转
     loadingFeaturedPosts.value = false
   }
 }
@@ -375,10 +405,13 @@ useScrollReveal(pageRoot)
         </div>
       </div>
 
-      <!-- 失败：重试 + 跳回博客列表 -->
+      <!-- 失败：重试 + 跳回博客列表（精选+fallback 两条路都失败时才显示） -->
       <div v-else-if="featuredPostsFailed" role="alert" class="rounded-xl border border-danger/40 bg-danger/10 px-5 py-6 text-center space-y-3">
         <p class="m-0 text-sm text-danger font-medium">精选博客加载失败</p>
         <p class="m-0 text-xs text-text-muted">可能是网络问题，也可能后端服务未启动。</p>
+        <p v-if="featuredPostsErrMsg" class="m-0 text-[11px] font-mono text-danger/80 break-words px-2">
+          详细：{{ featuredPostsErrMsg }}
+        </p>
         <div class="flex items-center justify-center gap-2 pt-1">
           <Button size="sm" variant="outline" @click="retryFeaturedPosts">
             <RefreshCcw class="size-4" /> 重试
@@ -389,33 +422,52 @@ useScrollReveal(pageRoot)
         </div>
       </div>
 
-      <!-- 成功：列表渲染 -->
-      <ol v-else-if="featuredPosts.length" class="space-y-3 p-0 m-0 list-none">
-        <li
-          v-for="(post, i) in featuredPosts"
-          :key="post.slug"
-          :data-reveal="String(0.05 * i)"
-        >
-          <RouterLink
-            :to="`/blog/${post.slug}`"
-            class="group block rounded-lg border border-transparent hover:border-border/60 hover:bg-surface-muted/30 transition px-4 py-3.5 flex flex-col md:flex-row md:items-center md:justify-between gap-3 no-underline"
+      <!-- 成功：列表渲染（精选命中 / fallback 最新两种子标题） -->
+      <div v-else-if="featuredPosts.length">
+        <!-- fallback 提示：精选为空/接口异常时显示最新 3 篇，让用户一眼明白为什么现在显示的不是"首页精选" -->
+        <div v-if="isFallbackLatest" role="note" class="mb-3 flex items-start gap-2 rounded-xl border border-brand/25 bg-brand/5 px-4 py-2.5 text-xs text-text-secondary">
+          <BookOpen class="size-4 shrink-0 mt-[1px] text-brand" />
+          <div class="flex-1 leading-relaxed">
+            <span class="font-semibold text-text">暂无符合条件的首页精选。</span>
+            <span class="opacity-80">当前自动显示最新发布的 3 篇。想要文章出现在这里？写一篇时勾选「首页精选 ★」。</span>
+            <span v-if="featuredPostsErrMsg" class="block opacity-60 mt-1 font-mono">（上一次精选查询：{{ featuredPostsErrMsg }}）</span>
+          </div>
+        </div>
+
+        <ol class="space-y-3 p-0 m-0 list-none">
+          <li
+            v-for="(post, i) in featuredPosts"
+            :key="post.slug"
+            :data-reveal="String(0.05 * i)"
           >
-            <div class="flex flex-col gap-1.5 min-w-0 md:pr-8">
-              <div class="flex flex-wrap items-center gap-2">
-                <Badge variant="outline" class="text-[11px]">{{ post.category?.name ?? '未分类' }}</Badge>
-                <span class="text-[11px] text-text-muted font-mono">{{ (post.createdAt || '').slice(0, 10) || '近期' }} · {{ readingMinutes(post.wordCount) }} min 阅读</span>
+            <RouterLink
+              :to="`/blog/${post.slug}`"
+              class="group block rounded-lg border border-transparent hover:border-border/60 hover:bg-surface-muted/30 transition px-4 py-3.5 flex flex-col md:flex-row md:items-center md:justify-between gap-3 no-underline"
+            >
+              <div class="flex flex-col gap-1.5 min-w-0 md:pr-8">
+                <div class="flex flex-wrap items-center gap-2">
+                  <Badge variant="outline" class="text-[11px]">
+                    {{ post.category?.name ?? '未分类' }}
+                  </Badge>
+                  <span class="text-[11px] text-text-muted font-mono">
+                    {{ (post.createdAt || '').slice(0, 10) || '近期' }} · {{ readingMinutes(post.wordCount) }} min 阅读
+                  </span>
+                  <Badge v-if="post.featured && !isFallbackLatest" variant="secondary" class="text-[11px] !py-0 border-warning/40 text-warning bg-warning/10">
+                    ⭐ 首页精选
+                  </Badge>
+                </div>
+                <h3 class="m-0 text-base md:text-[15px] font-semibold tracking-tight text-text group-hover:text-brand transition leading-snug">
+                  {{ post.title }}
+                </h3>
+                <p class="m-0 text-sm text-text-muted leading-relaxed line-clamp-2">{{ post.excerpt }}</p>
               </div>
-              <h3 class="m-0 text-base md:text-[15px] font-semibold tracking-tight text-text group-hover:text-brand transition leading-snug">
-                {{ post.title }}
-              </h3>
-              <p class="m-0 text-sm text-text-muted leading-relaxed line-clamp-2">{{ post.excerpt }}</p>
-            </div>
-            <div class="flex flex-wrap gap-1.5 shrink-0">
-              <Badge v-for="tag in (post.tags ?? []).slice(0, 3)" :key="tag.id" variant="secondary" class="text-[11px] !py-0">#{{ tag.name }}</Badge>
-            </div>
-          </RouterLink>
-        </li>
-      </ol>
+              <div class="flex flex-wrap gap-1.5 shrink-0">
+                <Badge v-for="tag in (post.tags ?? []).slice(0, 3)" :key="tag.id" variant="secondary" class="text-[11px] !py-0">#{{ tag.name }}</Badge>
+              </div>
+            </RouterLink>
+          </li>
+        </ol>
+      </div>
 
       <!-- 成功但没数据：提示去博客写一篇 -->
       <div v-else class="rounded-xl border border-dashed border-border/60 px-5 py-8 text-center space-y-3">
