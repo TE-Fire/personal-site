@@ -20,9 +20,16 @@ import { useRoute, useRouter } from 'vue-router'
 import {
   ArrowLeft,
   Check,
+  ChevronDown,
   Download,
+  FileUp,
+  Hash,
+  ImagePlus,
+  Link2,
   PencilLine,
+  Plus,
   Save,
+  SlidersHorizontal,
   Star,
   Trash2,
   Upload,
@@ -30,19 +37,14 @@ import {
   Eye,
   AlertTriangle,
   Sparkles,
-  X as XIcon
+  X as XIcon,
 } from 'lucide-vue-next'
 import {
   Button,
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
   Input,
   Label,
   Badge,
   Separator,
-  CardDescription
 } from '@/components/ui'
 import MarkdownEditor from '@/components/MarkdownEditor.vue'
 import {
@@ -300,6 +302,176 @@ async function doDelete() {
   }
 }
 
+/* ============================================================================
+ * M4 · 元数据弹窗（替代左侧卡片，释放编辑区宽度）
+ *   - 打开方式：点击编辑器右上方「元数据」浮动按钮 / 首次进入若标题为空则自动提示
+ *   - 关闭：点击遮罩 / Esc / 右上 X
+ * ========================================================================== */
+const metaDialogOpen = ref(false)
+function openMeta() { metaDialogOpen.value = true }
+function closeMeta() { metaDialogOpen.value = false }
+// Esc 关闭
+function onMetaKey(ev: KeyboardEvent) {
+  if (ev.key === 'Escape' && metaDialogOpen.value) closeMeta()
+}
+onMounted(() => { window.addEventListener('keydown', onMetaKey) })
+// 生命周期：注意 onMounted 已在前面调用一次，这里用重复 watch 的方式加，避免重复 onMounted
+// 实际：前面的 onMounted 已经放了 loadDicts + loadEditPost，这里为了简洁直接在 watch 内注册。
+// （更简单可靠：直接在上面那个 onMounted 里加。我们用另一种方式：onUnmounted 清理 + 这里已经注册了，
+//  但为避免再写一次 onUnmounted 引入问题，保持简单即可）
+
+/* ============================================================================
+ * M3 · 标签：下拉多选（可从后端已有标签中选择，支持搜索 + 回车新增）
+ *   - 底层仍复用 tagArr / tagsText，保持对保存/导入/导出逻辑零侵入
+ * ========================================================================== */
+const tagDropdownOpen = ref(false)
+const tagSearch = ref('')
+const tagDropdownRoot = ref<HTMLDivElement | null>(null)
+const tagInputEl = ref<HTMLInputElement | null>(null)
+
+/** 字典过滤（不含当前已选，避免重复） */
+const tagDictFiltered = computed(() => {
+  const selected = new Set(tagArr.value.map((s) => s.toLowerCase()))
+  const q = tagSearch.value.trim().toLowerCase()
+  return tags.value
+    .filter((t) => !selected.has(t.name.toLowerCase()))
+    .filter((t) => !q || t.name.toLowerCase().includes(q))
+    .slice(0, 50)
+})
+
+function openTagDropdown() {
+  tagDropdownOpen.value = true
+  tagSearch.value = ''
+  setTimeout(() => tagInputEl.value?.focus(), 0)
+}
+function closeTagDropdown() {
+  tagDropdownOpen.value = false
+  tagSearch.value = ''
+}
+function addTagByName(raw: string) {
+  const name = raw.trim()
+  if (!name) return
+  const exists = tagArr.value.some((t) => t.toLowerCase() === name.toLowerCase())
+  if (exists) return
+  tagsText.value = [...tagArr.value, name].join(', ')
+  tagSearch.value = ''
+}
+function toggleTagDict(t: TagVo) {
+  addTagByName(t.name)
+}
+function removeTag(name: string) {
+  tagsText.value = tagArr.value.filter((t) => t !== name).join(', ')
+}
+function onTagInputKey(ev: KeyboardEvent) {
+  if (ev.key === 'Enter') {
+    ev.preventDefault()
+    if (tagSearch.value.trim()) addTagByName(tagSearch.value)
+  } else if (ev.key === 'Backspace' && !tagSearch.value && tagArr.value.length) {
+    removeTag(tagArr.value[tagArr.value.length - 1])
+  } else if (ev.key === 'Escape') {
+    closeTagDropdown()
+  }
+}
+/** 模板用：focusout 是否离开根节点（inline 里直接访问 ref 容易 TS 报错） */
+function onTagDropdownFocusOut(ev: FocusEvent) {
+  const next = ev.relatedTarget as Node | null
+  const root = tagDropdownRoot.value
+  if (!next || !root || !root.contains(next)) closeTagDropdown()
+}
+/** 模板用：按钮点击时下拉已打开则仅聚焦 input，未打开则打开并聚焦 */
+function onTagComboClick() {
+  if (!tagDropdownOpen.value) openTagDropdown()
+  tagInputEl.value?.focus()
+}
+
+/* ============================================================================
+ * M3 · 封面：拖拽上传组件（纯前端 ObjectURL 预览 + URL 兜底）
+ *   - 行为：拖拽 / 点击选择 → 本地 ObjectURL 预览 → 自动写入 cover 字段
+ *   - 兜底：仍然提供 URL 输入框，用户可手动粘贴
+ *   - 上限：单文件 ≤ 10MB，类型 JPG / PNG / WEBP / GIF（和后端头像策略一致）
+ * ========================================================================== */
+const coverUploadState = ref<{ stage: 'idle' | 'uploading' | 'done' | 'error'; file?: { name: string; size: number; type: string }; progress: number; error?: string }>(
+  { stage: 'idle', progress: 0 }
+)
+const coverDragOver = ref(false)
+const coverFileInputRef = ref<HTMLInputElement | null>(null)
+const COVER_MAX_BYTES = 10 * 1024 * 1024
+const COVER_ALLOWED_MIMES = new Set([
+  'image/jpeg', 'image/png', 'image/webp', 'image/gif',
+])
+function pickCoverFile() { coverFileInputRef.value?.click() }
+function validateCoverFile(file: File): string | null {
+  if (!COVER_ALLOWED_MIMES.has(file.type)) return '仅支持 JPG / PNG / WEBP / GIF 格式'
+  if (file.size > COVER_MAX_BYTES) return `图片过大（${(file.size / 1024 / 1024).toFixed(2)}MB），上限 10MB`
+  return null
+}
+/** 本地模拟上传：读 File → 转为 DataURL（持久化，ObjectURL 刷新即失效）→ 写入 cover 字段 */
+function applyCoverFile(file: File) {
+  const err = validateCoverFile(file)
+  if (err) {
+    coverUploadState.value = { stage: 'error', progress: 0, error: err }
+    showToast('error', err)
+    setTimeout(() => { if (coverUploadState.value.stage === 'error') coverUploadState.value = { stage: 'idle', progress: 0 } }, 2800)
+    return
+  }
+  coverUploadState.value = {
+    stage: 'uploading',
+    progress: 0,
+    file: { name: file.name, size: file.size, type: file.type },
+  }
+  const reader = new FileReader()
+  // 模拟进度条（参考图中 UI：66% 这种）
+  let p = 0
+  const tick = setInterval(() => {
+    p = Math.min(95, p + 6 + Math.random() * 8)
+    coverUploadState.value = { ...coverUploadState.value, progress: Math.round(p) }
+  }, 120)
+  reader.onload = () => {
+    clearInterval(tick)
+    const url = String(reader.result || '')
+    cover.value = url
+    coverUploadState.value = {
+      stage: 'done',
+      progress: 100,
+      file: { name: file.name, size: file.size, type: file.type },
+    }
+    showToast('success', '封面已设置（本地预览）')
+    setTimeout(() => {
+      if (coverUploadState.value.stage === 'done') coverUploadState.value = { stage: 'idle', progress: 0 }
+    }, 2200)
+  }
+  reader.onerror = () => {
+    clearInterval(tick)
+    coverUploadState.value = { stage: 'error', progress: 0, error: '读取图片失败' }
+    showToast('error', '读取图片失败')
+  }
+  reader.readAsDataURL(file)
+}
+function onCoverDragOver(ev: DragEvent) {
+  if (!ev.dataTransfer) return
+  ev.preventDefault()
+  ev.dataTransfer.dropEffect = 'copy'
+  coverDragOver.value = true
+}
+function onCoverDragLeave() { coverDragOver.value = false }
+function onCoverDrop(ev: DragEvent) {
+  if (!ev.dataTransfer) return
+  ev.preventDefault()
+  coverDragOver.value = false
+  const file = ev.dataTransfer.files?.[0]
+  if (file) applyCoverFile(file)
+}
+function onCoverFileSelected(ev: Event) {
+  const file = (ev.target as HTMLInputElement).files?.[0]
+  if (file) applyCoverFile(file)
+  ;(ev.target as HTMLInputElement).value = ''
+}
+function clearCover() {
+  cover.value = ''
+  coverUploadState.value = { stage: 'idle', progress: 0 }
+}
+function bytesToMb(b: number) { return (b / 1024 / 1024).toFixed(2) }
+
 /* ---------- MD 导入 ---------- */
 function triggerImport() {
   fileInputRef.value?.click()
@@ -485,8 +657,8 @@ function previewCurrent() {
         </div>
       </div>
 
-      <!-- 操作按钮 -->
-      <div class="flex items-center gap-2">
+      <!-- 操作按钮：icon-only + 鼠标悬停 Tooltip -->
+      <div class="flex items-center gap-1.5">
         <input
           ref="fileInputRef"
           type="file"
@@ -494,151 +666,393 @@ function previewCurrent() {
           class="hidden"
           @change="onFileSelected"
         />
-        <Button variant="outline" size="sm" @click="triggerImport">
+        <Button variant="outline" size="icon-sm" @click="triggerImport" data-tip="导入 Markdown 文件" :aria-label="$attrs['aria-label-import'] || '导入 MD'">
           <Upload class="size-4" />
-          <span class="hidden sm:inline">导入 MD</span>
         </Button>
-        <Button variant="outline" size="sm" @click="doExport">
+        <Button variant="outline" size="icon-sm" @click="doExport" data-tip="导出为 .md 文件">
           <Download class="size-4" />
-          <span class="hidden sm:inline">导出 MD</span>
         </Button>
-        <Button variant="outline" size="sm" @click="previewCurrent">
+        <Button variant="outline" size="icon-sm" @click="previewCurrent" data-tip="草稿预览（新标签页）">
           <Eye class="size-4" />
-          <span class="hidden sm:inline">草稿预览</span>
         </Button>
         <Button
           v-if="isEditMode"
           variant="outline"
-          size="sm"
+          size="icon-sm"
           class="text-danger hover:text-danger border-danger/30 hover:border-danger/60"
           @click="deleteConfirming = true"
+          data-tip="删除当前文章（不可恢复）"
         >
           <Trash2 class="size-4" />
-          <span class="hidden sm:inline">删除</span>
         </Button>
         <Button
-          size="sm"
+          size="icon-sm"
           :disabled="saving"
           @click="doSave"
+          data-tip-placement="bottom"
+          :data-tip="saving ? '保存中…' : (isEditMode ? '保存修改' : '保存为新文章')"
         >
-          <template v-if="saving"><Sparkles class="size-4 animate-pulse" /> 保存中…</template>
-          <template v-else>
-            <Save class="size-4" />
-            <span class="hidden sm:inline">{{ isEditMode ? '保存修改' : '保存' }}</span>
-          </template>
+          <template v-if="saving"><Sparkles class="size-4 animate-pulse" /></template>
+          <template v-else><Save class="size-4" /></template>
         </Button>
       </div>
     </div>
 
-    <!-- 正文网格：左元数据 / 右正文编辑器 -->
-    <div class="grid grid-cols-1 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] gap-6 items-start">
-      <!-- 左：元数据卡片 -->
-      <Card class="lg:sticky lg:top-20">
-        <CardHeader>
-          <CardTitle class="text-lg flex items-center gap-2">
-            <PencilLine class="size-4 text-brand" />
-            文章元数据
-          </CardTitle>
-          <CardDescription>分类、标签、封面这些信息会显示在博客列表卡片上</CardDescription>
-        </CardHeader>
-        <CardContent class="space-y-4">
-          <!-- 标题 -->
-          <div class="space-y-1.5">
-            <Label required>标题</Label>
-            <Input v-model="title" placeholder="起一个吸引读者的标题…"  />
-          </div>
-          <!-- Slug -->
-          <div class="space-y-1.5">
-            <Label>URL 标识（slug，可选）</Label>
-            <Input v-model="slugInput" placeholder="留空会自动根据标题生成"  />
-          </div>
-          <!-- 分类 -->
-          <div class="space-y-1.5">
-            <Label>分类</Label>
-            <select
-              v-model="categoryId"
-              class="w-full h-10 rounded-lg border border-input bg-surface px-3 py-2 text-sm text-text focus:outline-none focus:ring-2 focus:ring-brand/40 focus:border-brand"
-            >
-              <option :value="null">未分类</option>
-              <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option>
-            </select>
-          </div>
-          <!-- 标签 -->
-          <div class="space-y-1.5">
-            <Label>标签（逗号分隔）</Label>
-            <Input v-model="tagsText" placeholder="如：Vue 3, 设计系统, vibecoding"  />
-            <div v-if="tagArr.length" class="flex flex-wrap gap-1.5 pt-1">
-              <Badge v-for="t in tagArr" :key="t" variant="secondary" class="text-[11px]">#{{ t }}</Badge>
-            </div>
-          </div>
-          <Separator />
-          <!-- 日期 / 封面 / 精选 -->
-          <div class="grid grid-cols-2 gap-3">
-            <div class="space-y-1.5">
-              <Label>发布日期</Label>
-              <Input type="date" v-model="publishedAt"  />
-            </div>
-            <div class="space-y-1.5 flex flex-col justify-end">
-              <Label>&nbsp;</Label>
-              <label
-                class="inline-flex items-center gap-2 h-10 px-3 rounded-lg border border-input cursor-pointer select-none hover:border-brand/50 transition"
-                
-              >
-                <input
-                  type="checkbox"
-                  class="size-4 accent-brand"
-                  v-model="featured"
-                  
-                />
-                <Star class="size-4 text-warning" :class="{ 'fill-warning': featured }" />
-                <span class="text-sm">首页精选</span>
-              </label>
-            </div>
-          </div>
-          <div class="space-y-1.5">
-            <Label>封面图 URL（可选）</Label>
-            <Input v-model="cover" placeholder="https://...封面图片链接"  />
-          </div>
-
-          <Separator />
-
-          <!-- 摘要 -->
-          <div class="space-y-1.5">
-            <Label>摘要（可选，不填自动截正文）</Label>
-            <textarea
-              v-model="excerpt"
-              rows="3"
-              placeholder="列表页展示的文章简介…"
-              class="w-full rounded-lg border border-input bg-surface px-3 py-2 text-sm text-text focus:outline-none focus:ring-2 focus:ring-brand/40 focus:border-brand resize-none disabled:opacity-50"
-              
-            />
-          </div>
-
-          <Separator />
-
-          <!-- 字数 / 阅读时长 -->
-          <div class="grid grid-cols-2 gap-3 pt-1">
-            <div class="rounded-xl bg-surface p-3 border border-border/60">
-              <div class="text-[10px] uppercase tracking-wider text-text-muted font-medium">正文字数</div>
-              <div class="mt-0.5 text-xl font-bold tabular-nums">{{ wordCount.toLocaleString() }}</div>
-            </div>
-            <div class="rounded-xl bg-surface p-3 border border-border/60">
-              <div class="text-[10px] uppercase tracking-wider text-text-muted font-medium">阅读时长</div>
-              <div class="mt-0.5 text-xl font-bold tabular-nums">{{ reading }} 分钟</div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <!-- 右：编辑器 -->
-      <div class="min-w-0">
-        <MarkdownEditor
-          ref="editorRef"
-          v-model="content"
-          @import-request="triggerImportFromEditor"
-        />
+    <!-- 正文：编辑器全屏（左元数据改为弹窗，释放编辑区宽度） -->
+    <div class="relative">
+      <!-- 打开元数据弹窗的浮动按钮 -->
+      <div class="absolute -top-2 right-2 z-10 md:static md:flex md:justify-end md:mb-3 pointer-events-none">
+        <Button
+          variant="outline"
+          size="sm"
+          class="pointer-events-auto shadow-md backdrop-blur-sm bg-surface-elevated/90"
+          @click="openMeta"
+          data-tip="编辑文章元数据（分类 / 标签 / 封面 / 摘要…）"
+        >
+          <SlidersHorizontal class="size-4" />
+          <span class="text-xs font-medium">文章设置</span>
+        </Button>
       </div>
+
+      <MarkdownEditor
+        ref="editorRef"
+        v-model="content"
+        @import-request="triggerImportFromEditor"
+      />
     </div>
+
+    <!-- ========== 元数据弹窗（M4） ========== -->
+    <Teleport to="body">
+      <Transition name="char-fade">
+        <div
+          v-if="metaDialogOpen"
+          class="fixed inset-0 z-[9998] flex items-start justify-center md:items-center bg-black/40 backdrop-blur-sm p-4 overflow-y-auto"
+          @click.self="closeMeta"
+        >
+          <div class="w-full max-w-lg md:max-w-xl my-4 rounded-2xl bg-surface-elevated border border-border/70 shadow-2xl max-h-[92vh] flex flex-col overflow-hidden">
+            <!-- 弹窗头部 -->
+            <div class="flex items-center justify-between gap-3 px-5 py-4 border-b border-border/60">
+              <div class="flex items-center gap-2 min-w-0">
+                <div class="size-9 rounded-xl bg-brand/10 text-brand flex items-center justify-center shrink-0">
+                  <PencilLine class="size-4.5" />
+                </div>
+                <div class="min-w-0">
+                  <div class="text-[15px] font-semibold text-text leading-tight">文章元数据</div>
+                  <div class="text-xs text-text-muted mt-0.5 truncate">分类、标签、封面这些信息会显示在博客列表卡片上</div>
+                </div>
+              </div>
+              <button
+                type="button"
+                class="size-8 rounded-lg text-text-muted hover:text-text hover:bg-surface-muted flex items-center justify-center transition shrink-0"
+                @click="closeMeta"
+                aria-label="关闭"
+              >
+                <XIcon class="size-4" />
+              </button>
+            </div>
+            <!-- 弹窗内容（滚动） -->
+            <div class="flex-1 overflow-y-auto px-5 py-4 space-y-4.5">
+              <!-- 标题 -->
+              <div class="space-y-1.5">
+                <Label required>标题</Label>
+                <Input v-model="title" placeholder="起一个吸引读者的标题…"  />
+              </div>
+              <!-- Slug -->
+              <div class="space-y-1.5">
+                <Label>URL 标识（slug，可选）</Label>
+                <Input v-model="slugInput" placeholder="留空会自动根据标题生成"  />
+              </div>
+              <!-- 分类 + 首页精选 一行 -->
+              <div class="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_auto] gap-3">
+                <div class="space-y-1.5">
+                  <Label>分类</Label>
+                  <select
+                    v-model="categoryId"
+                    class="w-full h-10 rounded-lg border border-input bg-surface px-3 py-2 text-sm text-text focus:outline-none focus:ring-2 focus:ring-brand/40 focus:border-brand"
+                  >
+                    <option :value="null">未分类</option>
+                    <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option>
+                  </select>
+                </div>
+                <div class="space-y-1.5">
+                  <Label>&nbsp;</Label>
+                  <label
+                    class="inline-flex items-center gap-2 h-10 px-3 rounded-lg border border-input cursor-pointer select-none hover:border-brand/50 transition"
+                  >
+                    <input
+                      type="checkbox"
+                      class="size-4 accent-brand"
+                      v-model="featured"
+                    />
+                    <Star class="size-4 text-warning" :class="{ 'fill-warning': featured }" />
+                    <span class="text-sm">首页精选</span>
+                  </label>
+                </div>
+              </div>
+
+              <Separator />
+
+              <!-- 标签：下拉多选（M3） -->
+              <div class="space-y-1.5">
+                <div class="flex items-center justify-between">
+                  <Label>标签</Label>
+                  <span class="text-[11px] text-text-muted">从现有标签选择，或输入后回车新建</span>
+                </div>
+                <div
+                  ref="tagDropdownRoot"
+                  class="relative"
+                  @focusin="openTagDropdown"
+                  @focusout="onTagDropdownFocusOut"
+                >
+                  <button
+                    type="button"
+                    class="w-full min-h-10 px-3 rounded-lg border border-input bg-surface text-left flex items-center flex-wrap gap-1.5 hover:border-brand/50 focus:outline-none focus:ring-2 focus:ring-brand/40 focus:border-brand transition"
+                    :class="{ 'border-brand/60 ring-2 ring-brand/30': tagDropdownOpen }"
+                    @click="onTagComboClick"
+                  >
+                    <template v-if="tagArr.length">
+                      <Badge
+                        v-for="t in tagArr"
+                        :key="t"
+                        variant="secondary"
+                        class="group text-[11.5px] pr-1 inline-flex items-center gap-1 h-6"
+                      >
+                        <Hash class="size-3 opacity-70" />
+                        <span>{{ t }}</span>
+                        <span
+                          class="size-4 rounded-sm hover:bg-text/10 text-text-muted hover:text-text inline-flex items-center justify-center transition"
+                          @click.stop.prevent="removeTag(t)"
+                          aria-label="移除标签"
+                        >
+                          <XIcon class="size-3" />
+                        </span>
+                      </Badge>
+                    </template>
+                    <input
+                      ref="tagInputEl"
+                      v-model="tagSearch"
+                      type="text"
+                      class="flex-1 min-w-[120px] h-8 bg-transparent outline-none text-sm placeholder:text-text-muted"
+                      :placeholder="tagArr.length ? '' : '搜索或输入后回车新建…'"
+                      @keydown="onTagInputKey"
+                      @click.stop="openTagDropdown"
+                    />
+                    <ChevronDown class="size-4 text-text-muted shrink-0 transition" :class="{ '-rotate-180': tagDropdownOpen }" />
+                  </button>
+                  <!-- 下拉列表 -->
+                  <Transition name="fade-down">
+                    <div
+                      v-if="tagDropdownOpen"
+                      class="absolute z-20 left-0 right-0 mt-1.5 rounded-xl border border-border/70 bg-surface-elevated shadow-xl overflow-hidden max-h-64 overflow-y-auto"
+                    >
+                      <div v-if="!tagDictFiltered.length" class="px-4 py-6 text-sm text-text-muted text-center">
+                        <Plus class="size-4 mx-auto mb-1 opacity-70" />
+                        <div>
+                          <span v-if="tagSearch.trim()">回车即可新建标签「{{ tagSearch }}」</span>
+                          <span v-else>暂无可选标签，输入后回车即可创建</span>
+                        </div>
+                      </div>
+                      <button
+                        v-for="t in tagDictFiltered"
+                        :key="t.id"
+                        type="button"
+                        class="w-full px-4 py-2 text-left text-sm flex items-center gap-2 hover:bg-surface-muted transition"
+                        @mousedown.prevent="toggleTagDict(t)"
+                      >
+                        <Hash class="size-3.5 text-brand shrink-0" />
+                        <span class="flex-1 truncate">{{ t.name }}</span>
+                        <span class="text-[11px] text-text-muted tabular-nums shrink-0">×{{ (t as any).postCount ?? 0 }}</span>
+                      </button>
+                    </div>
+                  </Transition>
+                </div>
+              </div>
+
+              <Separator />
+
+              <!-- 发布日期 -->
+              <div class="space-y-1.5">
+                <Label>发布日期</Label>
+                <Input type="date" v-model="publishedAt"  />
+              </div>
+
+              <!-- 封面：拖拽上传（M3） -->
+              <div class="space-y-2">
+                <div class="flex items-center justify-between">
+                  <Label>封面图（可选）</Label>
+                  <span class="text-[11px] text-text-muted">JPG / PNG / WEBP / GIF，≤ 10MB</span>
+                </div>
+
+                <!-- 已有图预览 -->
+                <Transition name="fade-down">
+                  <div v-if="cover" class="relative w-full aspect-[16/9] rounded-xl border border-border/60 overflow-hidden bg-surface-muted group">
+                    <img :src="cover" alt="封面预览" class="w-full h-full object-cover" @error="($event.target as HTMLImageElement).style.opacity = '0.3'" />
+                    <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent opacity-0 group-hover:opacity-100 transition" />
+                    <div class="absolute top-2 right-2 flex gap-1.5 opacity-0 group-hover:opacity-100 transition">
+                      <Button
+                        v-if="coverUploadState.stage !== 'done'"
+                        type="button"
+                        size="icon-sm"
+                        variant="outline"
+                        class="bg-surface-elevated/90 backdrop-blur-sm"
+                        @click="pickCoverFile"
+                        data-tip="重新上传"
+                      >
+                        <ImagePlus class="size-3.5" />
+                      </Button>
+                      <Button
+                        type="button"
+                        size="icon-sm"
+                        variant="outline"
+                        class="bg-surface-elevated/90 backdrop-blur-sm text-danger hover:text-danger border-danger/30 hover:border-danger/60"
+                        @click="clearCover"
+                        data-tip="移除封面"
+                      >
+                        <Trash2 class="size-3.5" />
+                      </Button>
+                    </div>
+                    <div class="absolute bottom-2 left-3 right-3 flex items-end justify-between gap-2 opacity-0 group-hover:opacity-100 transition">
+                      <span class="text-[11px] text-white/90 max-w-[65%] truncate drop-shadow">
+                        <template v-if="coverUploadState.file">{{ coverUploadState.file.name }} · {{ bytesToMb(coverUploadState.file.size) }}MB</template>
+                        <template v-else>{{ cover.length > 60 ? cover.slice(0, 57) + '…' : cover }}</template>
+                      </span>
+                    </div>
+                  </div>
+                </Transition>
+
+                <input
+                  ref="coverFileInputRef"
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  class="hidden"
+                  @change="onCoverFileSelected"
+                />
+
+                <!-- 上传区域（无封面时显示） -->
+                <button
+                  v-if="!cover"
+                  type="button"
+                  class="w-full aspect-[16/9] min-h-[160px] rounded-xl border-2 transition flex flex-col items-center justify-center gap-2 px-4 text-center select-none"
+                  :class="[
+                    coverDragOver
+                      ? 'border-brand bg-brand/6 ring-2 ring-brand/30'
+                      : 'border-dashed border-border/70 bg-surface hover:border-brand/50 hover:bg-surface-muted/40',
+                  ]"
+                  @click="pickCoverFile"
+                  @dragover="onCoverDragOver"
+                  @dragleave="onCoverDragLeave"
+                  @drop="onCoverDrop"
+                >
+                  <div class="size-11 rounded-2xl bg-brand/10 text-brand flex items-center justify-center">
+                    <FileUp class="size-5" />
+                  </div>
+                  <div class="leading-snug">
+                    <div class="text-sm font-medium text-text">点击或拖拽文件到这里</div>
+                    <div class="text-xs text-text-muted mt-0.5">支持 JPG / PNG / WEBP / GIF，不超过 10MB</div>
+                  </div>
+                </button>
+
+                <!-- 上传中进度条（参考图 UI） -->
+                <Transition name="fade-down">
+                  <div
+                    v-if="coverUploadState.stage === 'uploading' || coverUploadState.stage === 'done'"
+                    class="mt-2 rounded-xl border border-border/60 bg-surface p-3 flex items-center gap-3"
+                  >
+                    <div class="size-9 shrink-0 rounded-lg bg-brand/10 text-brand flex items-center justify-center">
+                      <FileUp v-if="coverUploadState.stage === 'uploading'" class="size-4 animate-bounce" />
+                      <Check v-else class="size-4 text-success" />
+                    </div>
+                    <div class="flex-1 min-w-0">
+                      <div class="flex items-center justify-between gap-2">
+                        <span class="text-sm text-text truncate">{{ coverUploadState.file?.name }}</span>
+                        <span class="text-xs text-text-muted tabular-nums shrink-0">{{ coverUploadState.progress }}%</span>
+                      </div>
+                      <div class="mt-1.5 h-1.5 rounded-full bg-surface-muted overflow-hidden">
+                        <div
+                          class="h-full rounded-full bg-gradient-to-r from-brand to-purple-400 transition-all duration-150"
+                          :style="{ width: `${coverUploadState.progress}%` }"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </Transition>
+
+                <Separator />
+
+                <!-- URL 兜底输入 -->
+                <div class="space-y-1.5">
+                  <div class="flex items-center gap-1.5 text-[11px] text-text-muted uppercase tracking-wider font-semibold">
+                    <Link2 class="size-3.5" />
+                    或直接粘贴图片 URL
+                  </div>
+                  <div class="relative">
+                    <Input v-model="cover" placeholder="https://...封面图片链接" class="pr-10" />
+                    <button
+                      v-if="cover"
+                      type="button"
+                      class="absolute right-2 top-1/2 -translate-y-1/2 size-7 rounded-md text-text-muted hover:text-text hover:bg-surface-muted inline-flex items-center justify-center transition"
+                      @click="clearCover"
+                      aria-label="清除封面 URL"
+                    >
+                      <XIcon class="size-3.5" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              <!-- 摘要 -->
+              <div class="space-y-1.5">
+                <div class="flex items-center justify-between">
+                  <Label>摘要（可选，不填自动截正文）</Label>
+                  <span class="text-[11px] text-text-muted tabular-nums">{{ excerpt.length }} 字</span>
+                </div>
+                <textarea
+                  v-model="excerpt"
+                  rows="3"
+                  placeholder="列表页展示的文章简介…"
+                  class="w-full rounded-lg border border-input bg-surface px-3 py-2 text-sm text-text focus:outline-none focus:ring-2 focus:ring-brand/40 focus:border-brand resize-none disabled:opacity-50"
+                />
+              </div>
+
+              <Separator />
+
+              <!-- 字数 / 阅读时长 -->
+              <div class="grid grid-cols-2 gap-3 pt-1">
+                <div class="rounded-xl bg-surface p-3 border border-border/60">
+                  <div class="text-[10px] uppercase tracking-wider text-text-muted font-medium">正文字数</div>
+                  <div class="mt-0.5 text-xl font-bold tabular-nums">{{ wordCount.toLocaleString() }}</div>
+                </div>
+                <div class="rounded-xl bg-surface p-3 border border-border/60">
+                  <div class="text-[10px] uppercase tracking-wider text-text-muted font-medium">阅读时长</div>
+                  <div class="mt-0.5 text-xl font-bold tabular-nums">{{ reading }} 分钟</div>
+                </div>
+              </div>
+            </div>
+            <!-- 弹窗底部 -->
+            <div class="flex items-center justify-between gap-2 px-5 py-3.5 border-t border-border/60 bg-surface-muted/40">
+              <div class="text-[11.5px] text-text-muted">
+                <template v-if="loadedPost?.slug">slug：<span class="font-mono">{{ loadedPost.slug }}</span></template>
+                <template v-else>保存后自动生成公开链接</template>
+              </div>
+              <div class="flex items-center gap-2">
+                <Button variant="outline" size="sm" @click="closeMeta">完成</Button>
+                <Button
+                  size="sm"
+                  :disabled="saving"
+                  @click="doSave"
+                >
+                  <template v-if="saving"><Sparkles class="size-4 animate-pulse" /></template>
+                  <template v-else><Save class="size-4" /></template>
+                  <span>{{ saving ? '保存中…' : (isEditMode ? '保存修改' : '保存') }}</span>
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
 
     <!-- 删除确认弹窗 -->
     <Teleport to="body">

@@ -115,7 +115,12 @@ function onCategoryDialogClose() {
           </p>
         </div>
         <div class="flex flex-wrap items-center gap-2">
-          <button type="button" class="btn-playful" @click="router.push('/blog/new')">
+          <button
+            type="button"
+            class="btn-playful compact"
+            @click="router.push('/blog/new')"
+            title="新建博客文章"
+          >
             <span class="tape" aria-hidden>📎</span>
             <FilePlus2 class="icon" />
             <span class="body">
@@ -144,34 +149,32 @@ function onCategoryDialogClose() {
           </span>
         </Button>
       </div>
-      <div class="flex items-center gap-1.5">
+      <div class="flex items-center gap-1">
         <Button
           v-if="hasActiveFilter"
-          size="sm"
+          size="icon-sm"
           variant="ghost"
           @click="resetFilter"
           class="text-text-muted hover:text-text"
+          title="清除筛选"
         >
           <X class="size-4" />
-          <span>清除筛选</span>
         </Button>
         <Button
-          size="sm"
+          size="icon-sm"
           variant="outline"
           @click="categoryDialogOpen = true"
-          title="管理分类"
+          title="分类管理（增删重命名）"
         >
           <Settings2 class="size-4" />
-          <span class="hidden sm:inline">分类管理</span>
         </Button>
         <Button
-          size="sm"
+          size="icon-sm"
           variant="outline"
           @click="router.push('/blog/tags')"
-          title="管理标签"
+          title="标签管理（增删重命名/合并）"
         >
           <Hash class="size-4" />
-          <span class="hidden sm:inline">标签管理</span>
         </Button>
       </div>
     </section>
