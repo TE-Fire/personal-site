@@ -657,8 +657,8 @@ function previewCurrent() {
         </div>
       </div>
 
-      <!-- 操作按钮：icon-only + 鼠标悬停 Tooltip -->
-      <div class="flex items-center gap-1.5">
+      <!-- 操作按钮：图标带外边距 + 可见边框 + 圆角矩形 + Tooltip 悬停 -->
+      <div class="flex items-center gap-2.5">
         <input
           ref="fileInputRef"
           type="file"
@@ -666,34 +666,70 @@ function previewCurrent() {
           class="hidden"
           @change="onFileSelected"
         />
-        <Button variant="outline" size="icon-sm" @click="triggerImport" data-tip="导入 Markdown 文件" :aria-label="$attrs['aria-label-import'] || '导入 MD'">
-          <Upload class="size-4" />
+        <!-- 导入 MD -->
+        <Button
+          variant="outline"
+          class="h-11 w-11 rounded-xl
+                 border-[2.5px] !border-brand/45 hover:!border-brand/75
+                 bg-surface-elevated/40 backdrop-blur-sm hover:bg-surface-muted/60
+                 p-1.5 inline-flex items-center justify-center gap-0"
+          @click="triggerImport"
+          data-tip="导入 Markdown 文件"
+          :aria-label="$attrs['aria-label-import'] || '导入 MD'"
+        >
+          <Upload class="size-[18px]" />
         </Button>
-        <Button variant="outline" size="icon-sm" @click="doExport" data-tip="导出为 .md 文件">
-          <Download class="size-4" />
+        <!-- 导出 MD -->
+        <Button
+          variant="outline"
+          class="h-11 w-11 rounded-xl
+                 border-[2.5px] !border-brand/45 hover:!border-brand/75
+                 bg-surface-elevated/40 backdrop-blur-sm hover:bg-surface-muted/60
+                 p-1.5 inline-flex items-center justify-center"
+          @click="doExport"
+          data-tip="导出为 .md 文件"
+        >
+          <Download class="size-[18px]" />
         </Button>
-        <Button variant="outline" size="icon-sm" @click="previewCurrent" data-tip="草稿预览（新标签页）">
-          <Eye class="size-4" />
+        <!-- 草稿预览 -->
+        <Button
+          variant="outline"
+          class="h-11 w-11 rounded-xl
+                 border-[2.5px] !border-brand/45 hover:!border-brand/75
+                 bg-surface-elevated/40 backdrop-blur-sm hover:bg-surface-muted/60
+                 p-1.5 inline-flex items-center justify-center"
+          @click="previewCurrent"
+          data-tip="草稿预览（新标签页）"
+        >
+          <Eye class="size-[18px]" />
         </Button>
+        <!-- 删除（编辑态显示） -->
         <Button
           v-if="isEditMode"
           variant="outline"
-          size="icon-sm"
-          class="text-danger hover:text-danger border-danger/30 hover:border-danger/60"
+          class="h-11 w-11 rounded-xl
+                 border-[2.5px] !border-danger/40 hover:!border-danger/75
+                 bg-surface-elevated/40 backdrop-blur-sm hover:bg-danger/5
+                 text-danger hover:text-danger
+                 p-1.5 inline-flex items-center justify-center"
           @click="deleteConfirming = true"
           data-tip="删除当前文章（不可恢复）"
         >
-          <Trash2 class="size-4" />
+          <Trash2 class="size-[18px]" />
         </Button>
+        <!-- 保存（主色，fill） -->
         <Button
-          size="icon-sm"
+          class="h-11 w-11 rounded-xl
+                 border-[2.5px] !border-brand hover:!border-brand/85
+                 bg-brand hover:bg-brand/90 text-white shadow-md shadow-brand/20
+                 p-1.5 inline-flex items-center justify-center"
           :disabled="saving"
           @click="doSave"
           data-tip-placement="bottom"
           :data-tip="saving ? '保存中…' : (isEditMode ? '保存修改' : '保存为新文章')"
         >
-          <template v-if="saving"><Sparkles class="size-4 animate-pulse" /></template>
-          <template v-else><Save class="size-4" /></template>
+          <template v-if="saving"><Sparkles class="size-[18px] animate-pulse" /></template>
+          <template v-else><Save class="size-[18px]" /></template>
         </Button>
       </div>
     </div>
