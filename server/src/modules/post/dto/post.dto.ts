@@ -166,7 +166,7 @@ export class UpdatePostDto {
   @ApiPropertyOptional({ description: '传 null 表示清空分类' })
   @IsInt()
   @IsOptional()
-  categoryId?: number;
+  categoryId?: number | null;
 
   @ApiPropertyOptional({ type: [Number], description: 'tag.id 全量数组（replace 策略）' })
   @IsArray()
