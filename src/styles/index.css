@@ -701,3 +701,161 @@ html.dark [data-tip][data-tip-placement="top"]::before { border-top-color: #0f17
 .bubble-leave-active { transition: opacity 200ms ease, transform 200ms cubic-bezier(0.22, 1, 0.36, 1); }
 .bubble-enter-from,
 .bubble-leave-to { opacity: 0; transform: translateX(-50%) translateY(6px) scale(0.94); }
+
+/* ============================================================================
+ * 按钮 B 类规范（用户确认版 · 与 shadcn Button cva 彻底解耦）
+ *
+ *   微圆角矩形 6-8px
+ *   44px 标准档（水平内边距 18px，字号 14.5px）
+ *   1px 细边干净
+ *   图标占边框内可用高度 65%（经验 771442：CSS 变量比例绑定，外层改图标自动同比）
+ *
+ * 用法：
+ *   <Button :size="null" :variant="null" class="btn-spec-b btn-spec-b--outline">
+ *     <Icon class="btn-spec-b__icon" />
+ *     <span>文字</span>
+ *   </Button>
+ *
+ *   <!-- 纯图标按钮（正方形） -->
+ *   <Button :size="null" :variant="null" class="btn-spec-b btn-spec-b--icon btn-spec-b--outline">
+ *     <Icon class="btn-spec-b__icon" />
+ *   </Button>
+ *
+ *   <!-- 普通元素（如 label）想变成按钮直接套 class 也行，不依赖 Button 组件 -->
+ *   <label class="btn-spec-b btn-spec-b--outline"> ... </label>
+ *
+ * 变体：
+ *   --outline        默认：半透明灰边白底中性
+ *   --primary        主色实心（保存、提交）
+ *   --danger         红色细边（删除）
+ *   --warn           橙色细边（文章设置/元数据入口）
+ *   --ghost          无边透明背景，hover 出现灰底（返回、次级按钮）
+ *   --icon           正方形，去掉水平 padding（用于纯图标按钮）
+ * ========================================================================== */
+.btn-spec-b {
+  --btn-b-h: 44px;
+  --btn-b-px: 18px;
+  --btn-b-radius: 8px;              /* 微圆角矩形（8px），永远不会显胶囊 */
+  --btn-b-border-w: 1px;            /* 1px 细边干净 */
+  --btn-b-icon-ratio: 0.65;         /* 图标 65% 占比（不空荡不顶边） */
+  --btn-b-gap: 10px;                /* 图标与文字间距 */
+  --btn-b-fs: 14.5px;               /* 文字 */
+  --btn-b-fw: 600;                  /* 字重：半粗 */
+
+  height: var(--btn-b-h);
+  min-height: var(--btn-b-h);
+  padding: 0 var(--btn-b-px);
+  border-radius: var(--btn-b-radius);
+  border: var(--btn-b-border-w) solid var(--border);
+  background: color-mix(in oklab, var(--surface-elevated), transparent 60%);
+  backdrop-filter: blur(6px);
+  color: var(--text);
+  font-size: var(--btn-b-fs);
+  font-weight: var(--btn-b-fw);
+  line-height: 1;
+  letter-spacing: 0;
+  white-space: nowrap;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--btn-b-gap);
+  flex-shrink: 0;
+
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background-color 160ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 160ms cubic-bezier(0.22, 1, 0.36, 1),
+    color 160ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 160ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 120ms ease;
+}
+.btn-spec-b:active:not(:disabled) { transform: translateY(1px) scale(0.992); }
+.btn-spec-b:disabled { opacity: 0.5; cursor: not-allowed; pointer-events: none; }
+
+/* 图标：比例绑定 —— 外层只要改 --btn-b-h，图标自动同比缩放（经验 771442 方案 B） */
+.btn-spec-b__icon {
+  width: calc(var(--btn-b-h) * var(--btn-b-icon-ratio));
+  height: calc(var(--btn-b-h) * var(--btn-b-icon-ratio));
+  flex-shrink: 0;
+  flex-grow: 0;
+  display: inline-block;
+  vertical-align: middle;
+  stroke-width: 2;
+}
+
+/* 纯图标按钮：正方形 + 去掉 padding + 无 gap */
+.btn-spec-b--icon {
+  padding: 0;
+  width: var(--btn-b-h);
+  min-width: var(--btn-b-h);
+  gap: 0;
+}
+
+/* ---------- 变体 ---------- */
+/* outline（默认中性） */
+.btn-spec-b--outline {
+  border-color: color-mix(in oklab, var(--text), transparent 82%);
+}
+.btn-spec-b--outline:hover {
+  background: var(--surface-muted);
+  border-color: color-mix(in oklab, var(--text), transparent 68%);
+}
+
+/* primary（主色实心） */
+.btn-spec-b--primary {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #ffffff;
+  box-shadow: 0 4px 18px -5px color-mix(in oklab, var(--brand), transparent 55%);
+}
+.btn-spec-b--primary:hover {
+  background: color-mix(in oklab, var(--brand), black 10%);
+  border-color: color-mix(in oklab, var(--brand), black 10%);
+}
+
+/* danger（红色中性——删除） */
+.btn-spec-b--danger {
+  color: var(--danger);
+  border-color: color-mix(in oklab, var(--danger), transparent 65%);
+}
+.btn-spec-b--danger:hover {
+  background: color-mix(in oklab, var(--danger), transparent 94%);
+  border-color: color-mix(in oklab, var(--danger), transparent 30%);
+}
+
+/* warn（橙色中性——元数据/设置类入口，和普通操作有色彩区分） */
+.btn-spec-b--warn {
+  color: color-mix(in oklab, var(--warning), black 10%);
+  border-color: color-mix(in oklab, var(--warning), transparent 62%);
+}
+.btn-spec-b--warn:hover {
+  background: color-mix(in oklab, var(--warning), transparent 94%);
+  border-color: color-mix(in oklab, var(--warning), transparent 28%);
+}
+
+/* ghost（无底色无边框，用于返回、关闭等次级轻量按钮） */
+.btn-spec-b--ghost {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+.btn-spec-b--ghost:hover {
+  background: var(--surface-muted);
+  color: var(--text);
+}
+
+/* 复选框内嵌（用于"首页精选"这类 checkbox 标签按钮） */
+.btn-spec-b.has-checkbox {
+  justify-content: flex-start;
+  position: relative;
+}
+.btn-spec-b.has-checkbox input[type="checkbox"] {
+  width: calc(var(--btn-b-h) * 0.42);
+  height: calc(var(--btn-b-h) * 0.42);
+  accent-color: var(--brand);
+  cursor: pointer;
+  margin-right: calc(var(--btn-b-gap) * 0.6);
+}

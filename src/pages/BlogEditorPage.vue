@@ -640,12 +640,18 @@ function previewCurrent() {
 
 <template>
   <div class="space-y-6" data-reveal>
-    <!-- 页面头部：返回 + 标题 | 元数据设置·导入·导出·预览·删除·保存 -->
+    <!-- 页面头部：返回 + 标题 | 元数据设置·导入·导出·预览·删除·保存（B 类按钮规范） -->
     <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-4">
       <div class="flex items-center gap-3 min-w-0">
-        <Button variant="ghost" size="icon" @click="router.back()" aria-label="返回">
-          <ArrowLeft class="size-5" />
-        </Button>
+        <!-- 返回（B 类 ghost 变体 + B 类图标比例） -->
+        <button
+          type="button"
+          class="btn-spec-b btn-spec-b--icon btn-spec-b--ghost"
+          @click="router.back()"
+          aria-label="返回"
+        >
+          <ArrowLeft class="btn-spec-b__icon" />
+        </button>
         <div class="min-w-0">
           <div class="text-xs uppercase tracking-wider font-semibold text-brand flex items-center gap-1.5">
             <FileText class="size-3.5" />
@@ -657,7 +663,7 @@ function previewCurrent() {
         </div>
       </div>
 
-      <!-- 操作按钮组：图标填满边框 + 圆角矩形 + 明显粗边框 + 元数据入口也在这一排 -->
+      <!-- 操作按钮组：全部使用 B 类规范 btn-spec-b + __icon 比例绑定 -->
       <div class="flex flex-wrap items-center gap-2 md:gap-2.5 justify-end">
         <input
           ref="fileInputRef"
@@ -666,86 +672,64 @@ function previewCurrent() {
           class="hidden"
           @change="onFileSelected"
         />
-        <!-- 元数据弹窗入口（这里放第一个，解决"弹窗不见"找不到入口的问题） -->
-        <Button
-          variant="outline"
-          class="h-10 px-3.5 rounded-xl
-                 border-[2.5px] !border-warning/50 hover:!border-warning/80
-                 bg-surface-elevated/40 backdrop-blur-sm hover:bg-warning/5
-                 inline-flex items-center gap-2 text-sm font-semibold"
-          @click="openMeta"
-        >
-          <SlidersHorizontal class="size-5 shrink-0" />
+        <!-- 元数据弹窗入口（B 类 warn 变体，暖橙色和其它中性按钮色彩区分，一眼可见） -->
+        <button type="button" class="btn-spec-b btn-spec-b--warn" @click="openMeta">
+          <SlidersHorizontal class="btn-spec-b__icon" />
           <span>文章设置</span>
-        </Button>
+        </button>
 
-        <Separator orientation="vertical" class="mx-0.5 h-8" />
+        <div class="w-px h-8 bg-border/70 shrink-0 mx-0.5" aria-hidden="true" />
 
-        <!-- 导入 MD -->
-        <Button
-          variant="outline"
-          class="h-10 w-10 !rounded-xl
-                 border-[2.5px] !border-brand/50 hover:!border-brand/80
-                 bg-surface-elevated/40 backdrop-blur-sm hover:bg-surface-muted/60
-                 p-0.5 inline-flex items-center justify-center"
+        <!-- 导入 MD（B 类 icon + outline） -->
+        <button
+          type="button"
+          class="btn-spec-b btn-spec-b--icon btn-spec-b--outline"
           @click="triggerImport"
           data-tip="导入 Markdown 文件"
-          :aria-label="$attrs['aria-label-import'] || '导入 MD'"
+          :aria-label="(($attrs['aria-label-import'] as string | undefined) ?? '导入 MD')"
         >
-          <Upload class="size-5" />
-        </Button>
+          <Upload class="btn-spec-b__icon" />
+        </button>
         <!-- 导出 MD -->
-        <Button
-          variant="outline"
-          class="h-10 w-10 !rounded-xl
-                 border-[2.5px] !border-brand/50 hover:!border-brand/80
-                 bg-surface-elevated/40 backdrop-blur-sm hover:bg-surface-muted/60
-                 p-0.5 inline-flex items-center justify-center"
+        <button
+          type="button"
+          class="btn-spec-b btn-spec-b--icon btn-spec-b--outline"
           @click="doExport"
           data-tip="导出为 .md 文件"
         >
-          <Download class="size-5" />
-        </Button>
+          <Download class="btn-spec-b__icon" />
+        </button>
         <!-- 草稿预览 -->
-        <Button
-          variant="outline"
-          class="h-10 w-10 !rounded-xl
-                 border-[2.5px] !border-brand/50 hover:!border-brand/80
-                 bg-surface-elevated/40 backdrop-blur-sm hover:bg-surface-muted/60
-                 p-0.5 inline-flex items-center justify-center"
+        <button
+          type="button"
+          class="btn-spec-b btn-spec-b--icon btn-spec-b--outline"
           @click="previewCurrent"
           data-tip="草稿预览（新标签页）"
         >
-          <Eye class="size-5" />
-        </Button>
-        <!-- 删除（编辑态显示） -->
-        <Button
+          <Eye class="btn-spec-b__icon" />
+        </button>
+        <!-- 删除（编辑态显示，B 类 danger） -->
+        <button
           v-if="isEditMode"
-          variant="outline"
-          class="h-10 w-10 !rounded-xl
-                 border-[2.5px] !border-danger/50 hover:!border-danger/85
-                 bg-surface-elevated/40 backdrop-blur-sm hover:bg-danger/5
-                 text-danger hover:text-danger
-                 p-0.5 inline-flex items-center justify-center"
+          type="button"
+          class="btn-spec-b btn-spec-b--icon btn-spec-b--danger"
           @click="deleteConfirming = true"
           data-tip="删除当前文章（不可恢复）"
         >
-          <Trash2 class="size-5" />
-        </Button>
-        <!-- 保存（主色，fill） -->
-        <Button
-          class="h-10 w-10 !rounded-xl
-                 border-[2.5px] !border-brand hover:!border-brand/85
-                 bg-brand hover:bg-brand/90 text-white shadow-md shadow-brand/25
-                 p-0.5 inline-flex items-center justify-center"
+          <Trash2 class="btn-spec-b__icon" />
+        </button>
+        <!-- 保存（B 类 primary 主色） -->
+        <button
+          type="button"
+          class="btn-spec-b btn-spec-b--icon btn-spec-b--primary"
           :disabled="saving"
           @click="doSave"
           data-tip-placement="bottom"
           :data-tip="saving ? '保存中…' : (isEditMode ? '保存修改' : '保存为新文章')"
         >
-          <template v-if="saving"><Sparkles class="size-5 animate-pulse" /></template>
-          <template v-else><Save class="size-5" /></template>
-        </Button>
+          <template v-if="saving"><Sparkles class="btn-spec-b__icon animate-pulse" /></template>
+          <template v-else><Save class="btn-spec-b__icon" /></template>
+        </button>
       </div>
     </div>
 
@@ -813,16 +797,18 @@ function previewCurrent() {
                 </div>
                 <div class="space-y-1.5">
                   <Label>&nbsp;</Label>
-                  <label
-                    class="inline-flex items-center gap-2 h-10 px-3 rounded-lg border border-input cursor-pointer select-none hover:border-brand/50 transition"
-                  >
+                  <!-- 首页精选（B 类规范 · 复选框内嵌） -->
+                  <label class="btn-spec-b btn-spec-b--outline has-checkbox">
                     <input
                       type="checkbox"
-                      class="size-4 accent-brand"
                       v-model="featured"
+                      id="featured-checkbox"
                     />
-                    <Star class="size-4 text-warning" :class="{ 'fill-warning': featured }" />
-                    <span class="text-sm">首页精选</span>
+                    <Star
+                      class="btn-spec-b__icon text-warning"
+                      :class="{ 'fill-warning': featured }"
+                    />
+                    <span for="featured-checkbox">首页精选</span>
                   </label>
                 </div>
               </div>
@@ -1074,16 +1060,26 @@ function previewCurrent() {
                 <template v-else>保存后自动生成公开链接</template>
               </div>
               <div class="flex items-center gap-2">
-                <Button variant="outline" size="sm" @click="closeMeta">完成</Button>
-                <Button
-                  size="sm"
+                <!-- 完成 / 保存（B 类规范） -->
+                <button
+                  type="button"
+                  class="btn-spec-b btn-spec-b--outline"
+                  style="--btn-b-h: 40px; --btn-b-px: 16px; --btn-b-fs: 14px;"
+                  @click="closeMeta"
+                >
+                  完成
+                </button>
+                <button
+                  type="button"
+                  class="btn-spec-b btn-spec-b--primary"
+                  style="--btn-b-h: 40px; --btn-b-px: 16px; --btn-b-fs: 14px;"
                   :disabled="saving"
                   @click="doSave"
                 >
-                  <template v-if="saving"><Sparkles class="size-4 animate-pulse" /></template>
-                  <template v-else><Save class="size-4" /></template>
+                  <template v-if="saving"><Sparkles class="btn-spec-b__icon animate-pulse" /></template>
+                  <template v-else><Save class="btn-spec-b__icon" /></template>
                   <span>{{ saving ? '保存中…' : (isEditMode ? '保存修改' : '保存') }}</span>
-                </Button>
+                </button>
               </div>
             </div>
           </div>

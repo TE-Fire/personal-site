@@ -149,42 +149,33 @@ function onCategoryDialogClose() {
           </span>
         </Button>
       </div>
+      <!-- 筛选 / 管理按钮（B 类规范：微圆角矩形 · 44px 标准档 · 1px 细边 · 65% 图标） -->
       <div class="flex flex-wrap items-center gap-2.5">
-        <Button
+        <button
           v-if="hasActiveFilter"
-          variant="outline"
+          type="button"
+          class="btn-spec-b btn-spec-b--outline"
           @click="resetFilter"
-          class="h-10 px-4 rounded-2xl
-                 border-[3px] !border-brand/45 hover:!border-brand/75
-                 bg-surface-elevated/40 backdrop-blur-md hover:bg-surface-muted/60
-                 text-text-muted hover:text-text
-                 text-sm font-semibold gap-2"
         >
-          <X class="size-[18px] shrink-0" />
+          <X class="btn-spec-b__icon text-text-muted" />
           <span>清除筛选</span>
-        </Button>
-        <Button
-          variant="outline"
+        </button>
+        <button
+          type="button"
+          class="btn-spec-b btn-spec-b--outline"
           @click="categoryDialogOpen = true"
-          class="h-10 px-4 rounded-2xl
-                 border-[3px] !border-brand/45 hover:!border-brand/75
-                 bg-surface-elevated/40 backdrop-blur-md hover:bg-surface-muted/60
-                 text-sm font-semibold gap-2"
         >
-          <Settings2 class="size-[18px] shrink-0" />
+          <Settings2 class="btn-spec-b__icon" />
           <span>分类管理</span>
-        </Button>
-        <Button
-          variant="outline"
+        </button>
+        <button
+          type="button"
+          class="btn-spec-b btn-spec-b--outline"
           @click="router.push('/blog/tags')"
-          class="h-10 px-4 rounded-2xl
-                 border-[3px] !border-brand/45 hover:!border-brand/75
-                 bg-surface-elevated/40 backdrop-blur-md hover:bg-surface-muted/60
-                 text-sm font-semibold gap-2"
         >
-          <Hash class="size-[18px] shrink-0" />
+          <Hash class="btn-spec-b__icon" />
           <span>标签管理</span>
-        </Button>
+        </button>
       </div>
     </section>
 
