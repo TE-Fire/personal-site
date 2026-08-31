@@ -1,8 +1,8 @@
 <script setup lang="ts">
 /**
  * BlogPage · 博客列表（真实文章 + 分类筛选器）。
- * 数据源：onMounted 调 GET /api/posts 拉取分页列表（游客只看 published）。
- *        分类从文章列表聚合；分类管理弹窗仍走 useBlogApi（localStorage）。
+ * 数据源：onMounted 调 GET /api/posts + GET /api/categories 拉取真实数据。
+ *        分类管理弹窗关闭后刷新分类列表，确保数据一致。
  */
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
@@ -25,16 +25,15 @@ import {
   Hash
 } from 'lucide-vue-next'
 import { fetchPosts } from '@/api/post'
-import type { PostVo } from '@/lib/api-types'
-import { useBlogApi } from '@/composables/useBlogApi'
+import { fetchCategories } from '@/api/category'
+import type { PostVo, CategoryVo } from '@/lib/api-types'
 import CategoryManageDialog from '@/components/CategoryManageDialog.vue'
 import BlogSkeleton from '@/components/BlogSkeleton.vue'
 
 const router = useRouter()
-// 分类管理弹窗内部仍依赖 useBlogApi（localStorage 持久化），这里初始化单例
-useBlogApi()
 
 const posts = ref<PostVo[]>([])
+const categories = ref<CategoryVo[]>([])
 const isLoading = ref(true)
 const errorMsg = ref('')
 
@@ -42,8 +41,12 @@ async function loadPosts() {
   isLoading.value = true
   errorMsg.value = ''
   try {
-    const page = await fetchPosts({ page: 1, pageSize: 50 })
+    const [page, cats] = await Promise.all([
+      fetchPosts({ page: 1, pageSize: 50 }),
+      fetchCategories(),
+    ])
     posts.value = page.list
+    categories.value = cats
   } catch (e) {
     errorMsg.value = (e as Error).message
   } finally {
@@ -51,14 +54,21 @@ async function loadPosts() {
   }
 }
 
+/** 仅刷新分类列表（分类管理弹窗关闭后调用） */
+async function reloadCategories() {
+  try {
+    categories.value = await fetchCategories()
+  } catch {
+    /* 静默失败，保持原列表 */
+  }
+}
+
 onMounted(loadPosts)
 
-/** 分类 tab：从文章列表聚合 unique category.name，前置「全部」 */
+/** 分类 tab：用后端真实分类，前置「全部」 */
 const postCategories = computed<string[]>(() => {
-  const names = posts.value
-    .map((p) => p.category?.name)
-    .filter((n): n is string => !!n)
-  return ['全部', ...Array.from(new Set(names))]
+  const names = categories.value.map((c) => c.name)
+  return ['全部', ...names]
 })
 
 const activeCategory = ref<string>('全部')
@@ -81,6 +91,12 @@ watch(postCategories, (list) => {
     activeCategory.value = '全部'
   }
 })
+
+/* 弹窗关闭时刷新分类列表 */
+function onCategoryDialogClose() {
+  categoryDialogOpen.value = false
+  reloadCategories()
+}
 </script>
 
 <template>
@@ -161,7 +177,7 @@ watch(postCategories, (list) => {
     </section>
 
     <!-- 分类管理弹窗 -->
-    <CategoryManageDialog :open="categoryDialogOpen" @close="categoryDialogOpen = false" />
+    <CategoryManageDialog :open="categoryDialogOpen" @close="onCategoryDialogClose" />
 
     <!-- 骨架屏加载 -->
     <BlogSkeleton v-if="isLoading" :count="3" />

@@ -2,10 +2,21 @@
 /**
  * BlogTagsPage · 标签管理（v3 · Command Deck 布局）
  * 左侧固定 Command Deck 侧栏 + 右侧沉浸式 3D 星链视图
+ *
+ * 数据源：onMounted 调 GET /api/tags + GET /api/posts 拉取真实数据。
+ * 增删改 / 合并均调后端接口，不再走 localStorage。
  */
-import { computed, ref, type Directive } from 'vue'
+import { computed, onMounted, ref, type Directive } from 'vue'
 import { useRouter } from 'vue-router'
-import { useBlogApi } from '@/composables/useBlogApi'
+import {
+  fetchTags,
+  createTag,
+  renameTag as renameTagApi,
+  deleteTag as deleteTagApi,
+  mergeTag as mergeTagApi,
+} from '@/api/tag'
+import { fetchPosts } from '@/api/post'
+import type { TagVo, PostVo } from '@/lib/api-types'
 import TagNetwork3D from '@/components/TagNetwork3D.vue'
 import { Button, Input } from '@/components/ui'
 import {
@@ -33,13 +44,30 @@ import {
 } from 'lucide-vue-next'
 
 const router = useRouter()
-const { allTagsWithCount, addTag, renameTag, mergeTag, deleteTag, allPosts } = useBlogApi()
 
-const totalTags = computed(() => allTagsWithCount.value.length)
-const totalPosts = computed(() => allPosts.value.length)
+const tags = ref<TagVo[]>([])
+const posts = ref<PostVo[]>([])
+
+async function loadData() {
+  try {
+    const [t, p] = await Promise.all([
+      fetchTags(),
+      fetchPosts({ page: 1, pageSize: 100 }),
+    ])
+    tags.value = t
+    posts.value = p.list
+  } catch {
+    /* 静默失败，列表保持空 */
+  }
+}
+
+onMounted(loadData)
+
+const totalTags = computed(() => tags.value.length)
+const totalPosts = computed(() => posts.value.length)
 const avgTagsPerPost = computed(() => {
   if (totalPosts.value === 0) return 0
-  const uses = allPosts.value.reduce((acc, p) => acc + p.tags.length, 0)
+  const uses = posts.value.reduce((acc, p) => acc + p.tags.length, 0)
   return Math.round((uses / totalPosts.value) * 10) / 10
 })
 
@@ -48,10 +76,18 @@ const selectedTag = ref<string | null>(null)
 const tagNetworkRef = ref<InstanceType<typeof TagNetwork3D> | null>(null)
 
 const filteredTags = computed(() => {
-  if (!searchQuery.value.trim()) return allTagsWithCount.value
+  if (!searchQuery.value.trim()) return tags.value
   const q = searchQuery.value.toLowerCase()
-  return allTagsWithCount.value.filter((t) => t.name.toLowerCase().includes(q))
+  return tags.value.filter((t) => t.name.toLowerCase().includes(q))
 })
+
+/** 给 3D 网络图的适配数据（TagNetwork3D 期望 {name,count}[] / {tags:string[]}[]） */
+const networkTags = computed(() =>
+  filteredTags.value.map((t) => ({ name: t.name, count: t.postCount })),
+)
+const networkPosts = computed(() =>
+  posts.value.map((p) => ({ tags: p.tags.map((t) => t.name) })),
+)
 
 function onSelectTag(name: string) {
   selectedTag.value = selectedTag.value === name ? null : name
@@ -68,9 +104,13 @@ const creating = ref(false)
 const newTagName = ref('')
 function startCreate() { creating.value = true; newTagName.value = '' }
 function cancelCreate() { creating.value = false; newTagName.value = '' }
-function confirmCreate() {
+async function confirmCreate() {
   const name = newTagName.value.trim()
-  if (name) addTag(name)
+  if (!name) { cancelCreate(); return }
+  try {
+    const created = await createTag({ name })
+    tags.value = [...tags.value, created]
+  } catch { /* ignore */ }
   cancelCreate()
 }
 
@@ -79,8 +119,17 @@ const renaming = ref(false)
 const renameValue = ref('')
 function startRename() { renaming.value = true; renameValue.value = selectedTag.value ?? '' }
 function cancelRename() { renaming.value = false; renameValue.value = '' }
-function confirmRename() {
-  if (selectedTag.value && renameValue.value.trim()) renameTag(selectedTag.value, renameValue.value.trim())
+async function confirmRename() {
+  if (!selectedTag.value) return
+  const newName = renameValue.value.trim()
+  if (!newName) { cancelRename(); return }
+  const target = tags.value.find((t) => t.name === selectedTag.value)
+  if (!target) { cancelRename(); return }
+  try {
+    const updated = await renameTagApi(target.id, newName)
+    tags.value = tags.value.map((t) => (t.id === updated.id ? updated : t))
+    selectedTag.value = newName
+  } catch { /* ignore */ }
   cancelRename()
 }
 
@@ -88,8 +137,15 @@ function confirmRename() {
 const deleting = ref(false)
 function startDelete() { deleting.value = true }
 function cancelDelete() { deleting.value = false }
-function confirmDelete() {
-  if (selectedTag.value) { deleteTag(selectedTag.value); clearSelection() }
+async function confirmDelete() {
+  if (!selectedTag.value) return
+  const target = tags.value.find((t) => t.name === selectedTag.value)
+  if (!target) { cancelDelete(); return }
+  try {
+    await deleteTagApi(target.id)
+    tags.value = tags.value.filter((t) => t.id !== target.id)
+    clearSelection()
+  } catch { /* ignore */ }
   cancelDelete()
 }
 
@@ -98,40 +154,41 @@ const merging = ref(false)
 const mergeTarget = ref('')
 function startMerge() { merging.value = true; mergeTarget.value = '' }
 function cancelMerge() { merging.value = false; mergeTarget.value = '' }
-function confirmMerge() {
-  if (selectedTag.value && mergeTarget.value && mergeTarget.value !== selectedTag.value) {
-    mergeTag(selectedTag.value, mergeTarget.value)
-    clearSelection()
+async function confirmMerge() {
+  if (!selectedTag.value || !mergeTarget.value || mergeTarget.value === selectedTag.value) {
+    cancelMerge()
+    return
   }
+  const source = tags.value.find((t) => t.name === selectedTag.value)
+  const target = tags.value.find((t) => t.name === mergeTarget.value)
+  if (!source || !target) { cancelMerge(); return }
+  try {
+    await mergeTagApi(source.id, target.id)
+    await loadData()
+    clearSelection()
+  } catch { /* ignore */ }
   cancelMerge()
 }
 const mergeOptions = computed(() => {
   if (!selectedTag.value) return []
-  return allTagsWithCount.value.filter((t) => t.name !== selectedTag.value).map((t) => t.name)
+  return tags.value.filter((t) => t.name !== selectedTag.value).map((t) => t.name)
 })
 
 const selectedInfo = computed(() => {
   if (!selectedTag.value) return null
-  return allTagsWithCount.value.find((t) => t.name === selectedTag.value) || null
+  return tags.value.find((t) => t.name === selectedTag.value) || null
 })
-const editableTagNames = computed(() => {
-  const set = new Set<string>()
-  allPosts.value.forEach((p) => { if (p.source === 'user') p.tags.forEach((t) => set.add(t)) })
-  allTagsWithCount.value.forEach((t) => { if (t.count === 0) set.add(t.name) })
-  return set
-})
-const canEdit = computed(() => selectedTag.value ? editableTagNames.value.has(selectedTag.value) : false)
-const isBuiltInOnly = computed(() => {
-  if (!selectedTag.value) return false
-  return !allPosts.value.some((p) => p.source === 'user' && p.tags.includes(selectedTag.value!))
-})
+
+/** 后端所有标签均可管理（博主登录后），不再区分内置/用户 */
+const canEdit = computed(() => !!selectedTag.value)
+const isBuiltInOnly = computed(() => false)
 
 const vFocus: Directive<HTMLElement> = {
   mounted: (el) => el.focus()
 }
 
 /* ---------- 快捷统计 ---------- */
-const hotTags = computed(() => [...allTagsWithCount.value].sort((a, b) => b.count - a.count).slice(0, 5))
+const hotTags = computed(() => [...tags.value].sort((a, b) => b.postCount - a.postCount).slice(0, 5))
 
 /* ---------- 3D 星链联动 ---------- */
 const hoveredTagLabel = computed(() => {
@@ -215,7 +272,7 @@ const hoveredTagLabel = computed(() => {
               }"
             >{{ idx + 1 }}</span>
             <span class="truncate flex-1 text-xs font-medium">{{ t.name }}</span>
-            <span class="text-[10px] text-text-muted tabular-nums shrink-0">{{ t.count }}</span>
+            <span class="text-[10px] text-text-muted tabular-nums shrink-0">{{ t.postCount }}</span>
           </button>
           <div v-if="hotTags.length === 0" class="text-[11px] text-text-muted text-center py-2">暂无标签</div>
         </div>
@@ -286,7 +343,7 @@ const hoveredTagLabel = computed(() => {
             <span class="truncate flex-1">{{ t.name }}</span>
             <span class="text-[10px] tabular-nums shrink-0 px-1.5 py-0.5 rounded"
               :class="selectedTag === t.name ? 'bg-white/20' : 'bg-brand/10 text-brand'">
-              {{ t.count }}
+              {{ t.postCount }}
             </span>
           </button>
           <div v-if="filteredTags.length === 0" class="text-center text-[11px] text-text-muted py-4">
@@ -309,8 +366,8 @@ const hoveredTagLabel = computed(() => {
       <!-- 3D 画布 -->
       <TagNetwork3D
         ref="tagNetworkRef"
-        :tags="filteredTags"
-        :posts="allPosts"
+        :tags="networkTags"
+        :posts="networkPosts"
         class="absolute inset-0 z-0"
         @select-tag="onSelectTag"
       />
@@ -397,7 +454,7 @@ const hoveredTagLabel = computed(() => {
                     <div class="flex items-center gap-2 mt-1.5 flex-wrap">
                       <span class="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-brand/15 text-brand font-semibold">
                         <span class="size-1.5 rounded-full bg-brand" />
-                        {{ selectedInfo?.count ?? 0 }} 篇文章
+                        {{ selectedInfo?.postCount ?? 0 }} 篇文章
                       </span>
                       <span v-if="isBuiltInOnly" class="text-[11px] text-amber-500 flex items-center gap-0.5">
                         <Star class="size-3" />
@@ -459,7 +516,7 @@ const hoveredTagLabel = computed(() => {
                 <div class="p-4 space-y-3">
                   <div class="p-3 rounded-lg bg-red-500/10 border border-red-500/30">
                     <p class="text-xs text-red-600 leading-relaxed">
-                      确定删除 <span class="font-semibold">#{{ selectedTag }}</span>？将从 {{ selectedInfo?.count ?? 0 }} 篇文章中移除。
+                      确定删除 <span class="font-semibold">#{{ selectedTag }}</span>？将从 {{ selectedInfo?.postCount ?? 0 }} 篇文章中移除。
                     </p>
                   </div>
                   <div class="flex gap-2">
@@ -528,9 +585,9 @@ const hoveredTagLabel = computed(() => {
                       共现关系
                     </div>
                     <div class="p-4 rounded-xl bg-brand/3 border border-brand/10 text-xs text-text-muted leading-relaxed">
-                      <template v-if="selectedInfo && selectedInfo.count > 0">
-                        该标签与 <span class="font-semibold text-brand">{{ Math.min(selectedInfo.count + 2, 10) }}</span> 个其他标签存在共现关系，
-                        是 {{ selectedInfo.count >= 3 ? '热门' : '活跃' }} 标签网络的一部分。
+                      <template v-if="selectedInfo && selectedInfo.postCount > 0">
+                        该标签与 <span class="font-semibold text-brand">{{ Math.min(selectedInfo.postCount + 2, 10) }}</span> 个其他标签存在共现关系，
+                        是 {{ selectedInfo.postCount >= 3 ? '热门' : '活跃' }} 标签网络的一部分。
                       </template>
                       <template v-else>
                         该标签暂无共现关系。当文章开始使用它时，会在此形成连接。

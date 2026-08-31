@@ -151,3 +151,23 @@
 - [x] prefers-reduced-motion 完整覆盖：打字机直接显示、Vanta 完全跳过走 fallback、GSAP 滚动进入直接跳过
 - [x] `npm run typecheck` 0 错误；`npm run build` 0 错误（仅 three chunk 警告，不阻断部署）
 
+---
+
+## 2026-08-31 · Post 模块前端接入后端 API
+
+> 主题：博客列表/详情页从 localStorage + 静态文件改为调用后端 REST API（之前数据已落库但前端未发起请求）
+
+### 完成项
+- F1 新增 `src/api/post.ts`，封装 GET /api/posts、GET /api/posts/slug/:slug、GET /api/posts/:id、POST/PUT/DELETE；补充 `src/lib/api-types.ts` 的 PostVo / PostPageVo / QueryPostParams / CategoryVo / TagVo 类型
+- F2 `BlogPage.vue` 改为 onMounted 调 `fetchPosts({page:1,pageSize:50})`；分类 tab 由文章列表聚合（前置「全部」）；适配对象型 `category.name` / `tags[].name`、ISO `createdAt.slice(0,10)`、`readMinutes`；新增加载骨架 / 错误重试块；移除 `source==='user'` 判断（后端文章均为博主可编辑）
+- F3 `BlogDetailPage.vue` 改为 onMounted 调 `fetchPostBySlug(slug)`；保留 `?preview=1` 草稿预览分支，用 `previewToVo()` 把旧 ExtendedBlogPost 形状适配为 PostVo；新增加载 / 错误态 Card；元信息行改用 `createdAt` / `readMinutes` / `updatedAt`
+- F4 `npm run build`（vue-tsc -b + vite build）通过，exit 0
+
+### 提交
+- commit c545ae6 `task: 前端博客列表与详情页接入后端 Post API 发起请求`（4 files changed, 315 insertions, 64 deletions）
+
+### 备注 / 待办
+- BlogEditorPage 仍走 useBlogApi（localStorage），未接入后端 CRUD，留待后续
+- CategoryManageDialog / BlogTagsPage 仍依赖 useBlogApi，分类与标签管理暂为本地态
+- 前端默认 baseURL `http://localhost:3000/api`，需后端 NestJS 服务运行中才会真实发起请求
+

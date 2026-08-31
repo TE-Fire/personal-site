@@ -2,8 +2,11 @@
 /**
  * CategoryManageDialog.vue · 博客分类管理弹窗
  *
+ * 数据源：打开时调 GET /api/categories 拉取真实分类（含 postCount）。
+ * 增删改均调后端接口（POST/PUT/DELETE /api/categories），不再走 localStorage。
+ *
  * 功能：
- *   · 列表：分类名 + 使用次数徽标 + 重命名 / 删除
+ *   · 列表：分类名 + 文章数徽标 + 重命名 / 删除
  *   · 新增：顶部输入 + 添加按钮
  *   · 内联重命名：编辑态切为 input + 确认/取消
  *   · 删除二次确认：内联确认 + 至少保留 1 个分类
@@ -12,7 +15,13 @@
  * 由父级通过 `open` prop 驱动显隐，关闭时 emit('close')。
  */
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { useBlogApi } from '@/composables/useBlogApi'
+import {
+  fetchCategories,
+  createCategory,
+  updateCategory,
+  deleteCategory,
+} from '@/api/category'
+import type { CategoryVo } from '@/lib/api-types'
 import { Button, Card, Input, Label } from '@/components/ui'
 import { Plus, Pencil, Trash2, Check, X, FolderOpen } from 'lucide-vue-next'
 
@@ -22,22 +31,18 @@ interface Props {
 const props = defineProps<Props>()
 const emit = defineEmits<{ close: [] }>()
 
-const { categories, allPosts, addCategory, renameCategory, deleteCategory } = useBlogApi()
+const categories = ref<CategoryVo[]>([])
+const isLoading = ref(false)
 
-/* ---------------- 计数 ---------------- */
-
-/** 每个分类被多少篇文章使用（含内置文章） */
-const categoryCount = computed<Map<string, number>>(() => {
-  const map = new Map<string, number>()
-  for (const c of categories.value) map.set(c, 0)
-  for (const p of allPosts.value) {
-    map.set(p.category, (map.get(p.category) ?? 0) + 1)
+async function loadCategories() {
+  isLoading.value = true
+  try {
+    categories.value = await fetchCategories()
+  } catch {
+    /* 静默失败，列表保持原状 */
+  } finally {
+    isLoading.value = false
   }
-  return map
-})
-
-function countOf(name: string): number {
-  return categoryCount.value.get(name) ?? 0
 }
 
 /** 仅剩 1 个分类时禁止删除 */
@@ -47,25 +52,27 @@ const canDeleteAny = computed(() => categories.value.length > 1)
 
 const newCategoryName = ref('')
 
-function onAdd() {
+async function onAdd() {
   const name = newCategoryName.value.trim()
   if (!name) return
-  if (addCategory(name)) {
+  try {
+    const created = await createCategory({ name })
+    categories.value = [...categories.value, created]
     newCategoryName.value = ''
     showFeedback('success', `已添加「${name}」`)
-  } else {
-    showFeedback('error', '添加失败：名称为空或已存在')
+  } catch (e) {
+    showFeedback('error', (e as Error).message || '添加失败：名称为空或已存在')
   }
 }
 
 /* ---------------- 内联重命名 ---------------- */
 
-const editingCategory = ref<string | null>(null)
+const editingId = ref<number | null>(null)
 const editingName = ref('')
 
-async function startEdit(name: string) {
-  editingCategory.value = name
-  editingName.value = name
+async function startEdit(cat: CategoryVo) {
+  editingId.value = cat.id
+  editingName.value = cat.name
   confirmingDelete.value = null
   await nextTick()
   editInputEl.value?.focus()
@@ -73,57 +80,60 @@ async function startEdit(name: string) {
 }
 
 function cancelEdit() {
-  editingCategory.value = null
+  editingId.value = null
   editingName.value = ''
 }
 
-function confirmRename() {
-  const oldName = editingCategory.value
-  if (!oldName) return
+async function confirmRename() {
+  if (!editingId.value) return
   const newName = editingName.value.trim()
   if (!newName) {
     showFeedback('error', '名称不能为空')
     return
   }
-  if (newName === oldName) {
+  const old = categories.value.find((c) => c.id === editingId.value)
+  if (old && newName === old.name) {
     cancelEdit()
     return
   }
-  if (renameCategory(oldName, newName)) {
-    editingCategory.value = null
-    editingName.value = ''
+  try {
+    const updated = await updateCategory(editingId.value, { name: newName })
+    categories.value = categories.value.map((c) => (c.id === updated.id ? updated : c))
+    cancelEdit()
     showFeedback('success', `已重命名为「${newName}」`)
-  } else {
-    showFeedback('error', '重命名失败：名称为空或已存在')
+  } catch (e) {
+    showFeedback('error', (e as Error).message || '重命名失败：名称为空或已存在')
   }
 }
 
 /* ---------------- 删除二次确认 ---------------- */
 
-const confirmingDelete = ref<string | null>(null)
+const confirmingDelete = ref<number | null>(null)
 
-function startDeleteConfirm(name: string) {
+function startDeleteConfirm(cat: CategoryVo) {
   if (!canDeleteAny.value) return
-  confirmingDelete.value = name
-  editingCategory.value = null
+  confirmingDelete.value = cat.id
+  editingId.value = null
 }
 
 function cancelDelete() {
   confirmingDelete.value = null
 }
 
-function confirmDelete() {
-  const name = confirmingDelete.value
-  if (!name) return
+async function confirmDelete() {
+  const id = confirmingDelete.value
+  if (!id) return
   if (!canDeleteAny.value) {
     showFeedback('error', '至少保留 1 个分类')
     return
   }
-  if (deleteCategory(name)) {
+  try {
+    await deleteCategory(id)
+    categories.value = categories.value.filter((c) => c.id !== id)
     confirmingDelete.value = null
-    showFeedback('success', `已删除「${name}」`)
-  } else {
-    showFeedback('error', '删除失败')
+    showFeedback('success', '已删除')
+  } catch (e) {
+    showFeedback('error', (e as Error).message || '删除失败')
   }
 }
 
@@ -156,8 +166,8 @@ function onKeydown(ev: KeyboardEvent) {
   if (ev.key === 'Escape') {
     ev.preventDefault()
     // 先取消内联编辑/确认，再关闭弹窗
-    if (editingCategory.value || confirmingDelete.value) {
-      editingCategory.value = null
+    if (editingId.value || confirmingDelete.value) {
+      editingId.value = null
       confirmingDelete.value = null
     } else {
       emit('close')
@@ -167,7 +177,7 @@ function onKeydown(ev: KeyboardEvent) {
 
 function resetState() {
   newCategoryName.value = ''
-  editingCategory.value = null
+  editingId.value = null
   editingName.value = ''
   confirmingDelete.value = null
   feedback.value = null
@@ -183,13 +193,17 @@ watch(
     document.body.style.overflow = v ? 'hidden' : ''
     if (v) {
       resetState()
+      loadCategories()
       await nextTick()
       addInputEl.value?.focus()
     }
   }
 )
 
-onMounted(() => window.addEventListener('keydown', onKeydown))
+onMounted(() => {
+  window.addEventListener('keydown', onKeydown)
+  loadCategories()
+})
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onKeydown)
   document.body.style.overflow = ''
@@ -316,11 +330,11 @@ function bindEditInput(el: any) {
 
                 <div
                   v-for="cat in categories"
-                  :key="cat"
+                  :key="cat.id"
                   class="flex items-center justify-between gap-3 rounded-lg px-3 py-2 transition-colors hover:bg-surface-muted"
                 >
                   <!-- 内联重命名态 -->
-                  <template v-if="editingCategory === cat">
+                  <template v-if="editingId === cat.id">
                     <Input
                       :ref="bindEditInput"
                       v-model="editingName"
@@ -353,11 +367,11 @@ function bindEditInput(el: any) {
                   </template>
 
                   <!-- 删除确认态 -->
-                  <template v-else-if="confirmingDelete === cat">
+                  <template v-else-if="confirmingDelete === cat.id">
                     <span class="flex min-w-0 flex-1 items-center gap-1.5 text-sm text-danger">
                       <Trash2 class="size-4 shrink-0" />
                       <span class="truncate">
-                        确认删除「{{ cat }}」？<template v-if="countOf(cat) > 0">（{{ countOf(cat) }} 篇将迁移）</template>
+                        确认删除「{{ cat.name }}」？<template v-if="cat.postCount > 0">（{{ cat.postCount }} 篇将迁移）</template>
                       </span>
                     </span>
                     <div class="flex shrink-0 items-center gap-1">
@@ -374,11 +388,11 @@ function bindEditInput(el: any) {
                   <!-- 正常态 -->
                   <template v-else>
                     <div class="flex min-w-0 flex-1 items-center gap-2">
-                      <span class="truncate text-sm font-medium">{{ cat }}</span>
+                      <span class="truncate text-sm font-medium">{{ cat.name }}</span>
                       <span
                         class="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-surface-muted px-1.5 text-[11px] tabular-nums text-text-muted"
                       >
-                        {{ countOf(cat) }}
+                        {{ cat.postCount }}
                       </span>
                     </div>
                     <div class="flex shrink-0 items-center gap-2">
@@ -392,14 +406,14 @@ function bindEditInput(el: any) {
                         <Pencil class="size-5" />
                       </button>
                       <span
-                        :title="!canDeleteAny ? '至少保留 1 个分类' : `删除「${cat}」`"
+                        :title="!canDeleteAny ? '至少保留 1 个分类' : `删除「${cat.name}」`"
                         class="inline-flex"
                       >
                         <button
                           type="button"
                           class="inline-flex size-9 items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-danger/10 hover:text-danger cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                           :disabled="!canDeleteAny"
-                          :aria-label="!canDeleteAny ? '至少保留 1 个分类' : `删除${cat}`"
+                          :aria-label="!canDeleteAny ? '至少保留 1 个分类' : `删除${cat.name}`"
                           @click="startDeleteConfirm(cat)"
                         >
                           <Trash2 class="size-5" />
