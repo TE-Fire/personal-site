@@ -35,10 +35,19 @@ const isLoginPage = computed(() => route.path === '/login')
       <main class="flex-1 w-full relative z-10">
         <div class="mx-auto w-full max-w-6xl px-6 md:px-10 lg:px-14 py-8 md:py-12">
           <RouterView v-slot="{ Component, route: r }">
-            <!-- 并行交叠过渡：两页同时淡入淡出，无"断档"；全局 CSS 定义 -->
-            <Transition name="page">
-              <component :is="Component" :key="r.fullPath" />
-            </Transition>
+            <!--
+              路由级转场：mode="out-in" 串行（先退后进）
+              为什么不用并行？并行要求每页 absolute + 父容器相对定位，
+              而博客详情页/标签页高度不定，absolute 会让容器高度塌陷，
+              造成两页在文档流里上下堆叠 → 视觉错乱 / 卡死。
+              串行通过一个内联骨架遮罩 (.buffer) 填满空窗 225ms，
+              视觉上依然"连贯不断档"，同时 100% 稳定不卡。
+            -->
+            <div class="transition-buffer relative">
+              <Transition name="page" mode="out-in">
+                <component :is="Component" :key="r.fullPath" />
+              </Transition>
+            </div>
           </RouterView>
         </div>
       </main>
@@ -53,12 +62,14 @@ const isLoginPage = computed(() => route.path === '/login')
 
     <!-- ========= 登录页：直接渲染 RouterView，独占全屏 ========= -->
     <template v-else>
-      <main class="flex-1 w-full">
+      <main class="flex-1 w-full relative">
         <RouterView v-slot="{ Component, route: r }">
-          <!-- 登录页轻过渡：只做 opacity，避免与左右分栏/全屏布局冲突 -->
-          <Transition name="page-login">
-            <component :is="Component" :key="r.fullPath" />
-          </Transition>
+          <div class="transition-buffer">
+            <!-- 登录页轻过渡：只做 opacity，避免与左右分栏/全屏布局冲突 -->
+            <Transition name="page-login" mode="out-in">
+              <component :is="Component" :key="r.fullPath" />
+            </Transition>
+          </div>
         </RouterView>
       </main>
     </template>
