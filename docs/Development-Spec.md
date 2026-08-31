@@ -1025,7 +1025,7 @@ findCached(cacheKey, dbQuery, publicOnly=true)
 | Phase 3-1 | PostController `@Controller('posts')` + OptionalJwtAuthGuard + JwtAuthGuard + authorId 注入 | ✅ 完成 |
 | Phase 3-2 | PostService Redis 缓存 — 防穿透(空值缓存)/击穿(singleflight)/雪崩(TTL随机化)/降级 | ✅ 完成 |
 | Phase 3-3 | ContributionService `tableExists('post')` 接通，热力图统计真实数据 | 📝 待开发 |
-| Phase 4 | Category + Tag 模块（CRUD + rename/merge/delete） | 📝 待开发 |
+| Phase 4 | Category + Tag 模块（CRUD + rename/merge/delete） | ✅ 完成 |
 | Phase 5 | `seed-posts.mjs` 导入 8 篇内置文章 + `verify-post.mjs` 端到端 13/13 通过 | ✅ 完成 |
 
 > **架构遵循**：本模块严格遵循 [NestJS-Architecture-Guide.md](./NestJS-Architecture-Guide.md) 的分层架构（Controller → Service → Prisma，不抽 Repository）、模块化设计（`@Module` 注册 controllers + providers）、依赖注入（`PrismaService` 全局注入）、统一异常处理（`BusinessException` + 全局过滤器）、统一响应封装（`Result<T>`）。
