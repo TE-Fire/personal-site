@@ -16,6 +16,7 @@
 import { computed, onMounted, onBeforeUnmount, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
+  AlertTriangle,
   ArrowLeft,
   Calendar,
   Clock3,
@@ -190,9 +191,16 @@ async function loadPost() {
 
 onMounted(loadPost)
 
-/* ---------- 重试 ---------- */
+/* ---------- 重试 / 返回 ---------- */
 function retry() {
   loadPost()
+}
+function goBackBlog() {
+  // 始终返回博客列表（优先 router.back，若栈无历史则 push 到 /blog，避免卡死）
+  if (window.history.length > 1) {
+    try { router.back(); return } catch { /* noop */ }
+  }
+  router.push('/blog')
 }
 
 /* ---------- 工具 ---------- */
@@ -249,28 +257,90 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- API 拉取中：加载占位 -->
-    <Card v-if="isLoading" class="mx-auto max-w-lg text-center">
-      <CardContent class="py-10 text-text-muted">
-        <Loader2 class="size-6 animate-spin mx-auto mb-3 text-brand" />
-        <p>正在加载文章…</p>
-      </CardContent>
-    </Card>
+    <!-- ============================================================
+         C3 · 加载中 → 骨架屏 + Shimmer（替代僵硬的单一 spinner）
+         布局模拟最终详情页结构：面包屑 / 标题头卡片 / 标签 / 封面 / 多行正文
+         ============================================================ -->
+    <section v-if="isLoading" aria-busy="true" aria-label="正在加载文章" class="space-y-8">
+      <!-- 顶部导航条骨架 -->
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-3">
+          <div class="skeleton" style="width:40px;height:40px;border-radius:10px;"></div>
+          <div class="skeleton skeleton-line" style="width:220px;margin:0;"></div>
+        </div>
+        <div class="flex items-center gap-2">
+          <div class="skeleton skeleton-chip" style="width:82px;"></div>
+          <div class="skeleton skeleton-chip" style="width:92px;"></div>
+          <div class="skeleton" style="width:96px;height:36px;border-radius:9px;"></div>
+        </div>
+      </div>
 
-    <!-- 错误 / 超时 -->
-    <Card v-else-if="hasError" class="mx-auto max-w-lg text-center border-destructive/30">
-      <CardContent class="py-8 space-y-3">
-        <p class="text-destructive font-medium">{{ errorMsg }}</p>
-        <div class="flex justify-center gap-2 pt-2">
-          <Button variant="outline" @click="router.push('/blog')">
-            <ArrowLeft class="size-4" /> 返回博客
+      <!-- 头部卡片骨架：标题 / 摘要 / 日期时长 / 标签 / 封面 -->
+      <section class="rounded-2xl border border-border/50 bg-surface-muted/25 px-6 py-8 md:px-10 md:py-10 space-y-7">
+        <div class="space-y-5">
+          <div class="skeleton skeleton-h1"></div>
+          <div class="skeleton skeleton-h2" style="width:80%;"></div>
+          <div class="skeleton skeleton-line" style="width:92%;"></div>
+          <div class="skeleton skeleton-line" style="width:74%;"></div>
+        </div>
+        <div class="flex flex-wrap items-center gap-x-5 gap-y-2">
+          <div class="skeleton skeleton-chip" style="width:112px;height:22px;"></div>
+          <div class="skeleton skeleton-chip" style="width:150px;height:22px;"></div>
+          <div class="skeleton skeleton-chip" style="width:140px;height:22px;"></div>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <div class="skeleton skeleton-chip" style="width:72px;"></div>
+          <div class="skeleton skeleton-chip" style="width:88px;"></div>
+          <div class="skeleton skeleton-chip" style="width:64px;"></div>
+          <div class="skeleton skeleton-chip" style="width:108px;"></div>
+        </div>
+        <div class="skeleton skeleton-cover" style="height:260px;"></div>
+      </section>
+
+      <!-- 正文段落骨架：3 段 + 一个"代码块" + 2 段 -->
+      <div class="mx-auto w-full max-w-3xl space-y-5 py-6">
+        <div class="skeleton skeleton-line-lg" style="width:100%;"></div>
+        <div class="skeleton skeleton-line-lg" style="width:96%;"></div>
+        <div class="skeleton skeleton-line-lg" style="width:88%;"></div>
+        <div class="skeleton skeleton-line-lg" style="width:72%;"></div>
+        <div class="skeleton skeleton-code" style="height:170px;margin:16px 0;"></div>
+        <div class="skeleton skeleton-line-lg" style="width:94%;"></div>
+        <div class="skeleton skeleton-line-lg" style="width:86%;"></div>
+        <div class="skeleton skeleton-line-lg" style="width:64%;"></div>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         错误 / 超时：正上方突出的「返回」按钮（主）+ 重试（次）
+         用户：加载失败直接引导用户返回而不是一直卡死
+         ============================================================ -->
+    <section v-else-if="hasError" aria-live="assertive" class="mx-auto w-full max-w-2xl">
+      <div class="rounded-2xl border border-danger/40 bg-gradient-to-br from-danger/10 via-transparent to-transparent px-6 py-8 md:px-10 md:py-10 shadow-xl shadow-black/10 text-center space-y-6">
+        <div class="mx-auto flex items-center justify-center size-14 rounded-2xl bg-danger/15 text-danger">
+          <AlertTriangle class="size-7" />
+        </div>
+        <div class="space-y-2">
+          <h2 class="text-xl md:text-2xl font-semibold tracking-tight text-text">无法加载这篇文章</h2>
+          <p class="text-text-secondary leading-relaxed">{{ errorMsg }}</p>
+          <p class="text-sm text-text-muted">建议先返回博客列表，换篇文章看看，或稍后再试。</p>
+        </div>
+        <div class="flex flex-wrap items-center justify-center gap-3 pt-2">
+          <!-- 主按钮：立即返回博客（符合用户"直接引导返回"需求） -->
+          <Button variant="default" size="lg" @click="goBackBlog">
+            <ArrowLeft class="size-4" />
+            返回博客列表
           </Button>
-          <Button @click="retry">
-            <RefreshCw class="size-4" /> 重试
+          <Button variant="outline" size="lg" @click="retry">
+            <RefreshCw class="size-4" />
+            再试一次
+          </Button>
+          <Button variant="ghost" size="lg" @click="router.push('/')">
+            <Home class="size-4" />
+            回到首页
           </Button>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </section>
 
     <!-- 不存在 -->
     <Card v-else-if="!post" class="mx-auto max-w-lg text-center">
@@ -349,19 +419,27 @@ onMounted(() => {
         </div>
       </section>
 
-      <!-- 正文区域：解析中显示过渡动画，完成后替换 -->
-      <Transition name="fade-up">
-        <!-- 解析中 -->
-        <div v-if="isParsing" class="md-preview mx-auto w-full max-w-3xl py-16 text-center">
-          <div class="inline-flex items-center gap-3 px-5 py-3 rounded-full bg-brand/10 border border-brand/30">
-            <Loader2 class="size-4 animate-spin text-brand" />
-            <span class="text-sm text-text">正在渲染正文…</span>
+      <!-- 正文区域：解析中显示 shimmer 骨架，完成后替换（out-in 过渡） -->
+      <Transition name="fade-up" mode="out-in">
+        <!-- 解析中（小尺寸正文骨架，比 API 加载更短，避免用户误以为还没拉取） -->
+        <div v-if="isParsing" key="parsing" class="mx-auto w-full max-w-3xl py-10 space-y-4" aria-busy="true" aria-label="正在渲染正文">
+          <div class="inline-flex items-center gap-2 text-sm text-text-muted px-3 py-1 rounded-full bg-brand/10 border border-brand/20">
+            <Loader2 class="size-3.5 animate-spin text-brand" />
+            <span>正在排版正文…（大文章需要多几秒）</span>
           </div>
+          <div class="skeleton skeleton-line-lg" style="width:100%;"></div>
+          <div class="skeleton skeleton-line-lg" style="width:96%;"></div>
+          <div class="skeleton skeleton-line-lg" style="width:88%;"></div>
+          <div class="skeleton skeleton-code" style="height:150px;margin:6px 0;"></div>
+          <div class="skeleton skeleton-line-lg" style="width:90%;"></div>
+          <div class="skeleton skeleton-line-lg" style="width:78%;"></div>
+          <div class="skeleton skeleton-line-lg" style="width:62%;"></div>
         </div>
 
         <!-- 渲染完成 -->
         <div
           v-else
+          key="done"
           data-reveal
           class="md-preview markdown-body mx-auto w-full max-w-3xl text-[16px] leading-[1.95]"
           v-html="rendered"

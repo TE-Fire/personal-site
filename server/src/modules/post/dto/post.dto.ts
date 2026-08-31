@@ -82,11 +82,13 @@ export class CreatePostDto {
 
   @ApiPropertyOptional({
     example: '/uploads/covers/nestjs-intro.jpg',
-    maxLength: 500,
+    description:
+      '封面图片地址（普通 URL 或 base64 DataURL 皆可；DataURL 用于本地上传预览，长度放宽到 8,000,000 字符≈支持 6MB 级图片）',
+    maxLength: 8_000_000,
   })
   @IsString()
   @IsOptional()
-  @Length(0, 500)
+  @Length(0, 8_000_000)
   cover?: string;
 
   @ApiPropertyOptional({ example: false })
@@ -150,10 +152,13 @@ export class UpdatePostDto {
   @IsOptional()
   content?: string;
 
-  @ApiPropertyOptional({ maxLength: 500 })
+  @ApiPropertyOptional({
+    maxLength: 8_000_000,
+    description: '同 CreatePostDto.cover，支持 URL / DataURL',
+  })
   @IsString()
   @IsOptional()
-  @Length(0, 500)
+  @Length(0, 8_000_000)
   cover?: string;
 
   @ApiPropertyOptional()

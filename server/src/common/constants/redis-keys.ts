@@ -50,8 +50,8 @@ export const REDIS_TTL = {
   LOCK_DEFAULT: 30,
   /** 贡献热力图 · 本站聚合：6 小时（发博客时才需要删缓存） */
   CONTRIB_SITE: 6 * 3600,
-  /** 贡献热力图 · GitHub 抓取：24 小时（GitHub 以 UTC+0 为日维度，1 天最多变化一次） */
-  CONTRIB_GITHUB: 24 * 3600,
+  /** 贡献热力图 · GitHub 抓取：1 小时（GitHub 以 UTC+0 为日维度，每 1 小时拉取一次） */
+  CONTRIB_GITHUB: 1 * 3600,
   /** 贡献热力图 · 合并视图：6 小时（跟随 SITE/GitHub 更新，失效时双源合并重算） */
   CONTRIB_MERGED: 6 * 3600,
 } as const;

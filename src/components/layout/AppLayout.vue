@@ -13,6 +13,7 @@ import Header from './Header.vue'
 import Footer from './Footer.vue'
 import DraggableCharacter from '@/components/DraggableCharacter.vue'
 import DraggableStatsWidget from '@/components/DraggableStatsWidget.vue'
+import AppToaster from '@/components/AppToaster.vue'
 
 const route = useRoute()
 
@@ -27,6 +28,9 @@ const isLoginPage = computed(() => route.path === '/login')
       aria-hidden
       class="pointer-events-none fixed inset-0 -z-10 site-bg"
     />
+
+    <!-- 全局轻提示（正上方居中，Toast/Snackbar，登录页也显示以便登录反馈） -->
+    <AppToaster />
 
     <!-- ========= 非登录页：Header + 带最大宽容器的 main + Footer ========= -->
     <template v-if="!isLoginPage">

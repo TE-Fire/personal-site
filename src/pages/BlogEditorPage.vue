@@ -17,6 +17,7 @@
  */
 import { computed, onMounted, ref, shallowRef, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useToast } from '@/composables/useToast'
 import {
   ArrowLeft,
   Check,
@@ -160,7 +161,7 @@ async function loadEditPost() {
     content.value = p.content || ''
     excerpt.value = p.excerpt
   } catch (e) {
-    showToast('error', `加载文章失败：${(e as Error).message}`)
+    toast.danger('加载文章失败', (e as Error).message)
     router.replace('/blog')
   }
 }
@@ -217,16 +218,11 @@ async function resolveTagIds(names: string[]): Promise<number[]> {
 
 /* ---------- 保存 ---------- */
 const saving = ref(false)
-const toast = ref<{ kind: 'success' | 'error'; text: string } | null>(null)
-
-function showToast(kind: 'success' | 'error', text: string) {
-  toast.value = { kind, text }
-  setTimeout(() => { toast.value = null }, 2200)
-}
+const toast = useToast()
 
 async function doSave() {
   if (!title.value.trim()) {
-    showToast('error', '标题必填')
+    toast.warn('标题必填', '请先输入文章标题后再保存')
     return
   }
   // slug 处理
@@ -236,6 +232,11 @@ async function doSave() {
     slugInput.value = slug
   }
   saving.value = true
+  const loadingToastId = toast.info(
+    isEditMode.value ? '正在更新文章…' : '正在发布文章…',
+    `标题：${title.value.trim()}`,
+    { duration: 0 },
+  )
   try {
     // 名称 → ID 转换
     const catId = await resolveCategoryId(categoryName.value)
@@ -256,7 +257,8 @@ async function doSave() {
       }
       const updated = await updatePost(loadedPost.value.id, params)
       loadedPost.value = updated
-      showToast('success', '已更新')
+      toast.remove(loadingToastId)
+      toast.success('文章已更新', `slug=${updated.slug}，修改已同步到服务器`)
     } else {
       // 新建
       const params: CreatePostParams = {
@@ -272,17 +274,19 @@ async function doSave() {
       }
       const created = await createPost(params)
       loadedPost.value = created
-      showToast('success', '已保存到服务器')
+      toast.remove(loadingToastId)
+      toast.success('文章已发布', `slug=${created.slug}，即将跳转到详情页`)
       // 跳到博客详情
       await router.replace(`/blog/${created.slug}`)
       return
     }
   } catch (e) {
+    toast.remove(loadingToastId)
     const msg = (e as Error).message || '保存失败'
     if (msg.includes('2002') || msg.includes('重复')) {
-      showToast('error', `slug 「${slug}」已被占用，请换一个`)
+      toast.danger('Slug 已被占用', `slug「${slug}」已存在，请换一个再试`)
     } else {
-      showToast('error', msg)
+      toast.danger('保存失败', msg)
     }
   } finally {
     saving.value = false
@@ -293,12 +297,17 @@ async function doSave() {
 const deleteConfirming = ref(false)
 async function doDelete() {
   if (!isEditMode.value || !loadedPost.value) return
+  const pid = loadedPost.value.id
+  const pTitle = loadedPost.value.title
+  const loadingToastId = toast.info('正在删除文章…', pTitle, { duration: 0 })
   try {
-    await deletePost(loadedPost.value.id)
-    showToast('success', '已归档（软删除）')
+    await deletePost(pid)
+    toast.remove(loadingToastId)
+    toast.success('已删除（归档）', `「${pTitle}」已移入回收站，可通过后台恢复`)
     await router.replace('/blog')
   } catch (e) {
-    showToast('error', `删除失败：${(e as Error).message}`)
+    toast.remove(loadingToastId)
+    toast.danger('删除失败', (e as Error).message || '未知错误，请稍后重试')
   }
 }
 
@@ -410,7 +419,7 @@ function applyCoverFile(file: File) {
   const err = validateCoverFile(file)
   if (err) {
     coverUploadState.value = { stage: 'error', progress: 0, error: err }
-    showToast('error', err)
+    toast.danger('封面上传失败', err)
     setTimeout(() => { if (coverUploadState.value.stage === 'error') coverUploadState.value = { stage: 'idle', progress: 0 } }, 2800)
     return
   }
@@ -419,8 +428,13 @@ function applyCoverFile(file: File) {
     progress: 0,
     file: { name: file.name, size: file.size, type: file.type },
   }
+  const loadingId = toast.info(
+    '正在上传封面…',
+    `${file.name}（${(file.size / 1024).toFixed(1)} KB）`,
+    { duration: 0 },
+  )
   const reader = new FileReader()
-  // 模拟进度条（参考图中 UI：66% 这种）
+  // 模拟上传进度（用于 UI 进度条展示，值同步到 coverUploadState.progress）
   let p = 0
   const tick = setInterval(() => {
     p = Math.min(95, p + 6 + Math.random() * 8)
@@ -435,7 +449,8 @@ function applyCoverFile(file: File) {
       progress: 100,
       file: { name: file.name, size: file.size, type: file.type },
     }
-    showToast('success', '封面已设置（本地预览）')
+    toast.remove(loadingId)
+    toast.success('封面上传成功', `${file.name}（${(file.size / 1024).toFixed(1)} KB）已作为封面`)
     setTimeout(() => {
       if (coverUploadState.value.stage === 'done') coverUploadState.value = { stage: 'idle', progress: 0 }
     }, 2200)
@@ -443,7 +458,8 @@ function applyCoverFile(file: File) {
   reader.onerror = () => {
     clearInterval(tick)
     coverUploadState.value = { stage: 'error', progress: 0, error: '读取图片失败' }
-    showToast('error', '读取图片失败')
+    toast.remove(loadingId)
+    toast.danger('封面上传失败', `读取 ${file.name} 失败，请更换图片后重试`)
   }
   reader.readAsDataURL(file)
 }
@@ -485,6 +501,7 @@ function onFileSelected(ev: Event) {
   const files = (ev.target as HTMLInputElement).files
   if (!files || !files.length) return
   const file = files[0]
+  const loadingId = toast.info('正在导入 Markdown…', file.name, { duration: 0 })
   const reader = new FileReader()
   reader.onload = () => {
     try {
@@ -505,10 +522,16 @@ function onFileSelected(ev: Event) {
       status.value = parsed.status || 'published'
       content.value = parsed.content || ''
       excerpt.value = parsed.excerpt || ''
-      showToast('success', `已导入：${file.name}`)
+      toast.remove(loadingId)
+      toast.success('Markdown 导入完成', `已解析并导入「${file.name}」，请检查后保存`)
     } catch (e: any) {
-      showToast('error', `导入失败：${e?.message ?? e}`)
+      toast.remove(loadingId)
+      toast.danger('Markdown 导入失败', e?.message ?? String(e))
     }
+  }
+  reader.onerror = () => {
+    toast.remove(loadingId)
+    toast.danger('Markdown 导入失败', `读取 ${file.name} 失败，请检查文件是否可读`)
   }
   reader.readAsText(file)
   // 重置 input，允许同一文件再次选中
@@ -613,7 +636,7 @@ function doExport() {
   a.click()
   a.remove()
   setTimeout(() => URL.revokeObjectURL(url), 1000)
-  showToast('success', `已导出 ${slugForName}.md`)
+  toast.success('Markdown 导出完成', `已下载文件 ${slugForName}.md`)
 }
 
 /* ---------- 草稿预览（sessionStorage 临时方案）---------- */
@@ -633,24 +656,25 @@ function previewCurrent() {
     sessionStorage.setItem('blog-preview-tmp', JSON.stringify(tmpPreview))
     router.push(`/blog/${slug}?preview=1`)
   } catch {
-    showToast('error', '预览失败：sessionStorage 不可用')
+    toast.danger('草稿预览失败', '当前浏览器 sessionStorage 不可用，无法保存临时预览数据')
   }
 }
 </script>
 
 <template>
   <div class="space-y-6" data-reveal>
-    <!-- 页面头部：返回 + 标题 | 元数据设置·导入·导出·预览·删除·保存（B 类按钮规范） -->
+    <!-- 页面头部：返回 + 标题 | 工具栏（Notion×Linear风：图标 + 文字并排，仅保存一个实心主色） -->
     <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-4">
       <div class="flex items-center gap-3 min-w-0">
-        <!-- 返回（B 类 ghost 变体 + B 类图标比例） -->
+        <!-- 返回（ghost 轻量） -->
         <button
           type="button"
-          class="btn-spec-b btn-spec-b--icon btn-spec-b--ghost"
+          class="btn-spec-b btn-spec-b--toolbar btn-spec-b--ghost"
           @click="router.back()"
           aria-label="返回"
         >
           <ArrowLeft class="btn-spec-b__icon" />
+          <span class="hidden sm:inline">返回</span>
         </button>
         <div class="min-w-0">
           <div class="text-xs uppercase tracking-wider font-semibold text-brand flex items-center gap-1.5">
@@ -663,8 +687,8 @@ function previewCurrent() {
         </div>
       </div>
 
-      <!-- 操作按钮组：全部使用 B 类规范 btn-spec-b + __icon 比例绑定 -->
-      <div class="flex flex-wrap items-center gap-2 md:gap-2.5 justify-end">
+      <!-- 操作按钮组：全部"图标+文字并排"，不再纯图标依赖 Tooltip → 一眼知道是啥（Notion 风） -->
+      <div class="flex flex-wrap items-center gap-2 justify-end">
         <input
           ref="fileInputRef"
           type="file"
@@ -672,63 +696,72 @@ function previewCurrent() {
           class="hidden"
           @change="onFileSelected"
         />
-        <!-- 元数据弹窗入口（B 类 warn 变体，暖橙色和其它中性按钮色彩区分，一眼可见） -->
-        <button type="button" class="btn-spec-b btn-spec-b--warn" @click="openMeta">
+        <!-- 文章设置（工具栏 accent 紫，不是橙色警告框） -->
+        <button
+          type="button"
+          class="btn-spec-b btn-spec-b--toolbar btn-spec-b--toolbar-accent"
+          @click="openMeta"
+          title="分类 / 标签 / 封面 / 摘要 等元数据设置"
+        >
           <SlidersHorizontal class="btn-spec-b__icon" />
           <span>文章设置</span>
         </button>
 
-        <div class="w-px h-8 bg-border/70 shrink-0 mx-0.5" aria-hidden="true" />
+        <div class="w-px h-7 bg-border/70 shrink-0 mx-1 hidden sm:block" aria-hidden />
 
-        <!-- 导入 MD（B 类 icon + outline） -->
+        <!-- 导入 MD（工具栏中性） -->
         <button
           type="button"
-          class="btn-spec-b btn-spec-b--icon btn-spec-b--outline"
+          class="btn-spec-b btn-spec-b--toolbar"
           @click="triggerImport"
-          data-tip="导入 Markdown 文件"
           :aria-label="(($attrs['aria-label-import'] as string | undefined) ?? '导入 MD')"
+          title="导入本地 .md / .markdown 文件"
         >
           <Upload class="btn-spec-b__icon" />
+          <span>导入 MD</span>
         </button>
         <!-- 导出 MD -->
         <button
           type="button"
-          class="btn-spec-b btn-spec-b--icon btn-spec-b--outline"
+          class="btn-spec-b btn-spec-b--toolbar"
           @click="doExport"
-          data-tip="导出为 .md 文件"
+          title="下载当前内容为 .md 文件"
         >
           <Download class="btn-spec-b__icon" />
+          <span>导出 MD</span>
         </button>
         <!-- 草稿预览 -->
         <button
           type="button"
-          class="btn-spec-b btn-spec-b--icon btn-spec-b--outline"
+          class="btn-spec-b btn-spec-b--toolbar"
           @click="previewCurrent"
-          data-tip="草稿预览（新标签页）"
+          title="在新标签页预览渲染效果"
         >
           <Eye class="btn-spec-b__icon" />
+          <span>预览</span>
         </button>
-        <!-- 删除（编辑态显示，B 类 danger） -->
+        <!-- 删除（工具栏 danger：仅红文字，永远不做红色边框） -->
         <button
           v-if="isEditMode"
           type="button"
-          class="btn-spec-b btn-spec-b--icon btn-spec-b--danger"
+          class="btn-spec-b btn-spec-b--toolbar btn-spec-b--toolbar-danger"
           @click="deleteConfirming = true"
-          data-tip="删除当前文章（不可恢复）"
+          title="删除当前文章（不可恢复）"
         >
           <Trash2 class="btn-spec-b__icon" />
+          <span>删除</span>
         </button>
-        <!-- 保存（B 类 primary 主色） -->
+        <!-- 保存：唯一的实心主色按钮（brand），独占视觉焦点 -->
         <button
           type="button"
-          class="btn-spec-b btn-spec-b--icon btn-spec-b--primary"
+          class="btn-spec-b btn-spec-b--toolbar btn-spec-b--primary"
           :disabled="saving"
           @click="doSave"
-          data-tip-placement="bottom"
-          :data-tip="saving ? '保存中…' : (isEditMode ? '保存修改' : '保存为新文章')"
+          :title="saving ? '保存中…' : (isEditMode ? '保存修改' : '保存为新文章')"
         >
           <template v-if="saving"><Sparkles class="btn-spec-b__icon animate-pulse" /></template>
           <template v-else><Save class="btn-spec-b__icon" /></template>
+          <span>{{ saving ? '保存中…' : '保存' }}</span>
         </button>
       </div>
     </div>
@@ -742,37 +775,56 @@ function previewCurrent() {
       />
     </div>
 
-    <!-- ========== 元数据弹窗（M4） ========== -->
+    <!-- ========== 元数据 · 左侧抽屉式 Drawer（C2） ==========
+         比居中弹窗更大方：
+         - 固定左侧，100vh 高度（不被 92vh 挤压）
+         - 560px 宽（桌面），小屏 max-w-[92vw]
+         - 从左往右滑入，遮罩保留点击关闭、Esc 关闭（body 键盘监听沿用）
+         → 编辑区在右侧不受影响，布局更符合"元数据编辑栏"原本的直觉定位
+         ------------------------------------------------------------------- -->
     <Teleport to="body">
-      <Transition name="char-fade">
+      <Transition name="drawer-fade">
         <div
           v-if="metaDialogOpen"
-          class="fixed inset-0 z-[9998] flex items-start justify-center md:items-center bg-black/40 backdrop-blur-sm p-4 overflow-y-auto"
+          class="fixed inset-0 z-[9998] bg-black/40 backdrop-blur-[2px]"
           @click.self="closeMeta"
+          aria-hidden="true"
+        />
+      </Transition>
+      <Transition name="drawer-slide-left">
+        <aside
+          v-if="metaDialogOpen"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="meta-drawer-title"
+          class="fixed top-0 left-0 z-[9999] h-screen w-[560px] max-w-[92vw]
+                 bg-surface-elevated border-r border-border/70
+                 shadow-2xl shadow-black/30
+                 flex flex-col overflow-hidden"
         >
-          <div class="w-full max-w-lg md:max-w-xl my-4 rounded-2xl bg-surface-elevated border border-border/70 shadow-2xl max-h-[92vh] flex flex-col overflow-hidden">
-            <!-- 弹窗头部 -->
-            <div class="flex items-center justify-between gap-3 px-5 py-4 border-b border-border/60">
-              <div class="flex items-center gap-2 min-w-0">
-                <div class="size-9 rounded-xl bg-brand/10 text-brand flex items-center justify-center shrink-0">
-                  <PencilLine class="size-4.5" />
-                </div>
-                <div class="min-w-0">
-                  <div class="text-[15px] font-semibold text-text leading-tight">文章元数据</div>
-                  <div class="text-xs text-text-muted mt-0.5 truncate">分类、标签、封面这些信息会显示在博客列表卡片上</div>
-                </div>
+          <!-- Drawer 头部 -->
+          <div class="flex items-center justify-between gap-3 px-6 py-4 border-b border-border/60">
+            <div class="flex items-center gap-2.5 min-w-0">
+              <div class="size-10 rounded-xl bg-brand/10 text-brand flex items-center justify-center shrink-0">
+                <PencilLine class="size-5" />
               </div>
-              <button
-                type="button"
-                class="size-8 rounded-lg text-text-muted hover:text-text hover:bg-surface-muted flex items-center justify-center transition shrink-0"
-                @click="closeMeta"
-                aria-label="关闭"
-              >
-                <XIcon class="size-4" />
-              </button>
+              <div class="min-w-0">
+                <div id="meta-drawer-title" class="text-[15.5px] font-semibold text-text leading-tight">文章元数据设置</div>
+                <div class="text-xs text-text-muted mt-0.5 truncate">分类、标签、封面这些信息会显示在博客列表卡片上</div>
+              </div>
             </div>
-            <!-- 弹窗内容（滚动） -->
-            <div class="flex-1 overflow-y-auto px-5 py-4 space-y-4.5">
+            <button
+              type="button"
+              class="btn-spec-b btn-spec-b--icon btn-spec-b--ghost"
+              style="--btn-b-h: 36px; --btn-b-radius: 8px;"
+              @click="closeMeta"
+              aria-label="关闭（Esc）"
+            >
+              <XIcon class="btn-spec-b__icon" />
+            </button>
+          </div>
+          <!-- Drawer 内容（滚动） -->
+          <div class="flex-1 overflow-y-auto px-6 py-5 space-y-5">
               <!-- 标题 -->
               <div class="space-y-1.5">
                 <Label required>标题</Label>
@@ -1053,26 +1105,24 @@ function previewCurrent() {
                 </div>
               </div>
             </div>
-            <!-- 弹窗底部 -->
-            <div class="flex items-center justify-between gap-2 px-5 py-3.5 border-t border-border/60 bg-surface-muted/40">
+            <!-- Drawer 底部（sticky 底部不受内容滚动影响） -->
+            <div class="flex items-center justify-between gap-2 px-6 py-4 border-t border-border/60 bg-surface-muted/40">
               <div class="text-[11.5px] text-text-muted">
                 <template v-if="loadedPost?.slug">slug：<span class="font-mono">{{ loadedPost.slug }}</span></template>
                 <template v-else>保存后自动生成公开链接</template>
               </div>
               <div class="flex items-center gap-2">
-                <!-- 完成 / 保存（B 类规范） -->
+                <!-- 完成 / 保存（B 类规范，统一与工具栏尺寸 40px） -->
                 <button
                   type="button"
-                  class="btn-spec-b btn-spec-b--outline"
-                  style="--btn-b-h: 40px; --btn-b-px: 16px; --btn-b-fs: 14px;"
+                  class="btn-spec-b btn-spec-b--toolbar"
                   @click="closeMeta"
                 >
-                  完成
+                  <span>完成</span>
                 </button>
                 <button
                   type="button"
-                  class="btn-spec-b btn-spec-b--primary"
-                  style="--btn-b-h: 40px; --btn-b-px: 16px; --btn-b-fs: 14px;"
+                  class="btn-spec-b btn-spec-b--toolbar btn-spec-b--primary"
                   :disabled="saving"
                   @click="doSave"
                 >
@@ -1082,10 +1132,9 @@ function previewCurrent() {
                 </button>
               </div>
             </div>
-          </div>
-        </div>
-      </Transition>
-    </Teleport>
+          </aside>
+        </Transition>
+      </Teleport>
 
     <!-- 删除确认弹窗 -->
     <Teleport to="body">
@@ -1123,19 +1172,6 @@ function previewCurrent() {
               </Button>
             </div>
           </div>
-        </div>
-      </Transition>
-    </Teleport>
-
-    <!-- Toast -->
-    <Teleport to="body">
-      <Transition name="bubble">
-        <div
-          v-if="toast"
-          class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[9999] rounded-full shadow-xl px-5 py-2.5 text-sm font-medium text-white border border-white/20 backdrop-blur-md"
-          :class="toast.kind === 'success' ? 'bg-success/90' : 'bg-danger/90'"
-        >
-          {{ toast.text }}
         </div>
       </Transition>
     </Teleport>

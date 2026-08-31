@@ -129,8 +129,8 @@ model Post {
   excerpt     String    @default("") @db.VarChar(500)
   /// Markdown 正文（TEXT 64KB，足够 3000 字的文章 ×20，够用后续 ALTER 成 LONGTEXT）
   content     String    @db.Text
-  /// 封面图 URL（可选）
-  cover       String?   @db.VarChar(500)
+  /// 封面图 URL（可选；若本地上传使用 DataURL，最长可达 10MB+ 级别，因此使用 LongText）
+  cover       String?   @db.LongText
   /// 首页精选：HomePage / 列表页 highlight 高亮
   featured    Boolean   @default(false)
   /// 发布状态（DRAFT 草稿 / PUBLISHED 已发布 / ARCHIVED 软删）
