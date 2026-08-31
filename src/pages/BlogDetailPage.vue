@@ -5,9 +5,15 @@
  * 数据源：
  *   1) preview=1 时优先取 sessionStorage['blog-preview-tmp'] 草稿预览（来自编辑页）
  *   2) 否则 onMounted 调 GET /api/posts/slug/:slug 获取详情
- * 找不到 → 404 Card + 返回博客
+ *
+ * 渲染管线（三态分离，避免主线程阻塞）：
+ *   isLoading   → API 拉取阶段
+ *   isParsing   → Markdown 解析阶段（marked.parse + highlight.js）
+ *   rendered    → 最终 HTML ref（不再用 computed 同步阻塞）
+ *
+ * 超时兜底：15s 覆盖 API + 解析总耗时，超时后给用户「重试 / 返回列表」选择。
  */
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onBeforeUnmount, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   ArrowLeft,
@@ -18,11 +24,10 @@ import {
   Hash,
   Home,
   Sparkles,
-  BookOpen
+  BookOpen,
+  Loader2,
+  RefreshCw
 } from 'lucide-vue-next'
-import { marked } from 'marked'
-import { markedHighlight } from 'marked-highlight'
-import hljs from 'highlight.js/lib/common'
 import {
   Badge,
   Button,
@@ -33,6 +38,9 @@ import {
   CardTitle,
   Separator
 } from '@/components/ui'
+import { marked } from 'marked'
+import { markedHighlight } from 'marked-highlight'
+import hljs from 'highlight.js/lib/common'
 import { fetchPostBySlug } from '@/api/post'
 import type { PostVo } from '@/lib/api-types'
 import type { ExtendedBlogPost } from '@/composables/useBlogApi'
@@ -66,12 +74,37 @@ useScrollReveal(pageRoot)
 
 const isPreview = computed(() => route.query.preview === '1')
 
+/* ---------- 状态机 ---------- */
 const post = ref<PostVo | null>(null)
-const isLoading = ref(true)
+const isLoading = ref(true)     // API 拉取中
+const isParsing = ref(false)    // Markdown 解析中（渲染阶段）
 const errorMsg = ref('')
 const loadedFromTmp = ref(false)
+const rendered = ref('')        // 最终 HTML（ref 而非 computed，避免同步阻塞）
 
-/** 把草稿预览临时对象（旧 ExtendedBlogPost 形状）适配为 PostVo 形状，统一模板消费 */
+const hasError = computed(() => !!errorMsg.value)
+
+/* ---------- 超时控制 ---------- */
+const TOTAL_TIMEOUT_MS = 15_000 // 15s 覆盖 API + 解析
+let timeoutTimer: ReturnType<typeof setTimeout> | null = null
+
+function armTimeout() {
+  clearTimeout(timeoutTimer!)
+  timeoutTimer = setTimeout(() => {
+    if (isLoading.value || isParsing.value) {
+      errorMsg.value = '请求超时（15s），可能是网络慢或文章内容过大'
+      isLoading.value = false
+      isParsing.value = false
+      post.value = null
+    }
+  }, TOTAL_TIMEOUT_MS)
+}
+function disarmTimeout() {
+  if (timeoutTimer) { clearTimeout(timeoutTimer); timeoutTimer = null }
+}
+onBeforeUnmount(disarmTimeout)
+
+/* ---------- 草稿预览适配 ---------- */
 function previewToVo(p: ExtendedBlogPost): PostVo {
   return {
     id: 0,
@@ -92,9 +125,28 @@ function previewToVo(p: ExtendedBlogPost): PostVo {
   }
 }
 
+/* ---------- 解析管线（异步，不阻塞主线程） ---------- */
+async function parseMarkdown(content: string) {
+  isParsing.value = true
+  // 让出事件循环 1 帧 → 确保 loading UI 先绘制出来
+  await new Promise((r) => requestAnimationFrame(() => r(null)))
+  try {
+    rendered.value = marked.parse(content) as string
+  } finally {
+    isParsing.value = false
+  }
+}
+
+/* ---------- 加载入口 ---------- */
 async function loadPost() {
+  disarmTimeout()
   isLoading.value = true
+  isParsing.value = false
   errorMsg.value = ''
+  rendered.value = ''
+  post.value = null
+  armTimeout()
+
   // 草稿预览优先
   if (isPreview.value) {
     try {
@@ -105,45 +157,46 @@ async function loadPost() {
           loadedFromTmp.value = true
           post.value = previewToVo(p)
           isLoading.value = false
+          await parseMarkdown(p.content || '')
+          disarmTimeout()
           return
         }
       }
     } catch { /* ignore */ }
   }
   loadedFromTmp.value = false
+
   if (!props.slug) {
     post.value = null
     isLoading.value = false
+    disarmTimeout()
     return
   }
+
   try {
-    post.value = await fetchPostBySlug(props.slug)
+    const data = await fetchPostBySlug(props.slug)
+    post.value = data
+    isLoading.value = false
+    // 解析 Markdown（异步管线）
+    await parseMarkdown(data.content || '')
   } catch (e) {
     post.value = null
-    errorMsg.value = (e as Error).message
-  } finally {
+    errorMsg.value = (e as Error).message || '未知错误'
     isLoading.value = false
+  } finally {
+    disarmTimeout()
   }
 }
 
 onMounted(loadPost)
 
-const rendered = computed(() => {
-  if (!post.value) return ''
-  const content = post.value.content
-  if (!content) {
-    return `## ${post.value.title}
+/* ---------- 重试 ---------- */
+function retry() {
+  loadPost()
+}
 
-> ${post.value.excerpt}
-
-*（正文暂未收录。如果这是草稿预览，先回到编辑器写点内容吧。）*
-    `.trim()
-  }
-  return marked.parse(content) as string
-})
-
+/* ---------- 工具 ---------- */
 const isUserArticle = computed(() => !!post.value)
-
 function goEdit() {
   if (!post.value) return
   router.push(`/blog/${post.value.slug}/edit`)
@@ -153,7 +206,6 @@ function goEdit() {
 onMounted(() => {
   try {
     if (isPreview.value) {
-      // 保留 10s，刷新也还能看，但不会永久留着
       setTimeout(() => sessionStorage.removeItem('blog-preview-tmp'), 1000 * 10)
     } else {
       sessionStorage.removeItem('blog-preview-tmp')
@@ -197,11 +249,26 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- 加载中 -->
+    <!-- API 拉取中：加载占位 -->
     <Card v-if="isLoading" class="mx-auto max-w-lg text-center">
       <CardContent class="py-10 text-text-muted">
-        <p v-if="errorMsg" class="text-destructive">加载失败：{{ errorMsg }}</p>
-        <p v-else>正在加载文章…</p>
+        <Loader2 class="size-6 animate-spin mx-auto mb-3 text-brand" />
+        <p>正在加载文章…</p>
+      </CardContent>
+    </Card>
+
+    <!-- 错误 / 超时 -->
+    <Card v-else-if="hasError" class="mx-auto max-w-lg text-center border-destructive/30">
+      <CardContent class="py-8 space-y-3">
+        <p class="text-destructive font-medium">{{ errorMsg }}</p>
+        <div class="flex justify-center gap-2 pt-2">
+          <Button variant="outline" @click="router.push('/blog')">
+            <ArrowLeft class="size-4" /> 返回博客
+          </Button>
+          <Button @click="retry">
+            <RefreshCw class="size-4" /> 重试
+          </Button>
+        </div>
       </CardContent>
     </Card>
 
@@ -224,9 +291,9 @@ onMounted(() => {
       </CardFooter>
     </Card>
 
-    <!-- 存在：详情正文 -->
+    <!-- 存在：详情正文（标题/元信息先出，正文等解析完再出） -->
     <article v-else class="space-y-10">
-      <!-- 头部元信息：卡片化展示 -->
+      <!-- 头部元信息：卡片化展示（API 返回即渲染，不等解析） -->
       <section
         class="rounded-2xl border border-border/60 bg-surface-muted/30 px-6 py-8 md:px-10 md:py-10 space-y-6"
         data-reveal
@@ -282,12 +349,24 @@ onMounted(() => {
         </div>
       </section>
 
-      <!-- 正文 -->
-      <div
-        data-reveal
-        class="md-preview markdown-body mx-auto w-full max-w-3xl text-[16px] leading-[1.95]"
-        v-html="rendered"
-      />
+      <!-- 正文区域：解析中显示过渡动画，完成后替换 -->
+      <Transition name="fade-up">
+        <!-- 解析中 -->
+        <div v-if="isParsing" class="md-preview mx-auto w-full max-w-3xl py-16 text-center">
+          <div class="inline-flex items-center gap-3 px-5 py-3 rounded-full bg-brand/10 border border-brand/30">
+            <Loader2 class="size-4 animate-spin text-brand" />
+            <span class="text-sm text-text">正在渲染正文…</span>
+          </div>
+        </div>
+
+        <!-- 渲染完成 -->
+        <div
+          v-else
+          data-reveal
+          class="md-preview markdown-body mx-auto w-full max-w-3xl text-[16px] leading-[1.95]"
+          v-html="rendered"
+        />
+      </Transition>
 
       <!-- 底部：操作区 -->
       <Separator />
@@ -467,5 +546,19 @@ html:not(.dark) .md-preview.markdown-body .hljs-meta { color: hsl(263 70% 50%); 
   background: hsl(var(--brand) / 0.6);
   background-clip: padding-box;
   border: 2px solid transparent;
+}
+
+/* ---------- 过渡动画 ---------- */
+.fade-up-enter-active,
+.fade-up-leave-active {
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+.fade-up-enter-from {
+  opacity: 0;
+  transform: translateY(8px);
+}
+.fade-up-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
 }
 </style>
