@@ -376,13 +376,14 @@ export class ContributionService {
     try {
       const postExists = await this.tableExists('post');
       if (postExists) {
+        // 热力图统计所有状态文章（DRAFT/PUBLISHED/ARCHIVED 都算贡献）
+        // DATE_FORMAT 强制返回字符串，避免 Prisma 把 DATE() 解析成 Date 对象
         const rows = await this.prisma.$queryRawUnsafe<Array<{ day: string; cnt: number | bigint }>>(`
-          SELECT DATE(CONVERT_TZ(created_at, @@session.time_zone, '+08:00')) AS day,
+          SELECT DATE_FORMAT(created_at, '%Y-%m-%d') AS day,
                  COUNT(*) AS cnt
             FROM post
            WHERE created_at >= ?
              AND created_at <= DATE_ADD(?, INTERVAL 1 DAY)
-             AND (status = 1 OR status = 'published')
         GROUP BY day
         `, sinceISO, todayISO) as Array<{ day: string; cnt: number | bigint }>;
         for (const r of rows) {

@@ -1024,7 +1024,7 @@ findCached(cacheKey, dbQuery, publicOnly=true)
 | Phase 2-2 | PostService 重写 — Prisma 分页 CRUD + include category/tags/author + publicOnly | ✅ 完成 |
 | Phase 3-1 | PostController `@Controller('posts')` + OptionalJwtAuthGuard + JwtAuthGuard + authorId 注入 | ✅ 完成 |
 | Phase 3-2 | PostService Redis 缓存 — 防穿透(空值缓存)/击穿(singleflight)/雪崩(TTL随机化)/降级 | ✅ 完成 |
-| Phase 3-3 | ContributionService `tableExists('post')` 接通，热力图统计真实数据 | 📝 待开发 |
+| Phase 3-3 | ContributionService `tableExists('post')` 接通，热力图统计真实数据 | ✅ 完成 |
 | Phase 4 | Category + Tag 模块（CRUD + rename/merge/delete） | ✅ 完成 |
 | Phase 5 | `seed-posts.mjs` 导入 8 篇内置文章 + `verify-post.mjs` 端到端 13/13 通过 | ✅ 完成 |
 
