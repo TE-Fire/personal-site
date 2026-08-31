@@ -1,14 +1,19 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 /**
  * BlogEditorPage.vue · 博客文章编辑页
  * 路由：
  *   /blog/new          → 新建
- *   /blog/:slug/edit   → 编辑已有（仅用户文章可编辑，内置文章提示"内置不可编辑"）
+ *   /blog/:slug/edit   → 编辑已有文章
  *
- * 功能：
- *   · 左侧元数据表单：标题 / slug / 分类 / 标签 / 发布日期 / 封面 / 是否精选
- *   · 下方 MarkdownEditor（分栏编辑预览）
- *   · 顶部操作栏：导入 MD / 导出 MD / 草稿预览 / 保存 / 删除（仅编辑态）
+ * 数据源：
+ *   · 分类 / 标签下拉 → GET /api/categories + GET /api/tags
+ *   · 编辑态加载 → GET /api/posts/slug/:slug
+ *   · 新建 / 更新 / 删除 → POST /api/posts / PUT /api/posts/:id / DELETE /api/posts/:id
+ *   · MD 导入 / 导出 → 纯前端解析 front-matter
+ *
+ * 保存时自动做名称→ID 转换：
+ *   · 分类名 → categoryId（不存在则先调 POST /api/categories 创建）
+ *   · 标签名 → tagIds（不存在则逐个调 POST /api/tags 创建）
  */
 import { computed, onMounted, ref, shallowRef, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -40,21 +45,20 @@ import {
   CardDescription
 } from '@/components/ui'
 import MarkdownEditor from '@/components/MarkdownEditor.vue'
-import { useBlogApi, type ExtendedBlogPost, type NewPostInput } from '@/composables/useBlogApi'
-import { type PostArticleCategory, readingMinutes } from '@/data/posts'
-
-const route = useRoute()
-const router = useRouter()
-const {
+import {
   createPost,
   updatePost,
   deletePost,
-  getBySlug,
-  importFromMarkdown,
-  exportToMarkdown,
-  countWords,
-  categories
-} = useBlogApi()
+  fetchPostBySlug,
+  type CreatePostParams,
+  type UpdatePostParams,
+} from '@/api/post'
+import { fetchCategories, createCategory } from '@/api/category'
+import { fetchTags, createTag } from '@/api/tag'
+import type { CategoryVo, TagVo, PostVo } from '@/lib/api-types'
+
+const route = useRoute()
+const router = useRouter()
 
 const routeSlug = computed<string | undefined>(() =>
   route.name === 'BlogEdit' ? (route.params.slug as string) : undefined
@@ -62,20 +66,33 @@ const routeSlug = computed<string | undefined>(() =>
 
 const isEditMode = computed(() => !!routeSlug.value)
 
+/* ---------- 后端字典 ---------- */
+const categories = ref<CategoryVo[]>([])
+const tags = ref<TagVo[]>([])
+
+async function loadDicts() {
+  try {
+    const [c, t] = await Promise.all([fetchCategories(), fetchTags()])
+    categories.value = c
+    tags.value = t
+  } catch { /* 静默失败，下拉为空 */ }
+}
+
 /* ---------- 表单状态 ---------- */
 const title = ref('')
 const slugInput = ref('')
-const category = ref<PostArticleCategory>('工程笔记')
+/** 选中的 categoryId（null = 未分类） */
+const categoryId = ref<number | null>(null)
 const tagsText = ref('')
 const publishedAt = ref(new Date().toISOString().slice(0, 10))
 const cover = ref('')
 const featured = ref(false)
+const status = ref<'draft' | 'published'>('published')
 const content = ref('')
 const excerpt = ref('')
 
-/* 已保存文章引用（编辑态才有） */
-const loadedPost = shallowRef<ExtendedBlogPost | null>(null)
-const isBuiltInBlock = computed(() => loadedPost.value?.source === 'built-in')
+/* 已加载文章引用（编辑态才有） */
+const loadedPost = shallowRef<PostVo | null>(null)
 
 /* ---------- 编辑器 ref ---------- */
 const editorRef = ref<InstanceType<typeof MarkdownEditor> | null>(null)
@@ -84,8 +101,26 @@ const editorRef = ref<InstanceType<typeof MarkdownEditor> | null>(null)
 const fileInputRef = ref<HTMLInputElement | null>(null)
 
 /* ---------- 统计 ---------- */
+function countWords(md: string): number {
+  // 粗略：Markdown 去掉代码块和格式后算字符数
+  return md.replace(/```[\s\S]*?```/g, '').replace(/[>#*_~\-`!\[\]()]/g, '').length
+}
+function readingMinutes(wordCount: number): number {
+  return Math.max(1, Math.ceil(wordCount / 500))
+}
 const wordCount = computed(() => countWords(content.value))
 const reading = computed(() => readingMinutes(wordCount.value))
+
+/* ---------- slug 生成 ---------- */
+function slugify(input: string): string {
+  const base = input
+    .toLowerCase()
+    .replace(/[^\w\s\-]/g, '')   // 去掉非字母数字空格减号
+    .trim()
+    .replace(/\s+/g, '-')        // 空格变减号
+    .replace(/-+/g, '-')         // 连续减号合并
+  return base || `post-${Date.now().toString(36)}`
+}
 
 /* ---------- 自动摘要计算 ---------- */
 watch(content, (v) => {
@@ -99,25 +134,41 @@ watch(content, (v) => {
   }
 })
 
+/* slug 自动生成：标题变化时（新建态）自动填充 */
+watch(title, (v) => {
+  if (!isEditMode.value && v.trim() && !slugInput.value.trim()) {
+    slugInput.value = slugify(v)
+  }
+})
+
 /* ---------- 加载编辑态文章 ---------- */
-function loadEditPost() {
+async function loadEditPost() {
   if (!routeSlug.value) return
-  const p = getBySlug(routeSlug.value)
-  if (!p) return
-  loadedPost.value = p
-  title.value = p.title
-  slugInput.value = p.slug
-  // 分类可能已被删除 → 回退到第一个分类
-  category.value = categories.value.includes(p.category) ? p.category : categories.value[0]
-  tagsText.value = (p.tags || []).join(', ')
-  publishedAt.value = p.publishedAt
-  cover.value = p.cover || ''
-  featured.value = p.featured
-  content.value = p.content || ''
-  excerpt.value = p.excerpt
+  try {
+    const p = await fetchPostBySlug(routeSlug.value)
+    loadedPost.value = p
+    title.value = p.title
+    slugInput.value = p.slug
+    categoryId.value = p.category?.id ?? null
+    tagsText.value = p.tags.map((t) => t.name).join(', ')
+    publishedAt.value = p.createdAt.slice(0, 10)
+    cover.value = p.cover || ''
+    featured.value = p.featured
+    status.value = (p.status === 'published' ? 'published' : 'draft')
+    content.value = p.content || ''
+    excerpt.value = p.excerpt
+  } catch (e) {
+    showToast('error', `加载文章失败：${(e as Error).message}`)
+    router.replace('/blog')
+  }
 }
 
-onMounted(loadEditPost)
+onMounted(async () => {
+  await loadDicts()
+  if (isEditMode.value) {
+    await loadEditPost()
+  }
+})
 
 /* ---------- 标签解析 ---------- */
 const tagArr = computed(() =>
@@ -126,6 +177,41 @@ const tagArr = computed(() =>
     .map((s) => s.trim())
     .filter(Boolean)
 )
+
+/** categoryId → 分类名（保存时需要） */
+const categoryName = computed(() => {
+  if (categoryId.value == null) return ''
+  return categories.value.find((c) => c.id === categoryId.value)?.name ?? ''
+})
+
+/**
+ * 名称 → ID 转换：
+ *   · 分类名 → categoryId（不存在则先创建）
+ *   · 标签名 → tagIds（不存在则逐个创建）
+ */
+async function resolveCategoryId(name: string): Promise<number | null> {
+  if (!name.trim()) return null
+  const existing = categories.value.find((c) => c.name === name)
+  if (existing) return existing.id
+  const created = await createCategory({ name: name.trim() })
+  categories.value = [...categories.value, created]
+  return created.id
+}
+
+async function resolveTagIds(names: string[]): Promise<number[]> {
+  const ids: number[] = []
+  for (const name of names) {
+    const existing = tags.value.find((t) => t.name === name)
+    if (existing) {
+      ids.push(existing.id)
+    } else {
+      const created = await createTag({ name })
+      tags.value = [...tags.value, created]
+      ids.push(created.id)
+    }
+  }
+  return ids
+}
 
 /* ---------- 保存 ---------- */
 const saving = ref(false)
@@ -137,55 +223,81 @@ function showToast(kind: 'success' | 'error', text: string) {
 }
 
 async function doSave() {
-  if (isBuiltInBlock.value) {
-    showToast('error', '内置示例文章不可编辑')
-    return
-  }
   if (!title.value.trim()) {
     showToast('error', '标题必填')
     return
   }
+  // slug 处理
+  let slug = slugInput.value.trim()
+  if (!slug) {
+    slug = slugify(title.value)
+    slugInput.value = slug
+  }
   saving.value = true
   try {
-    const input: NewPostInput = {
-      title: title.value,
-      slug: slugInput.value || undefined,
-      category: category.value,
-      tags: tagArr.value,
-      publishedAt: publishedAt.value || new Date().toISOString().slice(0, 10),
-      cover: cover.value || undefined,
-      featured: featured.value,
-      excerpt: excerpt.value || '',
-      content: content.value
-    }
-    let saved: ExtendedBlogPost | undefined
-    if (isEditMode.value && routeSlug.value) {
-      saved = updatePost(routeSlug.value, input)
-      if (!saved) {
-        saved = createPost(input)
+    // 名称 → ID 转换
+    const catId = await resolveCategoryId(categoryName.value)
+    const tagIds = await resolveTagIds(tagArr.value)
+
+    if (isEditMode.value && loadedPost.value) {
+      // 更新
+      const params: UpdatePostParams = {
+        slug,
+        title: title.value.trim(),
+        content: content.value,
+        excerpt: excerpt.value,
+        cover: cover.value || undefined,
+        featured: featured.value,
+        status: status.value,
+        categoryId: catId,
+        tagIds,
       }
+      const updated = await updatePost(loadedPost.value.id, params)
+      loadedPost.value = updated
+      showToast('success', '已更新')
     } else {
-      saved = createPost(input)
+      // 新建
+      const params: CreatePostParams = {
+        slug,
+        title: title.value.trim(),
+        content: content.value,
+        excerpt: excerpt.value,
+        cover: cover.value || undefined,
+        featured: featured.value,
+        status: status.value,
+        categoryId: catId ?? undefined,
+        tagIds,
+      }
+      const created = await createPost(params)
+      loadedPost.value = created
+      showToast('success', '已保存到服务器')
+      // 跳到博客详情
+      await router.replace(`/blog/${created.slug}`)
+      return
     }
-    showToast('success', '已保存到本地')
-    // 跳到博客详情
-    await router.replace(`/blog/${saved.slug}`)
+  } catch (e) {
+    const msg = (e as Error).message || '保存失败'
+    if (msg.includes('2002') || msg.includes('重复')) {
+      showToast('error', `slug 「${slug}」已被占用，请换一个`)
+    } else {
+      showToast('error', msg)
+    }
   } finally {
     saving.value = false
   }
 }
 
-/* ---------- 删除（仅编辑态 + 用户文章）---------- */
+/* ---------- 删除（仅编辑态）---------- */
 const deleteConfirming = ref(false)
 async function doDelete() {
-  if (!isEditMode.value || !routeSlug.value) return
-  const ok = deletePost(routeSlug.value)
-  if (!ok) {
-    showToast('error', '删除失败：可能是内置示例文章')
-    return
+  if (!isEditMode.value || !loadedPost.value) return
+  try {
+    await deletePost(loadedPost.value.id)
+    showToast('success', '已归档（软删除）')
+    await router.replace('/blog')
+  } catch (e) {
+    showToast('error', `删除失败：${(e as Error).message}`)
   }
-  showToast('success', '文章已删除')
-  await router.replace('/blog')
 }
 
 /* ---------- MD 导入 ---------- */
@@ -205,17 +317,22 @@ function onFileSelected(ev: Event) {
   reader.onload = () => {
     try {
       const text = String(reader.result || '')
-      const parsed = importFromMarkdown(file.name, text)
+      const parsed = parseMarkdownWithFrontMatter(file.name, text)
       // 回填到表单
       title.value = parsed.title
-      slugInput.value = parsed.slug
-      category.value = parsed.category
+      slugInput.value = parsed.slug || slugify(parsed.title)
+      // 分类名 → categoryId（需要等 categories 字典加载）
+      if (parsed.category) {
+        const found = categories.value.find((c) => c.name === parsed.category)
+        categoryId.value = found?.id ?? null
+      }
       tagsText.value = (parsed.tags || []).join(', ')
       publishedAt.value = parsed.publishedAt
       cover.value = parsed.cover || ''
       featured.value = parsed.featured
+      status.value = parsed.status || 'published'
       content.value = parsed.content || ''
-      excerpt.value = parsed.excerpt
+      excerpt.value = parsed.excerpt || ''
       showToast('success', `已导入：${file.name}`)
     } catch (e: any) {
       showToast('error', `导入失败：${e?.message ?? e}`)
@@ -226,60 +343,122 @@ function onFileSelected(ev: Event) {
   ;(ev.target as HTMLInputElement).value = ''
 }
 
+/** 解析带 front-matter 的 Markdown（纯前端，不写 localStorage） */
+function parseMarkdownWithFrontMatter(fileName: string, md: string) {
+  let content = md
+  let fmTitle = ''
+  let fmCategory = ''
+  let fmTags: string[] = []
+  let fmPublishedAt = new Date().toISOString().slice(0, 10)
+  let fmSlug = ''
+  let fmExcerpt = ''
+  let fmCover = ''
+  let fmFeatured = false
+  let fmStatus: 'draft' | 'published' = 'published'
+
+  // 解析 front-matter（yaml 风格）
+  const fmMatch = md.match(/^---\s*\n([\s\S]*?)\n---\s*\n?/)
+  if (fmMatch) {
+    const yaml = fmMatch[1]
+    content = md.slice(fmMatch[0].length)
+    yaml.split(/\r?\n/).forEach((line) => {
+      const m = line.match(/^([A-Za-z0-9_\-]+)\s*:\s*(.*)$/)
+      if (!m) return
+      const [, rawKey, rawVal] = m
+      const key = rawKey.toLowerCase()
+      const val = rawVal.trim()
+      if (val.startsWith('[') && val.endsWith(']')) {
+        const arr = val
+          .slice(1, -1)
+          .split(',')
+          .map((v) => v.trim().replace(/^['"]|['"]$/g, ''))
+          .filter(Boolean)
+        if (key === 'tags' || key === 'tag') fmTags = arr
+        return
+      }
+      const clean = val.replace(/^['"]|['"]$/g, '')
+      switch (key) {
+        case 'title': fmTitle = clean; break
+        case 'slug':
+        case 'id': fmSlug = clean; break
+        case 'category':
+        case 'categories': fmCategory = clean; break
+        case 'tags': fmTags = [clean]; break
+        case 'date':
+        case 'published':
+        case 'publishedat': fmPublishedAt = clean; break
+        case 'excerpt':
+        case 'description': fmExcerpt = clean; break
+        case 'cover': fmCover = clean; break
+        case 'featured': fmFeatured = clean === 'true'; break
+        case 'status': fmStatus = (clean === 'draft' ? 'draft' : 'published'); break
+      }
+    })
+  }
+
+  const fallbackTitle = fileName.replace(/\.(md|markdown)$/i, '') || `导入的文章`
+
+  return {
+    title: fmTitle || fallbackTitle,
+    slug: fmSlug,
+    excerpt: fmExcerpt,
+    content,
+    category: fmCategory,
+    tags: fmTags,
+    publishedAt: fmPublishedAt,
+    cover: fmCover,
+    featured: fmFeatured,
+    status: fmStatus,
+  }
+}
+
 /* ---------- MD 导出 ---------- */
 function doExport() {
-  const slugForName = (slugInput.value.trim() || 'article')
-  const post: ExtendedBlogPost = {
-    slug: slugForName,
-    title: title.value.trim() || '未命名文章',
-    excerpt: excerpt.value,
-    wordCount: wordCount.value,
-    publishedAt: publishedAt.value,
-    category: category.value,
-    tags: tagArr.value,
-    featured: featured.value,
-    content: content.value,
-    cover: cover.value || undefined,
-    lastModified: new Date().toISOString(),
-    source: 'user'
-  }
-  const { fileName, content: mdContent } = exportToMarkdown(post)
+  const slugForName = (slugInput.value.trim() || slugify(title.value.trim() || 'article'))
+  const tagsStr = tagArr.value.length
+    ? `[${tagArr.value.map((t) => `'${t}'`).join(', ')}]`
+    : '[]'
+  const fm = [
+    '---',
+    `title: '${(title.value.trim() || '未命名文章').replace(/'/g, "''")}'`,
+    `slug: '${slugForName}'`,
+    `category: ${categoryName.value || ''}`,
+    `tags: ${tagsStr}`,
+    `publishedAt: ${publishedAt.value}`,
+    `featured: ${featured.value}`,
+    `status: ${status.value}`,
+    ...(cover.value ? [`cover: '${cover.value}'`] : []),
+    '---',
+    ''
+  ].join('\n')
+  const mdContent = `${fm}${content.value}`
   const blob = new Blob([mdContent], { type: 'text/markdown;charset=utf-8' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = fileName
+  a.download = `${slugForName}.md`
   document.body.appendChild(a)
   a.click()
   a.remove()
   setTimeout(() => URL.revokeObjectURL(url), 1000)
-  showToast('success', `已导出 ${fileName}`)
+  showToast('success', `已导出 ${slugForName}.md`)
 }
 
-/* ---------- 预览当前文章 ---------- */
-let tmpPreviewPost: ExtendedBlogPost | null = null
+/* ---------- 草稿预览（sessionStorage 临时方案）---------- */
+let tmpPreview: { slug: string; title: string; excerpt: string; content: string; category: string; tags: string[] } | null = null
 function previewCurrent() {
-  // 构造临时对象，塞入 useBlogApi 的 localStorage 层不持久：用内存临时导入
-  const slug = slugInput.value.trim() || `preview-${Date.now().toString(36)}`
+  const slug = slugInput.value.trim() || slugify(title.value)
   const titleStr = title.value.trim() || '（未命名草稿）'
-  const previewContent = content.value || '*（正文空白，先写一点东西？）*'
-  tmpPreviewPost = {
+  tmpPreview = {
     slug,
     title: titleStr,
-    excerpt: excerpt.value || '',
-    wordCount: wordCount.value,
-    publishedAt: publishedAt.value,
-    category: category.value,
+    excerpt: excerpt.value,
+    content: content.value || '*（正文空白，先写一点东西？）*',
+    category: categoryName.value,
     tags: tagArr.value,
-    featured: featured.value,
-    content: previewContent,
-    cover: cover.value || undefined,
-    lastModified: new Date().toISOString(),
-    source: 'user'
   }
-  // 用 sessionStorage 存一下临时预览，详情页能取到
   try {
-    sessionStorage.setItem('blog-preview-tmp', JSON.stringify(tmpPreviewPost))
+    sessionStorage.setItem('blog-preview-tmp', JSON.stringify(tmpPreview))
     router.push(`/blog/${slug}?preview=1`)
   } catch {
     showToast('error', '预览失败：sessionStorage 不可用')
@@ -328,7 +507,7 @@ function previewCurrent() {
           <span class="hidden sm:inline">草稿预览</span>
         </Button>
         <Button
-          v-if="isEditMode && !isBuiltInBlock"
+          v-if="isEditMode"
           variant="outline"
           size="sm"
           class="text-danger hover:text-danger border-danger/30 hover:border-danger/60"
@@ -339,7 +518,7 @@ function previewCurrent() {
         </Button>
         <Button
           size="sm"
-          :disabled="!!isBuiltInBlock || saving"
+          :disabled="saving"
           @click="doSave"
         >
           <template v-if="saving"><Sparkles class="size-4 animate-pulse" /> 保存中…</template>
@@ -349,19 +528,6 @@ function previewCurrent() {
           </template>
         </Button>
       </div>
-    </div>
-
-    <!-- 内置文章不可编辑警告 -->
-    <div
-      v-if="isBuiltInBlock"
-      class="rounded-xl border border-warning/40 bg-warning/10 px-4 py-3 flex items-start gap-3 text-warning"
-    >
-      <AlertTriangle class="size-5 shrink-0 mt-0.5" />
-      <div class="text-sm leading-relaxed">
-        <p class="font-semibold text-warning">这是示例文章，直接修改不生效。</p>
-        <p class="text-warning/80 mt-0.5">如果想要基于它修改，可以先「导出 MD → 导入 MD → 新建文章」流程，保存后就归你了。</p>
-      </div>
-      <Button variant="ghost" size="sm" @click="doExport">另存为 MD</Button>
     </div>
 
     <!-- 正文网格：左元数据 / 右正文编辑器 -->
@@ -379,28 +545,28 @@ function previewCurrent() {
           <!-- 标题 -->
           <div class="space-y-1.5">
             <Label required>标题</Label>
-            <Input v-model="title" placeholder="起一个吸引读者的标题…" :disabled="isBuiltInBlock" />
+            <Input v-model="title" placeholder="起一个吸引读者的标题…"  />
           </div>
           <!-- Slug -->
           <div class="space-y-1.5">
             <Label>URL 标识（slug，可选）</Label>
-            <Input v-model="slugInput" placeholder="留空会自动根据标题生成" :disabled="isBuiltInBlock" />
+            <Input v-model="slugInput" placeholder="留空会自动根据标题生成"  />
           </div>
           <!-- 分类 -->
           <div class="space-y-1.5">
-            <Label required>分类</Label>
+            <Label>分类</Label>
             <select
-              v-model="category"
-              class="w-full h-10 rounded-lg border border-input bg-surface px-3 py-2 text-sm text-text focus:outline-none focus:ring-2 focus:ring-brand/40 focus:border-brand disabled:opacity-50"
-              :disabled="isBuiltInBlock"
+              v-model="categoryId"
+              class="w-full h-10 rounded-lg border border-input bg-surface px-3 py-2 text-sm text-text focus:outline-none focus:ring-2 focus:ring-brand/40 focus:border-brand"
             >
-              <option v-for="c in categories" :key="c" :value="c">{{ c }}</option>
+              <option :value="null">未分类</option>
+              <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option>
             </select>
           </div>
           <!-- 标签 -->
           <div class="space-y-1.5">
             <Label>标签（逗号分隔）</Label>
-            <Input v-model="tagsText" placeholder="如：Vue 3, 设计系统, vibecoding" :disabled="isBuiltInBlock" />
+            <Input v-model="tagsText" placeholder="如：Vue 3, 设计系统, vibecoding"  />
             <div v-if="tagArr.length" class="flex flex-wrap gap-1.5 pt-1">
               <Badge v-for="t in tagArr" :key="t" variant="secondary" class="text-[11px]">#{{ t }}</Badge>
             </div>
@@ -410,19 +576,19 @@ function previewCurrent() {
           <div class="grid grid-cols-2 gap-3">
             <div class="space-y-1.5">
               <Label>发布日期</Label>
-              <Input type="date" v-model="publishedAt" :disabled="isBuiltInBlock" />
+              <Input type="date" v-model="publishedAt"  />
             </div>
             <div class="space-y-1.5 flex flex-col justify-end">
               <Label>&nbsp;</Label>
               <label
                 class="inline-flex items-center gap-2 h-10 px-3 rounded-lg border border-input cursor-pointer select-none hover:border-brand/50 transition"
-                :class="{ 'opacity-50 pointer-events-none': isBuiltInBlock }"
+                
               >
                 <input
                   type="checkbox"
                   class="size-4 accent-brand"
                   v-model="featured"
-                  :disabled="isBuiltInBlock"
+                  
                 />
                 <Star class="size-4 text-warning" :class="{ 'fill-warning': featured }" />
                 <span class="text-sm">首页精选</span>
@@ -431,7 +597,7 @@ function previewCurrent() {
           </div>
           <div class="space-y-1.5">
             <Label>封面图 URL（可选）</Label>
-            <Input v-model="cover" placeholder="https://...封面图片链接" :disabled="isBuiltInBlock" />
+            <Input v-model="cover" placeholder="https://...封面图片链接"  />
           </div>
 
           <Separator />
@@ -444,7 +610,7 @@ function previewCurrent() {
               rows="3"
               placeholder="列表页展示的文章简介…"
               class="w-full rounded-lg border border-input bg-surface px-3 py-2 text-sm text-text focus:outline-none focus:ring-2 focus:ring-brand/40 focus:border-brand resize-none disabled:opacity-50"
-              :disabled="isBuiltInBlock"
+              
             />
           </div>
 
