@@ -790,7 +790,7 @@ model PostTag {
 
 ### 4.3 接口设计
 
-路由前缀 `@Controller('api/posts')`，与其他模块（`/api/about`、`/api/users`、`/api/contribution`）风格统一。
+路由前缀 `@Controller('posts')`（配合全局前缀 `api` → `/api/posts`），与其他模块（`/api/about`、`/api/users`、`/api/contribution`）风格统一。
 
 | 方法 | 路由 | 权限 | 说明 |
 |------|------|------|------|
@@ -1022,10 +1022,10 @@ findCached(cacheKey, dbQuery, publicOnly=true)
 | Phase 1-2 | `relationMode=prisma` 逻辑外键 + `db push` 同步数据库 + 验证 | ✅ 完成 |
 | Phase 2-1 | Post DTO 重写 — PostStatus 映射 / slug / excerpt / cover / featured / categoryId / tagIds / calcMetrics | ✅ 完成 |
 | Phase 2-2 | PostService 重写 — Prisma 分页 CRUD + include category/tags/author + publicOnly | ✅ 完成 |
-| Phase 3-1 | PostController `@Controller('api/posts')` + OptionalJwtAuthGuard + JwtAuthGuard + authorId 注入 | ✅ 完成 |
+| Phase 3-1 | PostController `@Controller('posts')` + OptionalJwtAuthGuard + JwtAuthGuard + authorId 注入 | ✅ 完成 |
 | Phase 3-2 | PostService Redis 缓存 — 防穿透(空值缓存)/击穿(singleflight)/雪崩(TTL随机化)/降级 | ✅ 完成 |
 | Phase 3-3 | ContributionService `tableExists('post')` 接通，热力图统计真实数据 | 📝 待开发 |
 | Phase 4 | Category + Tag 模块（CRUD + rename/merge/delete） | 📝 待开发 |
-| Phase 5 | `seed-posts.mjs` 导入 8 篇内置 mock + `verify-post.mjs` 端到端 | 📝 待开发 |
+| Phase 5 | `seed-posts.mjs` 导入 8 篇内置文章 + `verify-post.mjs` 端到端 13/13 通过 | ✅ 完成 |
 
 > **架构遵循**：本模块严格遵循 [NestJS-Architecture-Guide.md](./NestJS-Architecture-Guide.md) 的分层架构（Controller → Service → Prisma，不抽 Repository）、模块化设计（`@Module` 注册 controllers + providers）、依赖注入（`PrismaService` 全局注入）、统一异常处理（`BusinessException` + 全局过滤器）、统一响应封装（`Result<T>`）。
