@@ -149,32 +149,34 @@ function onCategoryDialogClose() {
           </span>
         </Button>
       </div>
-      <div class="flex items-center gap-1">
+      <div class="flex flex-wrap items-center gap-2">
         <Button
           v-if="hasActiveFilter"
-          size="icon-sm"
-          variant="ghost"
+          size="sm"
+          variant="outline"
           @click="resetFilter"
-          class="text-text-muted hover:text-text"
-          title="清除筛选"
+          class="bg-surface-elevated/50 backdrop-blur-sm hover:bg-surface-muted/70 text-text-muted hover:text-text"
         >
-          <X class="size-4" />
+          <X class="size-4 shrink-0" />
+          <span class="text-xs font-medium">清除筛选</span>
         </Button>
         <Button
-          size="icon-sm"
+          size="sm"
           variant="outline"
           @click="categoryDialogOpen = true"
-          title="分类管理（增删重命名）"
+          class="bg-surface-elevated/50 backdrop-blur-sm hover:bg-surface-muted/70"
         >
-          <Settings2 class="size-4" />
+          <Settings2 class="size-4 shrink-0" />
+          <span class="text-xs font-medium">分类管理</span>
         </Button>
         <Button
-          size="icon-sm"
+          size="sm"
           variant="outline"
           @click="router.push('/blog/tags')"
-          title="标签管理（增删重命名/合并）"
+          class="bg-surface-elevated/50 backdrop-blur-sm hover:bg-surface-muted/70"
         >
-          <Hash class="size-4" />
+          <Hash class="size-4 shrink-0" />
+          <span class="text-xs font-medium">标签管理</span>
         </Button>
       </div>
     </section>
