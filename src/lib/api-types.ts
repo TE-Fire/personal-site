@@ -170,3 +170,81 @@ export interface CaptchaResponse {
   /** 拼图块的 Y 坐标（缺口的顶部位置） */
   puzzleY: number;
 }
+
+/* ==================== Post 模块类型 ==================== */
+
+export type PostStatus = 'draft' | 'published' | 'archived';
+
+export interface PostCategoryVo {
+  id: number;
+  name: string;
+  sort: number;
+}
+
+export interface PostTagVo {
+  id: number;
+  name: string;
+}
+
+export interface PostAuthorVo {
+  id: number;
+  nickname: string;
+  avatar: string | null;
+}
+
+export interface PostVo {
+  id: number;
+  slug: string;
+  title: string;
+  excerpt: string;
+  /** 列表接口不返回 content，详情接口返回 Markdown 原文 */
+  content?: string;
+  cover: string | null;
+  featured: boolean;
+  status: PostStatus;
+  wordCount: number;
+  readMinutes: number;
+  category: PostCategoryVo | null;
+  tags: PostTagVo[];
+  author: PostAuthorVo;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PostPageVo {
+  list: PostVo[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface QueryPostParams {
+  page?: number;
+  pageSize?: number;
+  keyword?: string;
+  categoryId?: number;
+  status?: PostStatus;
+  featured?: boolean;
+  tagIds?: number[];
+}
+
+/* ==================== Category 模块类型 ==================== */
+
+export interface CategoryVo {
+  id: number;
+  name: string;
+  sort: number;
+  postCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/* ==================== Tag 模块类型 ==================== */
+
+export interface TagVo {
+  id: number;
+  name: string;
+  postCount: number;
+  createdAt: string;
+  updatedAt: string;
+}

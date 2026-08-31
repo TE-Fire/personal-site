@@ -2,9 +2,9 @@
 /**
  * BlogDetailPage.vue · 博客详情页
  * 路由 /blog/:slug
- * 优先级（按顺序取）：
- *   1) sessionStorage['blog-preview-tmp'] 临时草稿预览（来自编辑页「草稿预览」按钮）
- *   2) useBlogApi.allPosts — 合并了内置文章 + 用户文章
+ * 数据源：
+ *   1) preview=1 时优先取 sessionStorage['blog-preview-tmp'] 草稿预览（来自编辑页）
+ *   2) 否则 onMounted 调 GET /api/posts/slug/:slug 获取详情
  * 找不到 → 404 Card + 返回博客
  */
 import { computed, onMounted, ref } from 'vue'
@@ -33,8 +33,9 @@ import {
   CardTitle,
   Separator
 } from '@/components/ui'
-import { useBlogApi, type ExtendedBlogPost } from '@/composables/useBlogApi'
-import { readingMinutes } from '@/data/posts'
+import { fetchPostBySlug } from '@/api/post'
+import type { PostVo } from '@/lib/api-types'
+import type { ExtendedBlogPost } from '@/composables/useBlogApi'
 import { useScrollReveal } from '@/composables/useScrollReveal'
 
 marked.use(
@@ -63,14 +64,38 @@ const router = useRouter()
 const pageRoot = ref<HTMLElement | null>(null)
 useScrollReveal(pageRoot)
 
-const { getBySlug } = useBlogApi()
-
 const isPreview = computed(() => route.query.preview === '1')
 
+const post = ref<PostVo | null>(null)
+const isLoading = ref(true)
+const errorMsg = ref('')
 const loadedFromTmp = ref(false)
 
-const post = computed<ExtendedBlogPost | null>(() => {
-  // 草稿预览临时对象（sessionStorage）
+/** 把草稿预览临时对象（旧 ExtendedBlogPost 形状）适配为 PostVo 形状，统一模板消费 */
+function previewToVo(p: ExtendedBlogPost): PostVo {
+  return {
+    id: 0,
+    slug: p.slug,
+    title: p.title,
+    excerpt: p.excerpt,
+    content: p.content,
+    cover: p.cover ?? null,
+    featured: p.featured,
+    status: 'draft',
+    wordCount: p.wordCount,
+    readMinutes: Math.max(1, Math.ceil(p.wordCount / 500)),
+    category: p.category ? { id: 0, name: p.category, sort: 0 } : null,
+    tags: (p.tags || []).map((t) => ({ id: 0, name: t })),
+    author: { id: 0, nickname: '我', avatar: null },
+    createdAt: p.publishedAt,
+    updatedAt: p.lastModified,
+  }
+}
+
+async function loadPost() {
+  isLoading.value = true
+  errorMsg.value = ''
+  // 草稿预览优先
   if (isPreview.value) {
     try {
       const raw = sessionStorage.getItem('blog-preview-tmp')
@@ -78,44 +103,46 @@ const post = computed<ExtendedBlogPost | null>(() => {
         const p = JSON.parse(raw) as ExtendedBlogPost
         if (p && p.slug === props.slug) {
           loadedFromTmp.value = true
-          return p
+          post.value = previewToVo(p)
+          isLoading.value = false
+          return
         }
       }
     } catch { /* ignore */ }
   }
   loadedFromTmp.value = false
-  const real = props.slug ? getBySlug(props.slug) : undefined
-  return real || null
-})
+  if (!props.slug) {
+    post.value = null
+    isLoading.value = false
+    return
+  }
+  try {
+    post.value = await fetchPostBySlug(props.slug)
+  } catch (e) {
+    post.value = null
+    errorMsg.value = (e as Error).message
+  } finally {
+    isLoading.value = false
+  }
+}
+
+onMounted(loadPost)
 
 const rendered = computed(() => {
-  if (!post.value || !post.value.content) {
-    // 内置文章（content 空）生成一段占位预览内容
-    const p = post.value
-    return p ? `
-## ${p.title}
+  if (!post.value) return ''
+  const content = post.value.content
+  if (!content) {
+    return `## ${post.value.title}
 
-> ${p.excerpt}
+> ${post.value.excerpt}
 
-*（这是一篇示例文章卡片数据，正文暂未收录。如果你希望写出完整的 Markdown 正文，可以在博客编辑页新建/导入 MD 文件来体验完整编辑器。）*
-
-### 接下来可以试试
-- 点击右上角「编辑」→ 跳转到编辑器，体验实时分栏 Markdown 预览 + 代码高亮
-- 「导入 MD」→ 把你本地现成的 .md 文章连 front-matter 一起拖进来
-- 「导出 MD」→ 一键下载带 front-matter 的 .md 文件，以后备份/迁移无忧
-
-\`\`\`ts
-// 如果你想看排版效果，这段代码块已经按紫色主题高亮好了
-export function hello(name: string): string {
-  return \`Hi, \${name}! 👋\`
-}
-\`\`\`
-    `.trim() : ''
+*（正文暂未收录。如果这是草稿预览，先回到编辑器写点内容吧。）*
+    `.trim()
   }
-  return marked.parse(post.value.content || '') as string
+  return marked.parse(content) as string
 })
 
-const isUserArticle = computed(() => !!post.value && post.value.source === 'user')
+const isUserArticle = computed(() => !!post.value)
 
 function goEdit() {
   if (!post.value) return
@@ -157,7 +184,7 @@ onMounted(() => {
         <Badge v-else-if="isUserArticle" variant="outline">
           <Hash class="size-3 inline mr-1" /> 我的文章
         </Badge>
-        <Badge variant="default" class="gap-1">{{ post.category }}</Badge>
+        <Badge variant="default" class="gap-1">{{ post.category?.name ?? '未分类' }}</Badge>
         <Button
           v-if="isUserArticle && !isPreview"
           size="sm"
@@ -170,8 +197,16 @@ onMounted(() => {
       </div>
     </div>
 
+    <!-- 加载中 -->
+    <Card v-if="isLoading" class="mx-auto max-w-lg text-center">
+      <CardContent class="py-10 text-text-muted">
+        <p v-if="errorMsg" class="text-destructive">加载失败：{{ errorMsg }}</p>
+        <p v-else>正在加载文章…</p>
+      </CardContent>
+    </Card>
+
     <!-- 不存在 -->
-    <Card v-if="!post" class="mx-auto max-w-lg text-center">
+    <Card v-else-if="!post" class="mx-auto max-w-lg text-center">
       <CardHeader>
         <CardTitle class="text-2xl">这篇文章走丢了</CardTitle>
       </CardHeader>
@@ -208,25 +243,28 @@ onMounted(() => {
         <div class="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-text-muted">
           <span class="inline-flex items-center gap-1.5">
             <Calendar class="size-4 text-brand" />
-            {{ post.publishedAt }}
+            {{ post.createdAt.slice(0, 10) }}
           </span>
           <span class="inline-flex items-center gap-1.5">
             <Clock3 class="size-4 text-success" />
-            约 {{ readingMinutes(post.wordCount) }} 分钟阅读 / {{ post.wordCount.toLocaleString() }} 字
+            约 {{ post.readMinutes }} 分钟阅读 / {{ post.wordCount.toLocaleString() }} 字
           </span>
-          <span v-if="post.lastModified && post.lastModified !== post.publishedAt" class="inline-flex items-center gap-1.5 opacity-80">
+          <span
+            v-if="post.updatedAt && post.updatedAt.slice(0, 10) !== post.createdAt.slice(0, 10)"
+            class="inline-flex items-center gap-1.5 opacity-80"
+          >
             <Edit3 class="size-4" />
-            最近修改 {{ post.lastModified.slice(0, 10) }}
+            最近修改 {{ post.updatedAt.slice(0, 10) }}
           </span>
         </div>
 
         <div v-if="post.tags.length" class="flex flex-wrap gap-2">
           <Badge
             v-for="t in post.tags"
-            :key="t"
+            :key="t.id"
             variant="secondary"
             class="text-[12px] px-2.5 py-1 rounded-full"
-          >#{{ t }}</Badge>
+          >#{{ t.name }}</Badge>
         </div>
 
         <!-- 封面图 -->
@@ -255,7 +293,7 @@ onMounted(() => {
       <Separator />
       <div class="flex flex-wrap items-center justify-between gap-4 pb-4">
         <div class="flex flex-wrap items-center gap-2">
-          <Badge v-for="t in post.tags" :key="t" variant="outline">#{{ t }}</Badge>
+          <Badge v-for="t in post.tags" :key="t.id" variant="outline">#{{ t.name }}</Badge>
         </div>
         <div class="flex items-center gap-2">
           <Button variant="outline" size="sm" @click="router.push('/blog')">

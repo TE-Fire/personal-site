@@ -1,9 +1,10 @@
 <script setup lang="ts">
 /**
  * BlogPage · 博客列表（真实文章 + 分类筛选器）。
- * 数据源：useBlogApi.listPosts() — 合并内置示例 + 用户在本设备创建/编辑的文章。
+ * 数据源：onMounted 调 GET /api/posts 拉取分页列表（游客只看 published）。
+ *        分类从文章列表聚合；分类管理弹窗仍走 useBlogApi（localStorage）。
  */
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   Badge,
@@ -12,7 +13,6 @@ import {
   CardTitle,
   CardDescription
 } from '@/components/ui'
-import { readingMinutes } from '@/data'
 import {
   ArrowRight,
   CalendarDays,
@@ -21,28 +21,52 @@ import {
   X,
   FilePlus2,
   Edit3,
-  UserCircle2,
   Settings2,
   Hash
 } from 'lucide-vue-next'
+import { fetchPosts } from '@/api/post'
+import type { PostVo } from '@/lib/api-types'
 import { useBlogApi } from '@/composables/useBlogApi'
 import CategoryManageDialog from '@/components/CategoryManageDialog.vue'
 import BlogSkeleton from '@/components/BlogSkeleton.vue'
 
 const router = useRouter()
-const { allPosts, postCategories } = useBlogApi()
-const posts = allPosts
+// 分类管理弹窗内部仍依赖 useBlogApi（localStorage 持久化），这里初始化单例
+useBlogApi()
 
-/** 列表加载状态：挂载后短暂显示骨架屏 */
+const posts = ref<PostVo[]>([])
 const isLoading = ref(true)
-setTimeout(() => { isLoading.value = false }, 600)
+const errorMsg = ref('')
+
+async function loadPosts() {
+  isLoading.value = true
+  errorMsg.value = ''
+  try {
+    const page = await fetchPosts({ page: 1, pageSize: 50 })
+    posts.value = page.list
+  } catch (e) {
+    errorMsg.value = (e as Error).message
+  } finally {
+    isLoading.value = false
+  }
+}
+
+onMounted(loadPosts)
+
+/** 分类 tab：从文章列表聚合 unique category.name，前置「全部」 */
+const postCategories = computed<string[]>(() => {
+  const names = posts.value
+    .map((p) => p.category?.name)
+    .filter((n): n is string => !!n)
+  return ['全部', ...Array.from(new Set(names))]
+})
 
 const activeCategory = ref<string>('全部')
 
 const filtered = computed(() =>
   activeCategory.value === '全部'
     ? posts.value
-    : posts.value.filter((p) => p.category === activeCategory.value)
+    : posts.value.filter((p) => p.category?.name === activeCategory.value)
 )
 
 const hasActiveFilter = computed(() => activeCategory.value !== '全部')
@@ -100,7 +124,7 @@ watch(postCategories, (list) => {
         >
           {{ c }}
           <span class="ml-1 text-xs opacity-80">
-            ({{ c === '全部' ? posts.length : posts.filter((p) => p.category === c).length }})
+            ({{ c === '全部' ? posts.length : posts.filter((p) => p.category?.name === c).length }})
           </span>
         </Button>
       </div>
@@ -142,6 +166,15 @@ watch(postCategories, (list) => {
     <!-- 骨架屏加载 -->
     <BlogSkeleton v-if="isLoading" :count="3" />
 
+    <!-- 错误提示 -->
+    <div
+      v-else-if="errorMsg"
+      class="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive flex flex-wrap items-center gap-3"
+    >
+      <span>加载失败：{{ errorMsg }}</span>
+      <Button size="sm" variant="outline" @click="loadPosts">重试</Button>
+    </div>
+
     <!-- 空状态 -->
     <div
       v-else-if="filtered.length === 0"
@@ -175,19 +208,15 @@ watch(postCategories, (list) => {
             class="no-underline flex-1 min-w-0 space-y-2.5"
           >
             <div class="flex flex-wrap items-center gap-2">
-              <Badge variant="outline" class="text-[11px]">{{ post.category }}</Badge>
-              <Badge v-if="post.source === 'user'" variant="secondary" class="text-[10px] !py-0 gap-1">
-                <UserCircle2 class="size-3" />
-                我的
-              </Badge>
+              <Badge variant="outline" class="text-[11px]">{{ post.category?.name ?? '未分类' }}</Badge>
               <Badge v-if="post.featured" variant="default" class="text-[10px] !py-0">精选</Badge>
               <span class="inline-flex items-center gap-1 text-[11px] text-text-muted font-mono">
                 <CalendarDays class="size-3.5" />
-                {{ post.publishedAt }}
+                {{ post.createdAt.slice(0, 10) }}
               </span>
               <span class="inline-flex items-center gap-1 text-[11px] text-text-muted font-mono">
                 <Clock class="size-3.5" />
-                {{ readingMinutes(post.wordCount) }} 分钟阅读
+                {{ post.readMinutes }} 分钟阅读
               </span>
             </div>
 
@@ -202,10 +231,10 @@ watch(postCategories, (list) => {
             <div class="flex flex-wrap gap-1.5 pt-0.5">
               <Badge
                 v-for="tag in post.tags.slice(0, 5)"
-                :key="tag"
+                :key="tag.id"
                 variant="secondary"
                 class="text-[11px] !py-0"
-              >#{{ tag }}</Badge>
+              >#{{ tag.name }}</Badge>
               <span
                 v-if="post.tags.length > 5"
                 class="text-[11px] text-text-muted self-center"
@@ -223,7 +252,6 @@ watch(postCategories, (list) => {
               <ArrowRight class="size-5" />
             </RouterLink>
             <button
-              v-if="post.source === 'user'"
               type="button"
               class="inline-flex items-center justify-center size-8 rounded-lg text-text-muted hover:text-brand hover:bg-brand/10 transition"
               :title="`编辑：${post.title}`"
