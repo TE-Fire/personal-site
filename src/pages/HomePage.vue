@@ -1,10 +1,15 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 /**
  * HomePage · 首页（Hero 终端 + 3D/2D 背景 + 滚动揭示动效 + 数字统计 + 最近作品 + 最近博客）。
  *
  * About 展示数据源：
  *   · 统一从 aboutStore.safeAbout 取（后端 GET /api/about + 本地兜底），不再直接 import @/data/about 的写死值。
  *   · onMounted 触发 aboutStore.fetchAbout()，接口失败会自动回退到 aboutStore 内部的兜底数据。
+ *
+ * 首页精选 / 最近博客：
+ *   · 之前（旧 bug）：直接 import @/data/posts.ts 的静态 Mock 数据，后端软删/硬删完全不生效
+ *   · 现在：onMounted 调 GET /api/posts?featured=true&pageSize=3 真实接口，
+ *          游客模式后端会强制 status=published，软删除(ARCHIVED) / 草稿(DRAFT) 的文章不会出现
  */
 import { computed, onMounted, ref } from 'vue'
 import {
@@ -26,12 +31,11 @@ import {
   CardTitle
 } from '@/components/ui'
 import {
-  posts,
   projects,
-  readingMinutes,
-  type BlogPost,
-  type Project
+  type Project,
 } from '@/data'
+import { fetchPosts } from '@/api/post'
+import type { PostVo } from '@/lib/api-types'
 import { useAboutStore } from '@/stores/about'
 import { useTerminal, type TerminalStep } from '@/composables/useTerminal'
 import { useVantaBackground } from '@/composables/useVantaBackground'
@@ -46,6 +50,8 @@ onMounted(async () => {
   } catch {
     // aboutStore 内部已自动兜底，这里不抛
   }
+  // 首页精选（真实接口，游客自动过滤 archived/draft）
+  await loadFeaturedPosts()
 })
 
 /* ---------------- 数据 ---------------- */
@@ -53,9 +59,33 @@ onMounted(async () => {
 const featuredProjects = computed<Project[]>(() =>
   projects.filter((p) => p.highlight).slice(0, 3)
 )
-const featuredPosts = computed<BlogPost[]>(() =>
-  posts.filter((p) => p.featured).slice(0, 3)
-)
+
+/* ---------- 首页精选博客（后端接口，响应式） ---------- */
+const featuredPosts = ref<PostVo[]>([])
+const loadingFeaturedPosts = ref(true)
+const featuredPostsFailed = ref(false)
+
+function readingMinutes(wordCount: number) {
+  return Math.max(1, Math.ceil(wordCount / 500))
+}
+
+async function loadFeaturedPosts() {
+  loadingFeaturedPosts.value = true
+  featuredPostsFailed.value = false
+  try {
+    const page = await fetchPosts({ featured: true, page: 1, pageSize: 3 })
+    featuredPosts.value = page.list ?? []
+  } catch (e) {
+    featuredPostsFailed.value = true
+    featuredPosts.value = []
+  } finally {
+    loadingFeaturedPosts.value = false
+  }
+}
+async function retryFeaturedPosts() {
+  await loadFeaturedPosts()
+}
+
 const stats = computed(() => aboutStore.safeAbout.highlightStats)
 const firstLocation = computed(() =>
   (aboutStore.safeAbout.location || '').split(' · ')[0] ?? aboutStore.safeAbout.location,
@@ -71,7 +101,9 @@ const script = computed<TerminalStep[]>(() => {
   )
   const postLines = featuredPosts.value.map((p) => {
     const mins = readingMinutes(p.wordCount)
-    return `  · ${p.title}  (${p.category} · ${p.publishedAt} · ${mins} min)`
+    const date = (p.createdAt || '').slice(0, 10) || '近期'
+    const cat = p.category?.name || '未分类'
+    return `  · ${p.title}  (${cat} · ${date} · ${mins} min)`
   })
   return [
     { type: 'command', text: 'whoami' },
@@ -325,7 +357,40 @@ useScrollReveal(pageRoot)
         </Button>
       </header>
 
-      <ol class="space-y-3 p-0 m-0 list-none">
+      <!-- 加载中：骨架屏 shimmer 占位 -->
+      <div v-if="loadingFeaturedPosts" class="space-y-3">
+        <div v-for="n in 3" :key="n" class="rounded-lg border border-border/40 px-4 py-3.5 space-y-3">
+          <div class="flex flex-wrap items-center gap-2">
+            <div class="skeleton skeleton-chip" style="width:70px;height:18px;"></div>
+            <div class="skeleton skeleton-line" style="width:180px;height:12px;margin:0;"></div>
+          </div>
+          <div class="skeleton skeleton-h2" style="width:72%;"></div>
+          <div class="skeleton skeleton-line" style="width:94%;"></div>
+          <div class="skeleton skeleton-line" style="width:80%;"></div>
+          <div class="flex flex-wrap gap-1.5">
+            <div class="skeleton skeleton-chip" style="width:54px;height:18px;"></div>
+            <div class="skeleton skeleton-chip" style="width:62px;height:18px;"></div>
+            <div class="skeleton skeleton-chip" style="width:46px;height:18px;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 失败：重试 + 跳回博客列表 -->
+      <div v-else-if="featuredPostsFailed" role="alert" class="rounded-xl border border-danger/40 bg-danger/10 px-5 py-6 text-center space-y-3">
+        <p class="m-0 text-sm text-danger font-medium">精选博客加载失败</p>
+        <p class="m-0 text-xs text-text-muted">可能是网络问题，也可能后端服务未启动。</p>
+        <div class="flex items-center justify-center gap-2 pt-1">
+          <Button size="sm" variant="outline" @click="retryFeaturedPosts">
+            <RefreshCcw class="size-4" /> 重试
+          </Button>
+          <Button size="sm" variant="default" as="router-link" :to="'/blog'">
+            <BookOpen class="size-4" /> 前往博客列表
+          </Button>
+        </div>
+      </div>
+
+      <!-- 成功：列表渲染 -->
+      <ol v-else-if="featuredPosts.length" class="space-y-3 p-0 m-0 list-none">
         <li
           v-for="(post, i) in featuredPosts"
           :key="post.slug"
@@ -337,8 +402,8 @@ useScrollReveal(pageRoot)
           >
             <div class="flex flex-col gap-1.5 min-w-0 md:pr-8">
               <div class="flex flex-wrap items-center gap-2">
-                <Badge variant="outline" class="text-[11px]">{{ post.category }}</Badge>
-                <span class="text-[11px] text-text-muted font-mono">{{ post.publishedAt }} · {{ readingMinutes(post.wordCount) }} min 阅读</span>
+                <Badge variant="outline" class="text-[11px]">{{ post.category?.name ?? '未分类' }}</Badge>
+                <span class="text-[11px] text-text-muted font-mono">{{ (post.createdAt || '').slice(0, 10) || '近期' }} · {{ readingMinutes(post.wordCount) }} min 阅读</span>
               </div>
               <h3 class="m-0 text-base md:text-[15px] font-semibold tracking-tight text-text group-hover:text-brand transition leading-snug">
                 {{ post.title }}
@@ -346,11 +411,22 @@ useScrollReveal(pageRoot)
               <p class="m-0 text-sm text-text-muted leading-relaxed line-clamp-2">{{ post.excerpt }}</p>
             </div>
             <div class="flex flex-wrap gap-1.5 shrink-0">
-              <Badge v-for="tag in post.tags.slice(0, 3)" :key="tag" variant="secondary" class="text-[11px] !py-0">{{ tag }}</Badge>
+              <Badge v-for="tag in (post.tags ?? []).slice(0, 3)" :key="tag.id" variant="secondary" class="text-[11px] !py-0">#{{ tag.name }}</Badge>
             </div>
           </RouterLink>
         </li>
       </ol>
+
+      <!-- 成功但没数据：提示去博客写一篇 -->
+      <div v-else class="rounded-xl border border-dashed border-border/60 px-5 py-8 text-center space-y-3">
+        <div class="mx-auto inline-flex size-10 items-center justify-center rounded-xl bg-brand/10 text-brand">
+          <Sparkles class="size-5" />
+        </div>
+        <p class="m-0 text-sm text-text-secondary">还没有精选博客，先写一篇并勾选「首页精选」吧 ★</p>
+        <Button size="sm" variant="outline" as="router-link" :to="'/blog/new'">
+          <Star class="size-4" /> 写一篇新的
+        </Button>
+      </div>
     </section>
   </section>
 </template>

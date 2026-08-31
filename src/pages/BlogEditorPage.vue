@@ -295,19 +295,32 @@ async function doSave() {
 
 /* ---------- 删除（仅编辑态）---------- */
 const deleteConfirming = ref(false)
-async function doDelete() {
+/** 默认软删除（归档 status→ARCHIVED，可恢复）；勾上彻底删除=true → 物理删除（DB 中直接删除，不可恢复） */
+const hardDeleteEnabled = ref(false)
+async function doDelete(hard: boolean = false) {
   if (!isEditMode.value || !loadedPost.value) return
   const pid = loadedPost.value.id
   const pTitle = loadedPost.value.title
-  const loadingToastId = toast.info('正在删除文章…', pTitle, { duration: 0 })
+  const loadingToastId = toast.info(
+    hard ? '正在彻底删除文章…（不可恢复）' : '正在删除文章…',
+    `${pTitle}${hard ? ' · 物理删除模式' : ' · 归档模式'}`,
+    { duration: 0 },
+  )
   try {
-    await deletePost(pid)
+    await deletePost(pid, hard)
     toast.remove(loadingToastId)
-    toast.success('已删除（归档）', `「${pTitle}」已移入回收站，可通过后台恢复`)
+    if (hard) {
+      toast.success('已彻底删除（物理）', `「${pTitle}」已从数据库永久移除，无法恢复`)
+    } else {
+      toast.success('已删除（归档）', `「${pTitle}」已移入回收站，可通过后台恢复`)
+    }
     await router.replace('/blog')
   } catch (e) {
     toast.remove(loadingToastId)
     toast.danger('删除失败', (e as Error).message || '未知错误，请稍后重试')
+  } finally {
+    // 复位弹窗状态
+    hardDeleteEnabled.value = false
   }
 }
 
@@ -1142,7 +1155,7 @@ function previewCurrent() {
         <div
           v-if="deleteConfirming"
           class="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
-          @click.self="deleteConfirming = false"
+          @click.self="deleteConfirming = false; hardDeleteEnabled = false"
         >
           <div class="w-full max-w-sm rounded-2xl bg-surface-elevated border border-border/70 shadow-2xl p-5">
             <div class="flex items-start gap-3">
@@ -1151,24 +1164,48 @@ function previewCurrent() {
               </div>
               <div class="flex-1">
                 <div class="text-lg font-semibold text-text">确定要删除这篇文章？</div>
-                <div class="text-sm text-text-muted mt-1">删除后无法从本设备恢复，建议先导出 MD 备份。</div>
+                <div class="text-sm text-text-muted mt-1">默认会移入「回收站」（归档，后续可恢复）。需要永久删除请勾选下方选项。</div>
               </div>
               <button
                 type="button"
                 class="size-8 rounded-lg text-text-muted hover:text-text hover:bg-surface flex items-center justify-center transition"
-                @click="deleteConfirming = false"
+                @click="deleteConfirming = false; hardDeleteEnabled = false"
               >
                 <XIcon class="size-4" />
               </button>
             </div>
+
+            <!-- 彻底删除开关（默认关闭，危险操作显式二次确认） -->
+            <label
+              for="hard-delete-toggle"
+              class="mt-4 flex items-start gap-3 cursor-pointer select-none rounded-xl border px-4 py-3 transition"
+              :class="hardDeleteEnabled
+                ? 'border-danger/40 bg-danger/8 text-danger'
+                : 'border-border/60 bg-surface-muted/20 text-text-secondary hover:border-danger/25 hover:bg-surface-muted/40'"
+            >
+              <input
+                id="hard-delete-toggle"
+                type="checkbox"
+                v-model="hardDeleteEnabled"
+                class="mt-[3px] size-4 accent-danger shrink-0"
+              />
+              <div class="flex-1 min-w-0">
+                <div class="text-sm font-semibold">彻底删除（不可恢复）</div>
+                <div class="text-[11px] leading-relaxed opacity-80 mt-0.5">
+                  勾选后将直接从数据库物理删除，不会保留在回收站，也无法再通过后台恢复。仅在确定不再需要时使用。
+                </div>
+              </div>
+            </label>
+
             <div class="mt-5 flex justify-end gap-2">
-              <Button variant="outline" @click="deleteConfirming = false">取消</Button>
+              <Button variant="outline" @click="deleteConfirming = false; hardDeleteEnabled = false">取消</Button>
               <Button
-                class="bg-danger hover:bg-danger/90 text-white border-danger"
-                @click="doDelete(); deleteConfirming = false"
+                class="text-white border-danger transition"
+                :class="hardDeleteEnabled ? 'bg-danger hover:bg-danger/90' : 'bg-danger/85 hover:bg-danger'"
+                @click="doDelete(hardDeleteEnabled); deleteConfirming = false"
               >
                 <Check class="size-4" />
-                确认删除
+                {{ hardDeleteEnabled ? '确认彻底删除' : '确认删除（归档）' }}
               </Button>
             </div>
           </div>
