@@ -947,17 +947,58 @@ Prisma post.content                    前端 BlogDetailPage
 //    → 游客只看 published，博主看全部
 ```
 
-### 4.9 Redis Key & 缓存（可选）
+### 4.9 Redis Key & 缓存（已实现）
 
 | Key（遵守规范：项目:模块:用途） | TTL | 存值 | 失效时机 |
 |---|---|---|---|
-| `personal_site:post:list:{queryHash}` | 60 秒 | 列表分页 JSON | POST/PUT/DELETE 后批量 del `post:list:*` |
-| `personal_site:post:detail:{slug}` | 300 秒 | 文章详情 JSON | PUT/DELETE 该文章后 del |
+| `personal_site:cache:post:detail:id:{id}` | 1 小时 + 随机 10% | 文章详情 JSON | POST/PUT/DELETE 后 del |
+| `personal_site:cache:post:detail:slug:{slug}` | 1 小时 + 随机 10% | 文章详情 JSON | POST/PUT/DELETE 后 del |
+| `personal_site:cache:post:detail:*` (NULL_FLAG) | 60 秒 + 随机 10% | `{"__null__":true}` | 新文章创建后 del |
 
-- **读**：先查 Redis → 命中返回；否则查 DB → 写 Redis → 返回。
-- **写**：CUD 操作后 `del` 对应 key，下次 GET 自动重建。
-- **降级**：Redis 挂了 → 走 DB（try/finally），不影响业务。
-- **列表缓存粒度**：按 `queryHash = md5(JSON.stringify(query))` 做 key，不同筛选条件独立缓存。
+**缓存只对游客（publicOnly=true）生效，博主请求直接走 DB。**
+
+#### 三大缓存问题防范
+
+| 问题 | 防范策略 | 实现 |
+|------|---------|------|
+| **穿透** | 空值缓存 | 查不到的文章缓存 `NULL_FLAG`（TTL=60s），下次同 key 直接命中不查 DB |
+| **击穿** | singleflight Promise 复用 | 内存 `Map<string, Promise<PostVo>>`，同 key 并发请求只查一次 DB |
+| **雪崩** | TTL 随机化 | `randomTtl(base) = base + Math.random() * base * 0.1`，错峰过期 |
+| **降级** | try/catch 走 DB | Redis 读/写全 try/catch，挂了走 DB 不影响业务 |
+
+#### 缓存读写流程
+
+```
+游客请求 GET /api/posts/:id
+       │
+       ▼
+findCached(cacheKey, dbQuery, publicOnly=true)
+       │
+  ┌────┴────┐
+  │ 读 Redis │
+  └────┬────┘
+       │
+  ┌────┴────────────────────────────────────────┐
+  │ 命中 NULL_FLAG → 抛 NOT_FOUND（防穿透）       │
+  │ 命中正常值   → JSON.parse 返回 PostVo         │
+  │ 未命中       → 继续                           │
+  └─────────────────────────────────────────────┘
+       │ 未命中
+       ▼
+  ┌──────────────┐
+  │ singleflight │  ┌─ 已有 inflight Promise → await 复用（防击穿）
+  │ Map 查找     │  └─ 无 inflight → 新建 Promise → 查 DB
+  └──────────────┘
+       │
+       ▼
+  ┌─────────────────────────────────┐
+  │ DB 查到 → 写 Redis（TTL 随机化）  │ → 返回 PostVo
+  │ DB 查不到 → 写 NULL_FLAG（60s）  │ → 抛 NOT_FOUND
+  └─────────────────────────────────┘
+       │
+       ▼
+  finally: inflight.delete(cacheKey)
+```
 
 ### 4.10 PostBizError 错误码
 
@@ -982,7 +1023,8 @@ Prisma post.content                    前端 BlogDetailPage
 | Phase 2-1 | Post DTO 重写 — PostStatus 映射 / slug / excerpt / cover / featured / categoryId / tagIds / calcMetrics | ✅ 完成 |
 | Phase 2-2 | PostService 重写 — Prisma 分页 CRUD + include category/tags/author + publicOnly | ✅ 完成 |
 | Phase 3-1 | PostController `@Controller('api/posts')` + OptionalJwtAuthGuard + JwtAuthGuard + authorId 注入 | ✅ 完成 |
-| Phase 3-2 | ContributionService `tableExists('post')` 接通，热力图统计真实数据 | 📝 待开发 |
+| Phase 3-2 | PostService Redis 缓存 — 防穿透(空值缓存)/击穿(singleflight)/雪崩(TTL随机化)/降级 | ✅ 完成 |
+| Phase 3-3 | ContributionService `tableExists('post')` 接通，热力图统计真实数据 | 📝 待开发 |
 | Phase 4 | Category + Tag 模块（CRUD + rename/merge/delete） | 📝 待开发 |
 | Phase 5 | `seed-posts.mjs` 导入 8 篇内置 mock + `verify-post.mjs` 端到端 | 📝 待开发 |
 

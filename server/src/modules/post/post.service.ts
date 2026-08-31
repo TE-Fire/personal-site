@@ -1,7 +1,12 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Prisma, PostStatus as PrismaPostStatus } from '@prisma/client';
 import { PrismaService } from '@/common/prisma.service';
+import { RedisService } from '@/modules/redis/redis.service';
 import { BusinessException } from '@/common/exception';
+import {
+  CACHE_POST_DETAIL_KEY,
+  REDIS_TTL,
+} from '@/common/constants/redis-keys';
 import { PostBizError } from './enums/post-biz-error.enum';
 import {
   CreatePostDto,
@@ -45,11 +50,23 @@ const POST_SELECT = {
 type PostListPayload = Prisma.PostGetPayload<{ select: typeof POST_SELECT }>;
 type PostDetailPayload = Prisma.PostGetPayload<{ include: typeof POST_INCLUDE }>;
 
+/** 空值缓存标记 — 防穿透：查不到的文章也缓存，短 TTL */
+const NULL_FLAG = '{"__null__":true}';
+/** 空值缓存 TTL（秒）— 比 normal TTL 短，保证新文章发布后能尽快被查到 */
+const NULL_TTL = 60;
+
 /**
- * Post Service — 基于 Prisma 的文章 CRUD
+ * Post Service — 基于 Prisma 的文章 CRUD + Redis 缓存
  *
  * 遵循 NestJS-Architecture-Guide.md 分层架构：
  *   Controller → Service → Prisma（不抽 Repository）
+ *
+ * 缓存设计（遵循 Development-Spec.md §4.9）：
+ *   · 防穿透：查不到的文章缓存 NULL_FLAG（TTL=60s），下次同 key 直接命中不查 DB
+ *   · 防击穿：singleflight Map 复用同 key 的并发 Promise，只查一次 DB
+ *   · 防雪崩：TTL 随机化（base + 0~10%），错峰过期
+ *   · 降级：Redis 读/写全 try/catch，挂了走 DB 不影响业务
+ *   · 缓存只对游客（publicOnly=true）生效；博主请求直接走 DB
  *
  * 业务规则：
  *   · wordCount / readMinutes 由 calcMetrics() 服务端计算，DTO 不暴露
@@ -60,7 +77,14 @@ type PostDetailPayload = Prisma.PostGetPayload<{ include: typeof POST_INCLUDE }>
  */
 @Injectable()
 export class PostService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(PostService.name);
+  /** singleflight Map：相同 key 的并发请求复用同一 Promise（防击穿） */
+  private readonly inflight = new Map<string, Promise<PostVo>>();
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly redis: RedisService,
+  ) {}
 
   /* ==================== 查询 ==================== */
 
@@ -117,38 +141,44 @@ export class PostService {
 
   /**
    * 按 id 查文章详情（含 content Markdown 原文）
-   * @param publicOnly true = 游客模式，非 published 文章视为不存在
+   * @param publicOnly true = 游客模式（走缓存 + 非 published 视为不存在）
+   *                   false = 博主模式（不走缓存，可查草稿/归档）
    */
   async findById(id: number, publicOnly = false): Promise<PostVo> {
-    const post = await this.prisma.post.findUnique({
-      where: { id },
-      include: POST_INCLUDE,
-    });
-    if (!post) {
-      throw new BusinessException(PostBizError.NOT_FOUND);
-    }
-    if (publicOnly && post.status !== PrismaPostStatus.PUBLISHED) {
-      throw new BusinessException(PostBizError.NOT_FOUND);
-    }
-    return this.toVo(post, true);
+    return this.findCached(
+      CACHE_POST_DETAIL_KEY(`id:${id}`),
+      async () => {
+        const post = await this.prisma.post.findUnique({
+          where: { id },
+          include: POST_INCLUDE,
+        });
+        if (!post) return null;
+        if (publicOnly && post.status !== PrismaPostStatus.PUBLISHED) return null;
+        return this.toVo(post, true);
+      },
+      publicOnly,
+    );
   }
 
   /**
    * 按 slug 查文章详情（含 content Markdown 原文）
-   * @param publicOnly true = 游客模式，非 published 文章视为不存在
+   * @param publicOnly true = 游客模式（走缓存 + 非 published 视为不存在）
+   *                   false = 博主模式（不走缓存，可查草稿/归档）
    */
   async findBySlug(slug: string, publicOnly = false): Promise<PostVo> {
-    const post = await this.prisma.post.findUnique({
-      where: { slug },
-      include: POST_INCLUDE,
-    });
-    if (!post) {
-      throw new BusinessException(PostBizError.NOT_FOUND);
-    }
-    if (publicOnly && post.status !== PrismaPostStatus.PUBLISHED) {
-      throw new BusinessException(PostBizError.NOT_FOUND);
-    }
-    return this.toVo(post, true);
+    return this.findCached(
+      CACHE_POST_DETAIL_KEY(`slug:${slug}`),
+      async () => {
+        const post = await this.prisma.post.findUnique({
+          where: { slug },
+          include: POST_INCLUDE,
+        });
+        if (!post) return null;
+        if (publicOnly && post.status !== PrismaPostStatus.PUBLISHED) return null;
+        return this.toVo(post, true);
+      },
+      publicOnly,
+    );
   }
 
   /* ==================== 写入 ==================== */
@@ -192,6 +222,8 @@ export class PostService {
         },
         include: POST_INCLUDE,
       });
+      // 删 slug 空值缓存（之前可能有人查过这个 slug 触发了 NULL_FLAG）
+      await this.invalidateDetail(post.id, post.slug);
       return this.toVo(post, true);
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
@@ -206,6 +238,7 @@ export class PostService {
    * - tagIds 为全量 replace（deleteMany 旧关联 + create 新关联）
    * - categoryId = null 表示清空分类（disconnect）
    * - content 变更时重新计算 wordCount / readMinutes
+   * - slug 变更时删旧 slug + 新 slug + id 三个缓存 key
    */
   async update(id: number, dto: UpdatePostDto): Promise<PostVo> {
     const existing = await this.prisma.post.findUnique({ where: { id } });
@@ -258,6 +291,16 @@ export class PostService {
         data,
         include: POST_INCLUDE,
       });
+      // 失效缓存：删 id + 旧 slug
+      await this.invalidateDetail(id, existing.slug);
+      // slug 变了 → 新 slug 也要删（可能有人查过新 slug 触发了 NULL_FLAG）
+      if (dto.slug && dto.slug !== existing.slug) {
+        try {
+          await this.redis.del(CACHE_POST_DETAIL_KEY(`slug:${post.slug}`));
+        } catch (e) {
+          this.logger.warn(`Redis 删新 slug 缓存失败：${(e as Error).message}`);
+        }
+      }
       return this.toVo(post, true);
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError) {
@@ -289,6 +332,111 @@ export class PostService {
         where: { id },
         data: { status: PrismaPostStatus.ARCHIVED },
       });
+    }
+    // 失效缓存
+    await this.invalidateDetail(id, existing.slug);
+  }
+
+  /* ==================== 缓存私有方法 ==================== */
+
+  /**
+   * 缓存查询通用包装（只对游客 publicOnly=true 生效）
+   *
+   * 防穿透：查不到的文章缓存 NULL_FLAG（TTL=60s），下次同 key 直接命中
+   * 防击穿：singleflight Map 复用同 key 的并发 Promise，只查一次 DB
+   * 防雪崩：TTL 随机化（base + 0~10%），错峰过期
+   * 降级  ：Redis 读/写全 try/catch，挂了走 DB 不影响业务
+   *
+   * @param cacheKey  Redis key（由 redis-keys.ts 构造）
+   * @param dbQuery   DB 查询函数（返回 null = 文章不存在/不可见）
+   * @param publicOnly true = 游客模式（走缓存）；false = 博主模式（走 DB）
+   */
+  private async findCached(
+    cacheKey: string,
+    dbQuery: () => Promise<PostVo | null>,
+    publicOnly: boolean,
+  ): Promise<PostVo> {
+    // 博主模式：不走缓存，直接查 DB
+    if (!publicOnly) {
+      const post = await dbQuery();
+      if (!post) throw new BusinessException(PostBizError.NOT_FOUND);
+      return post;
+    }
+
+    // 1. 读 Redis 缓存
+    try {
+      const cached = await this.redis.get(cacheKey);
+      if (cached) {
+        // 空值缓存命中 → 防穿透
+        if (cached === NULL_FLAG) {
+          throw new BusinessException(PostBizError.NOT_FOUND);
+        }
+        // 正常缓存命中
+        return JSON.parse(cached) as PostVo;
+      }
+    } catch (e) {
+      // BusinessException 直接 re-throw
+      if (e instanceof BusinessException) throw e;
+      // Redis 读失败 / JSON.parse 失败 → 降级走 DB
+      this.logger.warn(`Redis 缓存读取异常，降级查 DB：${(e as Error).message}`);
+    }
+
+    // 2. singleflight：防击穿，同 key 并发请求复用同一 Promise
+    const existing = this.inflight.get(cacheKey);
+    if (existing) return existing;
+
+    // 3. 查 DB + 写缓存
+    const promise = (async () => {
+      const post = await dbQuery();
+      if (!post) {
+        // 防穿透：空值缓存
+        try {
+          await this.redis.set(cacheKey, NULL_FLAG, this.randomTtl(NULL_TTL));
+        } catch (e) {
+          this.logger.warn(`Redis 写空值缓存失败：${(e as Error).message}`);
+        }
+        throw new BusinessException(PostBizError.NOT_FOUND);
+      }
+      // 写正常缓存（TTL 随机化防雪崩）
+      try {
+        await this.redis.set(
+          cacheKey,
+          JSON.stringify(post),
+          this.randomTtl(REDIS_TTL.CACHE_POST_DETAIL),
+        );
+      } catch (e) {
+        this.logger.warn(`Redis 写缓存失败：${(e as Error).message}`);
+      }
+      return post;
+    })();
+
+    this.inflight.set(cacheKey, promise);
+    try {
+      return await promise;
+    } finally {
+      this.inflight.delete(cacheKey);
+    }
+  }
+
+  /**
+   * TTL 随机化（防雪崩）：base + 0~10% 随机偏移
+   * 例如 base=3600 → 实际 3600~3960 秒，错峰过期
+   */
+  private randomTtl(base: number): number {
+    return base + Math.floor(Math.random() * base * 0.1);
+  }
+
+  /**
+   * 失效文章详情缓存（删 id + slug 两个 key）
+   */
+  private async invalidateDetail(id: number, slug: string): Promise<void> {
+    try {
+      await this.redis.delMany(
+        CACHE_POST_DETAIL_KEY(`id:${id}`),
+        CACHE_POST_DETAIL_KEY(`slug:${slug}`),
+      );
+    } catch (e) {
+      this.logger.warn(`Redis 删缓存失败：${(e as Error).message}`);
     }
   }
 
