@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 /**
  * LifeEditorPage.vue · 生活碎片发布/编辑器
  *
@@ -21,12 +21,14 @@ import {
   updateLifeMoment,
   deleteLifeMoment,
   uploadLifeFile,
+  fetchLifeAlbums,
 } from '@/api/life'
 import type {
   LifeMomentVo,
   LifeMomentTypeDto,
   LifeStatusDto,
   CreateLifeMomentData,
+  LifeAlbumVo,
 } from '@/lib/api-types'
 
 const route = useRoute()
@@ -88,11 +90,19 @@ const form = reactive({
   locationName: '',
   // 缩略图（音乐封面 / 书影封面）
   thumbnailUrl: '',
+  // 相册归类
+  albumId: undefined as number | undefined,
 })
 
 /* ---------- 加载 / 保存态 ---------- */
 const loading = ref(false)
 const saving = ref(false)
+
+/* ---------- 相册列表 ---------- */
+const albums = ref<LifeAlbumVo[]>([])
+async function loadAlbums() {
+  try { albums.value = await fetchLifeAlbums() } catch { albums.value = [] }
+}
 
 /* ---------- 文件上传（共享一个 input，靠 uploadTarget 区分写入字段） ---------- */
 const fileInputRef = ref<HTMLInputElement | null>(null)
@@ -166,6 +176,7 @@ function buildPayload(): CreateLifeMomentData {
     mood: form.mood || undefined,
     featured: form.featured,
     status: form.status,
+    albumId: form.albumId,
   }
 
   if (form.type === 'photo') {
@@ -232,9 +243,14 @@ async function handleSave(publish: boolean) {
 }
 
 /* ---------- 删除（仅编辑模式） ---------- */
+const deleteDialogOpen = ref(false)
 async function handleDelete() {
   if (!isEditMode.value || editId.value === null) return
-  if (!window.confirm('确定要删除这条碎片吗？此操作不可恢复。')) return
+  deleteDialogOpen.value = true
+}
+async function confirmDelete() {
+  deleteDialogOpen.value = false
+  if (!isEditMode.value || editId.value === null) return
   const loadingId = toast.info('正在删除…', form.title.trim() || '', { duration: 0 })
   try {
     await deleteLifeMoment(editId.value)
@@ -296,6 +312,7 @@ async function loadEditData() {
 }
 
 onMounted(() => {
+  loadAlbums()
   if (isEditMode.value) loadEditData()
 })
 
@@ -367,6 +384,15 @@ const labelClass = 'block text-xs font-medium text-text-muted mb-1.5'
             <span class="mr-1">{{ t.icon }}</span>{{ t.label }}
           </button>
         </div>
+      </section>
+
+      <!-- 相册（photo / footprint 时显示） -->
+      <section v-if="form.type === 'photo' || form.type === 'footprint'" class="mb-6" data-reveal="0.08">
+        <div class="text-xs uppercase tracking-wider font-semibold text-brand mb-2.5">相册归类</div>
+        <select v-model="form.albumId" class="w-full h-10 rounded-lg border border-input bg-surface px-3 py-2 text-sm text-text focus:outline-none focus:ring-2 focus:ring-brand/40 focus:border-brand cursor-pointer">
+          <option :value="undefined">不归类</option>
+          <option v-for="album in albums" :key="album.id" :value="album.id">{{ album.name }}</option>
+        </select>
       </section>
 
       <!-- ========== 通用字段 ========== -->
@@ -612,28 +638,6 @@ const labelClass = 'block text-xs font-medium text-text-muted mb-1.5'
               placeholder="地点名称"
             />
           </div>
-          <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label :class="labelClass">纬度</label>
-              <input
-                v-model.number="form.geoLat"
-                type="number"
-                step="any"
-                :class="inputClass"
-                placeholder="纬度"
-              />
-            </div>
-            <div>
-              <label :class="labelClass">经度</label>
-              <input
-                v-model.number="form.geoLng"
-                type="number"
-                step="any"
-                :class="inputClass"
-                placeholder="经度"
-              />
-            </div>
-          </div>
         </template>
 
         <!-- 书影 -->
@@ -743,4 +747,23 @@ const labelClass = 'block text-xs font-medium text-text-muted mb-1.5'
       </div>
     </template>
   </div>
+
+  <!-- 删除确认弹窗 -->
+  <Teleport to="body">
+    <Transition name="fade">
+      <div v-if="deleteDialogOpen" class="fixed inset-0 z-[9999] bg-black/50 flex items-center justify-center" @click.self="deleteDialogOpen = false">
+        <div class="bg-surface border border-border rounded-xl shadow-xl w-full max-w-sm mx-4 p-5 space-y-4" @click.stop>
+          <div class="space-y-1">
+            <h3 class="text-base font-semibold text-text">删除碎片</h3>
+            <p class="text-sm text-text-muted">确定要删除「{{ form.title || '未命名碎片' }}」吗？</p>
+            <p class="text-xs text-danger">删除后碎片将移入回收站，可在后台恢复。</p>
+          </div>
+          <div class="flex justify-end gap-2 pt-1">
+            <button class="px-3 py-1.5 rounded-lg border border-border text-sm text-text-muted hover:text-text hover:border-brand/40 transition-colors" @click="deleteDialogOpen = false">取消</button>
+            <button class="px-3 py-1.5 rounded-lg bg-danger text-white text-sm font-medium hover:opacity-90 transition-opacity" @click="confirmDelete">删除</button>
+          </div>
+        </div>
+      </div>
+    </Transition>
+  </Teleport>
 </template>

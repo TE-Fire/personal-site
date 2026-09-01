@@ -1,5 +1,5 @@
 /**
- * seed-life.mjs · 导入 19 条生活碎片（8 照片 + 5 音乐 + 6 随笔）
+ * seed-life.mjs · 导入 25 条生活碎片（8 照片 + 5 音乐 + 6 随笔 + 3 足迹 + 3 书影）
  *
  * 幂等设计：先清空 life_moment 表，再按原始顺序插入（sortOrder 0,1,2...）。
  * 数据源自 src/data/life.ts（PhotoMoment / MusicMoment / EssayMoment）。
@@ -39,6 +39,20 @@ const ESSAYS = [
   { id: 'e-004', date: '2026.08.10', content: '海风很咸，浪声很白。坐在礁石上放空了两个小时，脑子里一个 var 都没有。',         mood: '释然', gradient: { from: '#0c4a6e', to: '#38bdf8' } },
   { id: 'e-005', date: '2026.08.06', content: '新买了一盆绿萝，放在显示器旁边。写代码写到卡壳时就看看它，它也不急，绿油油的。', mood: '日常' },
   { id: 'e-006', date: '2026.07.30', content: '今天煮了一碗面，放了两个荷包蛋。幸福有时候就是多加一个蛋这么简单。',             mood: '美食', gradient: { from: '#fde68a', to: '#f97316' } },
+];
+
+/* ---------- 3 条足迹数据 ---------- */
+const FOOTPRINTS = [
+  { id: 'f-001', date: '2026.04.15', title: '西湖漫步',    location: '杭州·西湖',     content: '春日的西湖，湖面像一块摊开的丝绸。走了一圈白堤，看到三个人在不同的地方钓鱼。', mood: '治愈' },
+  { id: 'f-002', date: '2025.11.22', title: '重庆一日游',  location: '重庆·洪崖洞',   content: '坐了一趟过江索道，晚上去了洪崖洞。重庆的火锅比想象中更辣，也比想象中更好吃。', mood: '兴奋' },
+  { id: 'f-003', date: '2025.10.01', title: '南京中山陵', location: '南京·中山陵',   content: '国庆节去的，人比台阶还多。但爬到顶看到整个南京的那一刻，觉得值了。',             mood: '日常' },
+];
+
+/* ---------- 3 条书影数据 ---------- */
+const BOOKNOTES = [
+  { id: 'b-001', date: '2026.03.10', title: '代码大全（第二版）', author: 'Steve McConnell',        bookType: 'book',  rating: 5, content: '编程界的圣经。不是教你写代码，是教你怎么把代码写成人能读的东西。', mood: '灵感' },
+  { id: 'b-002', date: '2026.02.20', title: '沙丘',              author: 'Frank Herbert',          bookType: 'book',  rating: 5, content: '科幻的尽头是哲学，哲学的尽头是沙丘。宇宙的本质是盐和时间。',         mood: '灵感' },
+  { id: 'b-003', date: '2025.12.31', title: '盗梦空间',          author: '克里斯托弗·诺兰',        bookType: 'movie', rating: 5, content: '跨年刷的。陀螺停没停不重要，重要的是你愿意相信什么是真实的。',         mood: '释然' },
 ];
 
 /** 'YYYY.MM.DD' → UTC ISO DateTime（如 2026-08-20T00:00:00.000Z） */
@@ -114,6 +128,45 @@ async function main() {
     });
     inserted++;
     console.log(`  ✍️  #${row.id} ${e.id}  [${e.mood}]${e.gradient ? ' +gradient' : ''}`);
+  }
+
+  // 2.4 足迹：title / locationName / content / mood
+  for (const f of FOOTPRINTS) {
+    const row = await prisma.lifeMoment.create({
+      data: {
+        type: LifeMomentType.FOOTPRINT,
+        status: LifeStatus.PUBLISHED,
+        title: f.title,
+        content: f.content,
+        date: toDate(f.date),
+        mood: f.mood,
+        sortOrder: sort++,
+        locationName: f.location,
+      },
+    });
+    inserted++;
+    console.log(`  🗺  #${row.id} ${f.id} ${f.title} @ ${f.location}`);
+  }
+
+  // 2.5 书影：title / bookAuthor / bookType / rating / content / mood
+  for (const b of BOOKNOTES) {
+    const row = await prisma.lifeMoment.create({
+      data: {
+        type: LifeMomentType.BOOKNOTE,
+        status: LifeStatus.PUBLISHED,
+        title: b.title,
+        content: b.content,
+        date: toDate(b.date),
+        mood: b.mood,
+        sortOrder: sort++,
+        bookAuthor: b.author,
+        bookType: b.bookType,
+        rating: b.rating,
+      },
+    });
+    inserted++;
+    const typeIcon = b.bookType === 'movie' ? '🎬' : '📖';
+    console.log(`  ${typeIcon} #${row.id} ${b.id} ${b.title} - ${b.author}  ★${b.rating}`);
   }
 
   // 3. 统计输出

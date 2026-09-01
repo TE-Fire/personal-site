@@ -56,6 +56,17 @@ function fmtDate(iso: string): string {
   return `${y}.${m}.${day}`
 }
 
+/** 后端相对路径 → 完整 URL（http://host:port/uploads/...） */
+function formatMediaUrl(path: string | null | undefined): string | undefined {
+  if (!path) return undefined
+  // 已经是完整 URL 直接返回
+  if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('data:')) return path
+  // 相对路径拼 base URL
+  const base = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api').replace(/\/api$/, '')
+  return `${base}${path}`
+}
+
+
 /** 渐变色 null 兜底 */
 const DEFAULT_GRADIENT_FROM = '#7c3aed'
 const DEFAULT_GRADIENT_TO = '#f59e0b'
@@ -294,12 +305,20 @@ function goHome() {
             '--tilt-y': hoveredPhoto === photo.id ? tiltY + 'deg' : '0deg',
             '--glow-from': photo.gradientFrom || DEFAULT_GRADIENT_FROM,
             '--glow-to': photo.gradientTo || DEFAULT_GRADIENT_TO,
-            background: `linear-gradient(135deg, ${photo.gradientFrom || DEFAULT_GRADIENT_FROM}, ${photo.gradientTo || DEFAULT_GRADIENT_TO})`
+            ...(!photo.mediaUrl ? { background: `linear-gradient(135deg, ${photo.gradientFrom || DEFAULT_GRADIENT_FROM}, ${photo.gradientTo || DEFAULT_GRADIENT_TO})` } : {})
           }"
           @mousemove="onPhotoMove($event, photo.id)"
           @mouseenter="hoveredPhoto = photo.id"
           @mouseleave="hoveredPhoto = null"
         >
+          <!-- 真实照片（如果有 mediaUrl） -->
+          <img
+            v-if="photo.mediaUrl"
+            :src="formatMediaUrl(photo.mediaUrl)"
+            :alt="photo.title || '照片'"
+            class="absolute inset-0 w-full h-full object-cover"
+            loading="lazy"
+          />
           <!-- 暗角遮罩 -->
           <div class="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-80 group-hover:opacity-90 transition-opacity duration-300" />
           <!-- 光泽扫过效果 -->
@@ -366,10 +385,11 @@ function goHome() {
         >
           <!-- 封面 -->
           <div
-            class="size-12 rounded-lg flex items-center justify-center text-white shrink-0 transition-transform group-hover:scale-105"
-            :style="{ background: song.coverColor || DEFAULT_GRADIENT_FROM }"
+            class="size-12 rounded-lg flex items-center justify-center text-white shrink-0 transition-transform group-hover:scale-105 overflow-hidden"
+            :style="!song.thumbnailUrl ? { background: song.coverColor || DEFAULT_GRADIENT_FROM } : undefined"
           >
-            <span class="text-lg">♪</span>
+            <img v-if="song.thumbnailUrl" :src="formatMediaUrl(song.thumbnailUrl)" class="w-full h-full object-cover" loading="lazy" />
+            <span v-else class="text-lg">♪</span>
           </div>
           <!-- 歌曲信息 -->
           <div class="flex-1 min-w-0 space-y-0.5">

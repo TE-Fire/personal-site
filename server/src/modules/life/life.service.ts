@@ -160,8 +160,12 @@ export class LifeService {
       where.albumId = dto.albumId;
     }
     if (dto.status) {
+      // 显式指定 status → 用指定值（admin 可以用 archived/draft）
       const s = toPrismaStatus(dto.status);
       if (s) where.status = s;
+    } else {
+      // 没指定 → 默认只查 PUBLISHED（ARCHIVED 对所有人隐藏）
+      where.status = PrismaLifeStatus.PUBLISHED;
     }
     if (dto.featured !== undefined) {
       where.featured = dto.featured;
@@ -188,7 +192,9 @@ export class LifeService {
 
   /**
    * 按 id 查碎片详情
-   * @param publicOnly true = 游客模式（非 published 视为不存在）
+   * @param publicOnly true = 游客模式（只有 PUBLISHED 可见）
+   * @description     ARCHIVED 对所有人隐藏（软删除即不可见）；
+   *                  DRAFT 仅 admin（publicOnly=false）可见。
    */
   async findById(id: number, publicOnly: boolean): Promise<LifeMomentVo> {
     const moment = await this.prisma.lifeMoment.findUnique({
@@ -198,6 +204,11 @@ export class LifeService {
     if (!moment) {
       throw new BusinessException(LifeBizError.NOT_FOUND);
     }
+    // ARCHIVED 对任何人都不可访问（已软删除）
+    if (moment.status === PrismaLifeStatus.ARCHIVED) {
+      throw new BusinessException(LifeBizError.NOT_FOUND);
+    }
+    // 游客只能看 PUBLISHED，admin 还能看 DRAFT
     if (publicOnly && moment.status !== PrismaLifeStatus.PUBLISHED) {
       throw new BusinessException(LifeBizError.NOT_FOUND);
     }
