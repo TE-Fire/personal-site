@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 /**
  * LifePage · 生活碎片页面。
  * 分区瀑布流布局：照片墙创意排布 + 音乐卡片 + 随笔网格 + 足迹/书影 + 底部时间轴。
@@ -229,6 +229,15 @@ function goHome() {
         >
           <FilePlus2 class="size-4" />
           发布碎片
+        </button>
+        <!-- 相册集入口 -->
+        <button
+          type="button"
+          class="inline-flex items-center gap-2 rounded-lg border border-border/60 bg-surface px-4 py-2.5 text-sm font-medium text-text-muted hover:text-text hover:border-brand/40 transition-colors"
+          @click="router.push('/life/albums')"
+        >
+          📁
+          相册集
         </button>
       </div>
     </header>

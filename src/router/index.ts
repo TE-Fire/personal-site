@@ -105,6 +105,19 @@ const routes: RouteRecordRaw[] = [
     props: true
   },
   {
+    path: '/life/albums',
+    name: 'LifeAlbums',
+    component: () => import('@/pages/LifeAlbumsPage.vue'),
+    meta: { title: '相册集' }
+  },
+  {
+    path: '/life/albums/:id',
+    name: 'LifeAlbumDetail',
+    component: () => import('@/pages/LifeAlbumsPage.vue'),
+    meta: { title: '相册详情' },
+    props: true
+  },
+  {
     path: '/timeline',
     name: 'Timeline',
     component: () => import('@/pages/TimelinePage.vue'),

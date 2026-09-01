@@ -169,8 +169,38 @@ async function main() {
     console.log(`  ${typeIcon} #${row.id} ${b.id} ${b.title} - ${b.author}  ★${b.rating}`);
   }
 
-  // 3. 统计输出
+  // 3. 相册 + 碎片关联
+  console.log('\n🗂  相册数据...');
+  await prisma.lifeAlbum.deleteMany({});
+  console.log('🧹 已清空 life_album 旧数据');
+
+  const albumsData = [
+    { name: '2026 春日旅行', description: '2026 年春天去杭州、重庆、南京拍的照片。', sortOrder: 1 },
+    { name: '代码桌面', description: '工作台上的日常，那些让代码看起来没那么枯燥的瞬间。', sortOrder: 2 },
+  ];
+
+  for (const a of albumsData) {
+    const row = await prisma.lifeAlbum.create({ data: a });
+    console.log(`  📁 #${row.id} ${a.name}`);
+  }
+
+  // 把现有碎片里 locationName 含 '西湖'/'重庆'/'南京' 的关联到第一个相册
+  const album1 = await prisma.lifeAlbum.findFirst({ where: { name: '2026 春日旅行' } });
+  if (album1) {
+    const updated = await prisma.lifeMoment.updateMany({
+      where: { OR: [
+        { locationName: { contains: '西湖' } },
+        { locationName: { contains: '重庆' } },
+        { locationName: { contains: '南京' } },
+      ]},
+      data: { albumId: album1.id },
+    });
+    console.log(`  ↩️  已将 ${updated.count} 条碎片关联到「2026 春日旅行」`);
+  }
+
+  // 4. 统计输出
   const total = await prisma.lifeMoment.count();
+  const totalAlbums = await prisma.lifeAlbum.count();
   const byType = await prisma.lifeMoment.groupBy({
     by: ['type'],
     _count: { _all: true },
@@ -178,8 +208,9 @@ async function main() {
   });
 
   console.log(`\n✅ seed-life 完成！`);
-  console.log(`   本次插入 ${inserted} 条，数据库现有 ${total} 条`);
-  console.log(`   按类型：${byType.map((t) => `${t.type}=${t._count._all}`).join('  ')}`);
+  console.log(`   本次插入 ${inserted} 条碎片 + ${totalAlbums} 个相册`);
+  console.log(`   数据库现有 ${total} 条碎片 / ${totalAlbums} 个相册`);
+  console.log(`   碎片按类型：${byType.map((t) => `${t.type}=${t._count._all}`).join('  ')}`);
 }
 
 main()
