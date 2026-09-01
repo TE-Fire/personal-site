@@ -13,6 +13,8 @@ export enum LifeBizError {
   FILE_TOO_LARGE = 3003,
   /** 存储服务不可用（MinIO/OSS 连接失败） */
   STORAGE_UNAVAILABLE = 3004,
+  /** 相册不存在 */
+  ALBUM_NOT_FOUND = 3005,
 }
 
 const LIFE_ERROR_MSG: Record<LifeBizError, string> = {
@@ -20,6 +22,7 @@ const LIFE_ERROR_MSG: Record<LifeBizError, string> = {
   [LifeBizError.UNSUPPORTED_MEDIA]: '不支持的文件格式',
   [LifeBizError.FILE_TOO_LARGE]: '文件超出大小限制',
   [LifeBizError.STORAGE_UNAVAILABLE]: '存储服务暂不可用',
+  [LifeBizError.ALBUM_NOT_FOUND]: '相册不存在',
 };
 
 export function getLifeErrorInfo(err: LifeBizError): IErrorInfo {

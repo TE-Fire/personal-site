@@ -174,3 +174,97 @@ model PostTag {
   @@id([postId, tagId])
   @@map("post_tag")
 }
+
+// ============================================================
+// 模块七：Life 生活碎片
+// 单表多态：PHOTO/MUSIC/ESSAY/FOOTPRINT/BOOKNOTE 共用 life_moment
+// life_album 为相册扩展预留表（1:N）
+// ============================================================
+
+/// 生活碎片类型
+enum LifeMomentType {
+  PHOTO       // 照片
+  MUSIC       // 音乐
+  ESSAY       // 随笔
+  FOOTPRINT   // 足迹打卡
+  BOOKNOTE    // 书影笔记
+}
+
+/// 碎片发布状态（同 Post 软删除模式）
+enum LifeStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+/// 相册表（为"照片相册/图集"扩展预留）
+model LifeAlbum {
+  id          Int      @id @default(autoincrement())
+  name        String   @db.VarChar(100)
+  description String?  @db.VarChar(500)
+  coverUrl    String?  @db.LongText       @map("cover_url")
+  sortOrder   Int      @default(0)        @map("sort_order")
+  createdAt   DateTime @default(now())    @map("created_at")
+  updatedAt   DateTime @updatedAt          @map("updated_at")
+  moments     LifeMoment[]
+
+  @@map("life_album")
+}
+
+/// 生活碎片表（单表多态）
+model LifeMoment {
+  id          Int             @id @default(autoincrement())
+  type        LifeMomentType
+  status      LifeStatus      @default(PUBLISHED)
+
+  // ===== 通用字段 =====
+  title       String?         @db.VarChar(200)            // 照片/音乐/足迹标题；随笔可空
+  content     String?         @db.Text                     // 随笔正文 / 照片描述 / 书影短评
+  date        DateTime                                     // 碎片发生日期（用于时间轴排序）
+  mood        String?         @db.VarChar(20)             // 心情标签
+  sortOrder   Int             @default(0)    @map("sort_order")
+  featured    Boolean         @default(false)              // 首页精选
+
+  // ===== 媒体字段（本地 public/uploads/life/ 路径，预留 MinIO/OSS）=====
+  mediaUrl    String?         @db.LongText                 // 文件路径（照片/音频）
+  mediaType   String?         @db.VarChar(50)              // MIME type: image/jpeg, audio/mpeg
+  thumbnailUrl String?       @db.LongText    @map("thumbnail_url") // 音乐封面 / 书影封面
+
+  // ===== 渐变色块 fallback（无图时占位）=====
+  gradientFrom String?        @db.VarChar(20) @map("gradient_from")
+  gradientTo   String?        @db.VarChar(20) @map("gradient_to")
+  coverColor   String?        @db.VarChar(20) @map("cover_color")  // 音乐封面色
+
+  // ===== 音乐专属 =====
+  artist      String?         @db.VarChar(100)
+  playCount   Int             @default(0)    @map("play_count")
+  externalLink String?        @db.LongText    @map("external_link")  // 网易云/QQ音乐外链
+  comment     String?         @db.VarChar(500)               // 一句话点评
+
+  // ===== 书影专属 =====
+  bookAuthor  String?         @db.VarChar(100) @map("book_author")
+  rating      Int?                                         // 1~5 星评分
+  bookType    String?         @db.VarChar(10)  @map("book_type") // "book" | "movie"
+
+  // ===== 布局字段（照片瀑布流）=====
+  span        Int             @default(1)                   // 1=正常, 2=宽卡
+  heightKey   String          @default("md") @db.VarChar(4) @map("height_key") // sm/md/lg/xl
+
+  // ===== 扩展预留 =====
+  albumId     Int?            @map("album_id")
+  album       LifeAlbum?      @relation(fields: [albumId], references: [id], onDelete: SetNull)
+
+  geoLat      Float?          @map("geo_lat")               // 纬度（地图足迹）
+  geoLng      Float?          @map("geo_lng")               // 经度（地图足迹）
+  locationName String?        @db.VarChar(200) @map("location_name") // 地名
+
+  // ===== 基础 =====
+  createdAt   DateTime        @default(now())  @map("created_at")
+  updatedAt   DateTime        @updatedAt        @map("updated_at")
+
+  @@index([type])
+  @@index([status])
+  @@index([date])
+  @@index([albumId])
+  @@map("life_moment")
+}

@@ -171,3 +171,46 @@
 - CategoryManageDialog / BlogTagsPage 仍依赖 useBlogApi，分类与标签管理暂为本地态
 - 前端默认 baseURL `http://localhost:3000/api`，需后端 NestJS 服务运行中才会真实发起请求
 
+---
+
+## 2026-09-01 · Life 模块全栈开发
+
+> 主题：生活碎片模块从静态 Mock → 全栈 CRUD（后端 NestJS + Prisma + 本地文件上传，前端 API 驱动 + 编辑器）
+> 用户确认：全栈 CRUD + 保留 Photo/Music/Essay + 新增 Footprint/BookNote + MinIO/OSS 存储（一期用本地 uploads，预留接口）+ 扩展方向（音乐播放器/相册/地图足迹）
+
+### 表结构（已确认）
+
+**枚举：**
+- `LifeMomentType`: PHOTO / MUSIC / ESSAY / FOOTPRINT / BOOKNOTE
+- `LifeStatus`: DRAFT / PUBLISHED / ARCHIVED（同 Post 软删除模式）
+
+**表 1 life_moment（碎片主表 · 单表多态）：**
+- 通用：id, type, status, title?, content?, date, mood?, sortOrder, featured, createdAt, updatedAt
+- 媒体：mediaUrl?（LongText）, mediaType?, thumbnailUrl?（LongText）, gradientFrom?, gradientTo?, coverColor?
+- 音乐专属：artist?, playCount, externalLink?（LongText）, comment?
+- 布局：span（1/2）, heightKey（sm/md/lg/xl）
+- 扩展预留：albumId?→life_album.id, geoLat?, geoLng?, locationName?
+- 索引：type, status, date, albumId
+
+**表 2 life_album（相册表 · 为"照片相册/图集"扩展预留）：**
+- id, name, description?, coverUrl?（LongText）, sortOrder, createdAt, updatedAt
+- 关联：LifeMoment.albumId → LifeAlbum.id（onDelete: SetNull）
+
+### 开发任务
+
+| 编号 | 任务 | 说明 |
+|---|---|---|
+| L1 | Prisma schema | 添加枚举 + LifeAlbum/LifeMoment 模型 |
+| L2 | Migration + seed | `prisma migrate dev` + seed 初始数据（从 src/data/life.ts 迁移） |
+| L3 | DTO | Create/Update/QueryLifeMomentDto + LifeAlbumDto |
+| L4 | Service + Controller + Module | CRUD + 文件上传（multer → public/uploads/life/）+ app.module 注册 |
+| L5 | 前端类型 + API | api-types.ts + src/api/life.ts |
+| L6 | LifePage.vue 改造 | 静态 Mock → API 调用 + 骨架屏 + 失败兜底 |
+| L7 | LifeEditorPage | 碎片发布/编辑器 + 路由 |
+| L8 | Build + commit | 前后端构建通过 + 提交 |
+
+### 存储策略
+- 一期：multer diskStorage → `public/uploads/life/{yyyy-mm}/` 本地文件
+- 预留：StorageService 接口，后续可无缝切换 MinIO/OSS
+- 图片上传时用 sharp 压缩生成缩略图
+

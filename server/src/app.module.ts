@@ -9,6 +9,7 @@ import { PostModule } from './modules/post/post.module';
 import { CategoryModule } from './modules/category/category.module';
 import { TagModule } from './modules/tag/tag.module';
 import { ContributionModule } from './modules/contribution/contribution.module';
+import { LifeModule } from './modules/life/life.module';
 import { AppController } from './app.controller';
 
 /**
@@ -35,6 +36,7 @@ import { AppController } from './app.controller';
     CategoryModule,
     TagModule,
     ContributionModule,
+    LifeModule,
   ],
   controllers: [AppController],
   providers: [],

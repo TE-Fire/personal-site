@@ -15,7 +15,7 @@
 | 4 | **Post 文章** | 📝 本章节分析 | 核心实体，关联 Category + Tag；逻辑外键 `relationMode=prisma`；Markdown 存 TEXT 前端渲染 |
 | 5 | Category 分类 | 📝 本章节含 | Post 章节内一并设计（严格关系模型独立表） |
 | 6 | Tag 标签 | 📝 本章节含 | Post 章节内一并设计（全局唯一 + 多对多中间表） |
-| 7 | Life 生活碎片 | ⬜ 待分析 | 照片 / 音乐 / 随笔 |
+| 7 | Life 生活碎片 | 📝 本章节分析 | 照片 / 音乐 / 随笔 + 新增足迹/书影；全栈 CRUD + MinIO/OSS 预留 |
 
 ---
 
@@ -1029,3 +1029,402 @@ findCached(cacheKey, dbQuery, publicOnly=true)
 | Phase 5 | `seed-posts.mjs` 导入 8 篇内置文章 + `verify-post.mjs` 端到端 13/13 通过 | ✅ 完成 |
 
 > **架构遵循**：本模块严格遵循 [NestJS-Architecture-Guide.md](./NestJS-Architecture-Guide.md) 的分层架构（Controller → Service → Prisma，不抽 Repository）、模块化设计（`@Module` 注册 controllers + providers）、依赖注入（`PrismaService` 全局注入）、统一异常处理（`BusinessException` + 全局过滤器）、统一响应封装（`Result<T>`）。
+
+---
+
+## 模块七：Life 生活碎片
+
+> **目标**：把前端 `src/data/life.ts` 写死的照片/音乐/随笔 Mock 数据改为全栈 CRUD 模块，与 Post 模块同构。
+> 后端建 `life_moment` + `life_album` 两张表 + RESTful API + 本地文件上传（预留 MinIO/OSS 切换）。
+> 前端 `LifePage.vue` 改调后端 API，新增 `LifeEditorPage.vue` 碎片发布/编辑器。
+>
+> **用户确认的需求**：
+> - 数据架构：全栈 CRUD（后端 DB + API + 前端管理面板）
+> - 内容类型：保留 PHOTO/MUSIC/ESSAY + 新增 FOOTPRINT 足迹 + BOOKNOTE 书影（砍掉 VIDEO，体积过大）
+> - 媒体存储：MinIO/OSS 上传（当前阶段先用本地 `public/uploads/life/` + multer，StorageService 接口化预留切换）
+> - 扩展方向：音乐播放器嵌入 / 照片相册图集 / 地图足迹
+
+### 7.1 需求概述
+
+| 角色 | 权限 | 说明 |
+|------|------|------|
+| 游客 (guest) | 只读已发布 | 浏览 `status=published` 的碎片列表，按类型/心情筛选 |
+| 博主 (admin) | 全部 CRUD | 登录后创建/编辑/删除碎片；管理相册；上传照片/音乐封面 |
+
+### 7.2 数据模型设计（Prisma Schema）
+
+> **单表多态策略**：PHOTO/MUSIC/ESSAY/FOOTPRINT/BOOKNOTE 共用 `life_moment` 一张表。
+> 通用字段直接列，类型专属字段 nullable，避免多表 JOIN，查询/筛选/排序简单。
+> `life_album` 为相册扩展预留表，与 `life_moment` 是 1:N 关系。
+
+```prisma
+/// 生活碎片类型
+enum LifeMomentType {
+  PHOTO       // 照片
+  MUSIC       // 音乐
+  ESSAY       // 随笔
+  FOOTPRINT   // 足迹打卡
+  BOOKNOTE    // 书影笔记
+}
+
+/// 碎片发布状态（同 Post 软删除模式）
+enum LifeStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+/// 相册表（为"照片相册/图集"扩展预留）
+model LifeAlbum {
+  id          Int      @id @default(autoincrement())
+  name        String   @db.VarChar(100)
+  description String?  @db.VarChar(500)
+  coverUrl    String?  @db.LongText       @map("cover_url")
+  sortOrder   Int      @default(0)        @map("sort_order")
+  createdAt   DateTime @default(now())    @map("created_at")
+  updatedAt   DateTime @updatedAt          @map("updated_at")
+  moments     LifeMoment[]
+
+  @@map("life_album")
+}
+
+/// 生活碎片表（单表多态）
+model LifeMoment {
+  id          Int             @id @default(autoincrement())
+  type        LifeMomentType
+  status      LifeStatus      @default(PUBLISHED)
+
+  // ===== 通用字段 =====
+  title       String?         @db.VarChar(200)            // 照片/音乐/足迹标题；随笔可空
+  content     String?         @db.Text                     // 随笔正文 / 照片描述 / 书影短评
+  date        DateTime                                     // 碎片发生日期（非创建日期，用于时间轴排序）
+  mood        String?         @db.VarChar(20)             // 心情标签
+  sortOrder   Int             @default(0)    @map("sort_order")
+  featured    Boolean         @default(false)              // 首页精选
+
+  // ===== 媒体字段（本地 public/uploads/life/ 路径，预留 MinIO/OSS）=====
+  mediaUrl    String?         @db.LongText                 // 文件路径（照片/音频）
+  mediaType   String?         @db.VarChar(50)              // MIME type: image/jpeg, audio/mpeg
+  thumbnailUrl String?       @db.LongText    @map("thumbnail_url") // 音乐封面 / 书影封面
+
+  // ===== 渐变色块 fallback（无图时占位）=====
+  gradientFrom String?        @db.VarChar(20) @map("gradient_from")
+  gradientTo   String?        @db.VarChar(20) @map("gradient_to")
+  coverColor   String?        @db.VarChar(20) @map("cover_color")  // 音乐封面色
+
+  // ===== 音乐专属 =====
+  artist      String?         @db.VarChar(100)
+  playCount   Int             @default(0)    @map("play_count")
+  externalLink String?        @db.LongText    @map("external_link")  // 网易云/QQ音乐外链
+  comment     String?         @db.VarChar(500)               // 一句话点评
+
+  // ===== 书影专属 =====
+  bookAuthor  String?         @db.VarChar(100) @map("book_author")
+  rating      Int?                                         // 1~5 星评分
+  bookType    String?         @db.VarChar(10)  @map("book_type") // "book" | "movie"
+
+  // ===== 布局字段（照片瀑布流）=====
+  span        Int             @default(1)                   // 1=正常, 2=宽卡
+  heightKey   String          @default("md") @db.VarChar(4) @map("height_key") // sm/md/lg/xl
+
+  // ===== 扩展预留 =====
+  albumId     Int?            @map("album_id")
+  album       LifeAlbum?      @relation(fields: [albumId], references: [id], onDelete: SetNull)
+
+  geoLat      Float?          @map("geo_lat")               // 纬度（地图足迹）
+  geoLng      Float?          @map("geo_lng")               // 经度（地图足迹）
+  locationName String?        @db.VarChar(200) @map("location_name") // 地名
+
+  // ===== 基础 =====
+  createdAt   DateTime        @default(now())  @map("created_at")
+  updatedAt   DateTime        @updatedAt        @map("updated_at")
+
+  @@index([type])
+  @@index([status])
+  @@index([date])
+  @@index([albumId])
+  @@map("life_moment")
+}
+```
+
+#### 表关系图
+
+```
+  ┌──────────────┐  1:N   ┌──────────────┐
+  │  LifeAlbum   │◄──────│  LifeMoment  │
+  │  (相册表)    │ album  │  (碎片主表)  │
+  └──────────────┘        └──────┬───────┘
+                                 │ type (enum)
+                    ┌───────────┼───────────┐
+                    │           │           │
+              PHOTO/MUSIC    ESSAY     FOOTPRINT/BOOKNOTE
+              媒体URL+渐变   正文+渐变   geoLat/Lng+rating
+```
+
+### 7.3 接口设计
+
+路由前缀 `@Controller('life')`（→ `/api/life`），与 Post 模块风格统一。
+
+| 方法 | 路由 | 权限 | 说明 |
+|------|------|------|------|
+| `GET` | `/api/life` | 公开（游客） / 可选 JWT（博主看草稿） | 分页 + 过滤（type/mood/albumId/status/featured） |
+| `GET` | `/api/life/:id` | 公开 | 碎片详情 |
+| `POST` | `/api/life` | 需登录（JwtAuthGuard） | 新建碎片 |
+| `PUT` | `/api/life/:id` | 需登录 | 更新碎片 |
+| `DELETE` | `/api/life/:id` | 需登录 | 软删除（status→ARCHIVED）或硬删除（?hard=true） |
+| `POST` | `/api/life/upload` | 需登录 | 文件上传（multer → `public/uploads/life/`），返回 URL 路径 |
+| `GET` | `/api/life/albums` | 公开 | 相册列表 |
+| `POST` | `/api/life/albums` | 需登录 | 新建相册 |
+| `PUT` | `/api/life/albums/:id` | 需登录 | 更新相册 |
+| `DELETE` | `/api/life/albums/:id` | 需登录 | 删除相册（碎片 albumId 置空） |
+
+### 7.4 DTO 字段规范
+
+#### CreateLifeMomentDto
+
+| 字段 | 类型 | 校验 | 说明 |
+|------|------|------|------|
+| `type` | LifeMomentType | `@IsIn(['photo','music','essay','footprint','booknote'])` | 碎片类型（必填） |
+| `title` | string? | `@MaxLength(200)` | 标题 |
+| `content` | string? | `@MaxLength(10000)` | 正文/描述/短评 |
+| `date` | ISO string | `@IsDateString()` | 碎片发生日期 |
+| `mood` | string? | `@MaxLength(20)` | 心情标签 |
+| `mediaUrl` | string? | `@MaxLength(500)` | 媒体文件路径 |
+| `mediaType` | string? | `@MaxLength(50)` | MIME type |
+| `thumbnailUrl` | string? | `@MaxLength(500)` | 缩略图/封面 |
+| `gradientFrom` | string? | `@MaxLength(20)` | 渐变起始色 |
+| `gradientTo` | string? | `@MaxLength(20)` | 渐变结束色 |
+| `coverColor` | string? | `@MaxLength(20)` | 音乐封面色 |
+| `artist` | string? | `@MaxLength(100)` | 演唱者 |
+| `playCount` | number? | `@IsInt` `@Min(0)` | 循环次数 |
+| `externalLink` | string? | `@MaxLength(500)` | 外链 |
+| `comment` | string? | `@MaxLength(500)` | 点评 |
+| `bookAuthor` | string? | `@MaxLength(100)` | 作者 |
+| `rating` | number? | `@IsInt` `@Min(1)` `@Max(5)` | 评分 |
+| `bookType` | string? | `@IsIn(['book','movie'])` | 书/影 |
+| `span` | number? | `@IsInt` `@Min(1)` `@Max(2)` | 瀑布流跨列 |
+| `heightKey` | string? | `@IsIn(['sm','md','lg','xl'])` | 行高档位 |
+| `albumId` | number? | `@IsInt` | 相册 ID |
+| `geoLat` | number? | `@IsNumber` | 纬度 |
+| `geoLng` | number? | `@IsNumber` | 经度 |
+| `locationName` | string? | `@MaxLength(200)` | 地名 |
+| `featured` | boolean? | `@IsBoolean` `@Type(() => Boolean)` | 首页精选 |
+| `status` | LifeStatusDto? | `@IsIn(['draft','published','archived'])` | 状态，默认 DRAFT |
+
+#### QueryLifeMomentDto
+
+| 字段 | 类型 | 校验 | 说明 |
+|------|------|------|------|
+| `page` | number? | `@Min(1)` `@Type(() => Number)` | 页码，默认 1 |
+| `pageSize` | number? | `@Min(1)` `@Max(100)` `@Type(() => Number)` | 每页条数，默认 20 |
+| `type` | LifeMomentType? | `@IsIn` | 类型过滤 |
+| `mood` | string? | `@MaxLength(20)` | 心情过滤 |
+| `albumId` | number? | `@IsInt` `@Type(() => Number)` | 相册过滤 |
+| `status` | LifeStatusDto? | `@IsIn` | 状态过滤（游客默认 published） |
+| `featured` | boolean? | `@IsBoolean` `@Type(() => Boolean)` | 仅精选 |
+
+#### LifeMomentVo（视图对象）
+
+```typescript
+interface LifeMomentVo {
+  id: number;
+  type: 'photo' | 'music' | 'essay' | 'footprint' | 'booknote';
+  status: 'draft' | 'published' | 'archived';
+  title: string | null;
+  content: string | null;
+  date: string;              // ISO
+  mood: string | null;
+  sortOrder: number;
+  featured: boolean;
+  mediaUrl: string | null;
+  mediaType: string | null;
+  thumbnailUrl: string | null;
+  gradientFrom: string | null;
+  gradientTo: string | null;
+  coverColor: string | null;
+  artist: string | null;
+  playCount: number;
+  externalLink: string | null;
+  comment: string | null;
+  bookAuthor: string | null;
+  rating: number | null;
+  bookType: string | null;
+  span: number;
+  heightKey: string;
+  albumId: number | null;
+  album: { id: number; name: string } | null;
+  geoLat: number | null;
+  geoLng: number | null;
+  locationName: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+```
+
+### 7.5 业务规则
+
+| 规则 | 实现方式 |
+|------|----------|
+| **公开接口 status 过滤** | 游客（无 JWT）→ Service 硬塞 `status: 'published'`；博主按 DTO 传的 status 过滤 |
+| **列表按 date DESC + sortOrder DESC** | 默认按日期倒序，同日期按 sortOrder 排序 |
+| **文件上传** | multer diskStorage → `public/uploads/life/{timestamp}-{random}.ext`；返回 `/uploads/life/xxx.ext` 路径；限制 image: 10MB / audio: 30MB；格式：jpg/png/webp/gif/mp3/aac/flac |
+| **StorageService 接口化** | `IStorageService` 接口定义 `upload(file): {url, mimeType}` + `delete(path)`；当前实现 `LocalStorageService`（写本地磁盘）；未来 `MinioStorageService` 实现同接口，通过 .env 切换 |
+| **软删除/硬删除** | 同 Post：默认 status→ARCHIVED（归档可恢复）；?hard=true 物理删除 |
+| **相册删除** | `onDelete: SetNull`，相册删除后碎片的 albumId 自动置空，碎片不丢 |
+| **date 字段** | 前端传 ISO 8601 字符串（如 `2026-09-01T00:00:00.000Z`），Prisma DateTime 存储；查询时按日期范围过滤 |
+
+### 7.6 LifeBizError 错误码
+
+遵循项目异常体系，码段 `3000~3099`（已有枚举框架）：
+
+| 枚举 | 码 | message | 触发场景 |
+|------|----|---------|---------|
+| `NOT_FOUND` | 3001 | 碎片不存在 | findById 查空 |
+| `UNSUPPORTED_MEDIA` | 3002 | 不支持的文件格式 | 上传文件 MIME 不在白名单 |
+| `FILE_TOO_LARGE` | 3003 | 文件过大 | 超过 10MB（图片）/ 30MB（音频） |
+| `STORAGE_UNAVAILABLE` | 3004 | 存储服务不可用 | 本地磁盘满 / MinIO 连接失败 |
+| `ALBUM_NOT_FOUND` | 3005 | 相册不存在 | albumId 校验失败 |
+
+### 7.7 文件上传 / 存储方案
+
+#### 当前阶段：本地文件存储（multer diskStorage）
+
+```
+POST /api/life/upload  (multipart/form-data, field: "file")
+  │
+  ▼
+multer.diskStorage:
+  destination: public/uploads/life/
+  filename: {timestamp}-{random6}.ext
+  │
+  ▼
+返回 { url: "/uploads/life/1725180000-a1b2c3.jpg", mimeType: "image/jpeg" }
+  │
+  ▼
+前端拿到 url → 填入 CreateLifeMomentDto.mediaUrl
+```
+
+| 限制 | 值 |
+|------|-----|
+| 图片大小上限 | 10MB |
+| 音频大小上限 | 30MB |
+| 允许的图片格式 | jpg/jpeg/png/webp/gif |
+| 允许的音频格式 | mp3/aac/flac/wav |
+| 文件名规则 | `{Date.now()}-{random6}.{ext}` |
+| 存储目录 | `server/public/uploads/life/` |
+| 访问路径 | `/uploads/life/xxx.ext`（NestJS ServeStatic） |
+
+#### 未来扩展：MinIO/OSS 切换
+
+```typescript
+// IStorageService 接口（当前 LocalStorageService，未来 MinioStorageService）
+interface IStorageService {
+  upload(file: Express.Multer.File): Promise<{ url: string; mimeType: string }>;
+  delete(path: string): Promise<void>;
+}
+
+// .env 切换：
+// STORAGE_TYPE=local    → LocalStorageService（当前）
+// STORAGE_TYPE=minio    → MinioStorageService（未来）
+```
+
+### 7.8 前端改造方案
+
+#### 7.8.1 新增 API 层：`src/api/life.ts`
+
+```typescript
+// 与 src/api/post.ts 同构
+import { api } from '@/lib/axios'
+import type { LifeMomentVo } from '@/lib/api-types'
+
+export async function fetchLifeMoments(params: QueryLifeMomentParams): Promise<PageVo<LifeMomentVo>>
+export async function fetchLifeMomentById(id: number): Promise<LifeMomentVo>
+export async function createLifeMoment(data: CreateLifeMomentData): Promise<LifeMomentVo>
+export async function updateLifeMoment(id: number, data: Partial<CreateLifeMomentData>): Promise<LifeMomentVo>
+export async function deleteLifeMoment(id: number, hard?: boolean): Promise<void>
+export async function uploadLifeFile(file: File): Promise<{ url: string; mimeType: string }>
+```
+
+#### 7.8.2 LifePage.vue 改造
+
+| 区域 | 改动 |
+|------|------|
+| 数据来源 | 删除 `import { photos, music, essays } from '@/data/life'`；改为 `onMounted → fetchLifeMoments()` |
+| 照片瀑布流 | 从 API 返回的 `type=photo` 碎片渲染；支持渐变色块 fallback + 真实图片 |
+| 音乐卡片 | 从 `type=music` 碎片渲染；artist / playCount / externalLink |
+| 随笔列表 | 从 `type=essay` 碎片渲染；content + mood + 渐变背景 |
+| 足迹/书影 | 新增区块：足迹用地图卡片占位（geoLat/Lng 预留）；书影用评分+封面卡片 |
+| 加载态 | shimmer 骨架屏（同 BlogPage/BlogDetailPage 模式） |
+| 失败兜底 | 重试按钮 + 跳回首页 |
+| 筛选 | 类型 Tab 切换（全部/照片/音乐/随笔/足迹/书影） |
+
+#### 7.8.3 LifeEditorPage.vue（新建碎片编辑器）
+
+路由：`/life/new` + `/life/:id/edit`（`meta.requiresAuth = true`）
+
+```
+┌─────────────────────────────────────────────────┐
+│  ← 返回    生活碎片编辑器              [发布]    │
+├─────────────────────────────────────────────────┤
+│                                                 │
+│  类型选择:  [照片] [音乐] [随笔] [足迹] [书影]   │
+│                                                 │
+│  ── 通用字段 ──                                 │
+│  标题:    [___________________________]         │
+│  日期:    [2026-09-01]   心情: [治愈 ▾]         │
+│  首页精选: [☐]                                  │
+│                                                 │
+│  ── 类型专属字段（根据 type 动态显示）──         │
+│  照片:  拖拽上传区 / 渐变色块 from/to            │
+│         布局: span [1/2]  height [sm/md/lg/xl]   │
+│         相册: [选择相册 ▾]                       │
+│  音乐:  封面上传 / 封面色 / 演唱者               │
+│         外链 / 循环次数 / 一句话点评             │
+│  随笔:  正文 textarea / 渐变背景 from/to          │
+│  足迹:  地点输入 / 纬度 / 经度                    │
+│  书影:  类型(书/影) / 作者 / 评分(1-5★) / 封面    │
+│                                                 │
+│  ── 描述 ──                                     │
+│  [多行文本]                                      │
+│                                                 │
+│         [取消]  [保存草稿]  [发布]               │
+└─────────────────────────────────────────────────┘
+```
+
+### 7.9 模块文件结构
+
+```
+server/src/modules/life/
+  ├── life.module.ts              # LifeModule：imports [PrismaModule]，controllers + providers
+  ├── life.controller.ts         # @Controller('life')：GET 列表/详情 + POST/PUT/DELETE + upload
+  ├── life.service.ts            # LifeService：CRUD + 文件上传委托 StorageService
+  ├── storage.service.ts         # LocalStorageService（实现 IStorageService，当前本地磁盘）
+  ├── dto/
+  │   └── life.dto.ts            # Create/Update/QueryLifeMomentDto + LifeAlbumDto + LifeMomentVo
+  └── enums/
+      └── life-biz-error.enum.ts # LifeBizError（已有，补充 ALBUM_NOT_FOUND=3005）
+```
+
+```
+前端
+  ├── src/api/life.ts            # API 封装
+  ├── src/lib/api-types.ts       # 追加 LifeMomentVo / LifeAlbumVo
+  ├── src/pages/LifePage.vue     # 改造：Mock → API
+  ├── src/pages/LifeEditorPage.vue  # 新建：碎片编辑器
+  └── src/router/index.ts        # 追加 /life/new + /life/:id/edit
+```
+
+### 7.10 开发进度
+
+| 阶段 | 任务 | 状态 |
+|------|------|------|
+| Phase 1 | Prisma schema — LifeMomentType/LifeStatus 枚举 + LifeAlbum/LifeMoment 模型 | ✅ 完成 |
+| Phase 2 | Migration + seed 初始数据（从 src/data/life.ts 导入 19 条） | ✅ 完成 |
+| Phase 3 | DTO — Create/Update/QueryLifeMomentDto + Album DTO + LifeMomentVo | ✅ 完成 |
+| Phase 4 | Service + Controller + Module（CRUD + 文件上传）+ app.module.ts 注册 | ✅ 完成 |
+| Phase 5 | 前端 api-types.ts + src/api/life.ts | ✅ 完成 |
+| Phase 6 | LifePage.vue 改调后端 API + 骨架屏 + 失败兜底 | ✅ 完成 |
+| Phase 7 | LifeEditorPage.vue + 路由（碎片发布/编辑） | ✅ 完成 |
+| Phase 8 | Build 验证 + commit | ✅ 完成 |
+
+> **架构遵循**：本模块严格遵循 [NestJS-Architecture-Guide.md](./NestJS-Architecture-Guide.md) 的分层架构（Controller → Service → Prisma，不抽 Repository）、StorageService 接口化设计（本地存储当前可用，MinIO/OSS 未来通过 .env 切换无缝接入）。

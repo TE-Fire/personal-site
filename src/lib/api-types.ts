@@ -248,3 +248,128 @@ export interface TagVo {
   createdAt: string;
   updatedAt: string;
 }
+
+/* ============================================================
+ *  Life 生活碎片模块
+ * ============================================================ */
+
+/** 碎片类型 */
+export type LifeMomentTypeDto = 'photo' | 'music' | 'essay' | 'footprint' | 'booknote';
+
+/** 碎片状态 */
+export type LifeStatusDto = 'draft' | 'published' | 'archived';
+
+/** 相册引用 */
+export interface LifeAlbumRefVo {
+  id: number;
+  name: string;
+}
+
+/** 碎片视图对象 */
+export interface LifeMomentVo {
+  id: number;
+  type: LifeMomentTypeDto;
+  status: LifeStatusDto;
+  title: string | null;
+  content: string | null;
+  date: string;
+  mood: string | null;
+  sortOrder: number;
+  featured: boolean;
+  mediaUrl: string | null;
+  mediaType: string | null;
+  thumbnailUrl: string | null;
+  gradientFrom: string | null;
+  gradientTo: string | null;
+  coverColor: string | null;
+  artist: string | null;
+  playCount: number;
+  externalLink: string | null;
+  comment: string | null;
+  bookAuthor: string | null;
+  rating: number | null;
+  bookType: string | null;
+  span: number;
+  heightKey: string;
+  albumId: number | null;
+  album: LifeAlbumRefVo | null;
+  geoLat: number | null;
+  geoLng: number | null;
+  locationName: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** 相册视图对象 */
+export interface LifeAlbumVo {
+  id: number;
+  name: string;
+  description: string | null;
+  coverUrl: string | null;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** 碎片分页响应 */
+export interface LifeMomentPageVo {
+  list: LifeMomentVo[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+/** 创建/更新碎片参数 */
+export interface CreateLifeMomentData {
+  type?: LifeMomentTypeDto;
+  title?: string;
+  content?: string;
+  date?: string;
+  mood?: string;
+  mediaUrl?: string;
+  mediaType?: string;
+  thumbnailUrl?: string;
+  gradientFrom?: string;
+  gradientTo?: string;
+  coverColor?: string;
+  artist?: string;
+  playCount?: number;
+  externalLink?: string;
+  comment?: string;
+  bookAuthor?: string;
+  rating?: number;
+  bookType?: string;
+  span?: number;
+  heightKey?: string;
+  albumId?: number;
+  geoLat?: number;
+  geoLng?: number;
+  locationName?: string;
+  featured?: boolean;
+  status?: LifeStatusDto;
+}
+
+/** 查询碎片参数 */
+export interface QueryLifeMomentParams {
+  page?: number;
+  pageSize?: number;
+  type?: LifeMomentTypeDto;
+  mood?: string;
+  albumId?: number;
+  status?: LifeStatusDto;
+  featured?: boolean;
+}
+
+/** 文件上传响应 */
+export interface LifeUploadRsp {
+  url: string;
+  mimeType: string;
+}
+
+/** 创建/更新相册参数 */
+export interface CreateLifeAlbumData {
+  name?: string;
+  description?: string;
+  coverUrl?: string;
+  sortOrder?: number;
+}

@@ -92,6 +92,19 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '生活碎片', icon: 'Coffee' }
   },
   {
+    path: '/life/new',
+    name: 'LifeNew',
+    component: () => import('@/pages/LifeEditorPage.vue'),
+    meta: { title: '发布碎片', requiresAuth: true }
+  },
+  {
+    path: '/life/:id/edit',
+    name: 'LifeEdit',
+    component: () => import('@/pages/LifeEditorPage.vue'),
+    meta: { title: '编辑碎片', requiresAuth: true },
+    props: true
+  },
+  {
     path: '/timeline',
     name: 'Timeline',
     component: () => import('@/pages/TimelinePage.vue'),
