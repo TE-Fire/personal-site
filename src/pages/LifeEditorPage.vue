@@ -11,7 +11,7 @@
  *   · 新建 / 更新 / 删除 → POST / PUT / DELETE /api/life[/:id]
  *   · 文件上传 → POST /api/life/upload
  */
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useToast } from '@/composables/useToast'
 import { useScrollReveal } from '@/composables/useScrollReveal'
@@ -314,6 +314,11 @@ async function loadEditData() {
 onMounted(() => {
   loadAlbums()
   if (isEditMode.value) loadEditData()
+})
+
+// 同 route name（如从 /life/123/edit 跳 /life/456/edit）不重建 → watch params
+watch(() => route.params.id, (newId) => {
+  if (newId && isEditMode.value) loadEditData()
 })
 
 /* ---------- 共享样式串 ---------- */
