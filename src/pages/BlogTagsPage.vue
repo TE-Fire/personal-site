@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 /**
  * BlogTagsPage · 标签管理（v3 · Command Deck 布局）
  * 左侧固定 Command Deck 侧栏 + 右侧沉浸式 3D 星链视图
@@ -6,7 +6,7 @@
  * 数据源：onMounted 调 GET /api/tags + GET /api/posts 拉取真实数据。
  * 增删改 / 合并均调后端接口，不再走 localStorage。
  */
-import { computed, onMounted, ref, type Directive } from 'vue'
+import { computed, onActivated, onMounted, ref, type Directive } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   fetchTags,
@@ -43,6 +43,8 @@ import {
   Flame
 } from 'lucide-vue-next'
 
+defineOptions({ name: 'BlogTagsPage' })
+
 const router = useRouter()
 
 const tags = ref<TagVo[]>([])
@@ -62,6 +64,7 @@ async function loadData() {
 }
 
 onMounted(loadData)
+onActivated(loadData)
 
 const totalTags = computed(() => tags.value.length)
 const totalPosts = computed(() => posts.value.length)

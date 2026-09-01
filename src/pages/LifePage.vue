@@ -5,13 +5,16 @@
  * Tab 支持按类型筛选（全部/照片/音乐/随笔/足迹/书影）。
  * 数据源：onMounted 调 GET /api/life 拉取真实碎片，本地按 Tab 过滤。
  */
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { computed, nextTick, onActivated, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { fetchLifeMoments } from '@/api/life'
 import type { LifeMomentVo, LifeMomentTypeDto } from '@/lib/api-types'
 import { moodEmoji, type Mood } from '@/data/life'
 import { useScrollReveal } from '@/composables/useScrollReveal'
 import { RefreshCcw, Home, Edit3, FilePlus2 } from 'lucide-vue-next'
+
+// KeepAlive include 依赖组件 name
+defineOptions({ name: 'LifePage' })
 
 const rootRef = ref<HTMLElement | null>(null)
 const { refresh: refreshReveal } = useScrollReveal(rootRef)
@@ -44,6 +47,7 @@ async function loadMoments() {
 }
 
 onMounted(loadMoments)
+onActivated(loadMoments)
 
 /** ISO 日期 → YYYY.MM.DD（用于展示） */
 function fmtDate(iso: string): string {

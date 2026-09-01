@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 /**
  * LifeAlbumsPage · 相册管理 + 浏览页面
  *
@@ -8,7 +8,7 @@
  *
  * 布局参考 LifePage 的简洁卡片风格。
  */
-import { ref, computed, onMounted, reactive, nextTick } from 'vue'
+import { ref, computed, onActivated, onMounted, reactive, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useToast } from '@/composables/useToast'
 import { useScrollReveal } from '@/composables/useScrollReveal'
@@ -26,6 +26,8 @@ import type {
   CreateLifeAlbumData,
 } from '@/lib/api-types'
 import { ArrowLeft, Plus, Edit3, Trash2, Home, RefreshCcw, X } from 'lucide-vue-next'
+
+defineOptions({ name: 'LifeAlbumsPage' })
 
 /* ---------- 基础 ---------- */
 const route = useRoute()
@@ -123,6 +125,14 @@ onMounted(async () => {
     if (exists) expandedAlbumId.value = routeId.value
   }
 })
+
+// KeepAlive 激活时重载：编辑页删/改了相册，回 LifeAlbums 要立刻看到新数据
+async function reloadAlbumsPage() {
+  await loadAlbums()
+  expandedAlbumId.value = null
+  void nextTick().then(() => refreshReveal())
+}
+onActivated(reloadAlbumsPage)
 
 /* ---------- 交互 ---------- */
 function goLife() {

@@ -23,6 +23,8 @@ const kindIcon: Record<TimelineNodeKind, Component> = {
 
 const rootRef = ref<HTMLElement | null>(null)
 useScrollReveal(rootRef)
+
+defineOptions({ name: 'TimelinePage' })
 </script>
 
 <template>

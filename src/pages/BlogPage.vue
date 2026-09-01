@@ -4,7 +4,7 @@
  * 数据源：onMounted 调 GET /api/posts + GET /api/categories 拉取真实数据。
  *        分类管理弹窗关闭后刷新分类列表，确保数据一致。
  */
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onActivated, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   Badge,
@@ -29,6 +29,8 @@ import { fetchCategories } from '@/api/category'
 import type { PostVo, CategoryVo } from '@/lib/api-types'
 import CategoryManageDialog from '@/components/CategoryManageDialog.vue'
 import BlogSkeleton from '@/components/BlogSkeleton.vue'
+
+defineOptions({ name: 'BlogPage' })
 
 const router = useRouter()
 
@@ -64,6 +66,7 @@ async function reloadCategories() {
 }
 
 onMounted(loadPosts)
+onActivated(loadPosts)
 
 /** 分类 tab：用后端真实分类，前置「全部」 */
 const postCategories = computed<string[]>(() => {

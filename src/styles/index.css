@@ -1,4 +1,4 @@
-/* 设计系统 CSS 入口：Token → Typography → Tailwind 基础层 */
+﻿/* 设计系统 CSS 入口：Token → Typography → Tailwind 基础层 */
 @import './tokens.css';
 @import './typography.css';
 
@@ -622,7 +622,21 @@ html.dark [data-tip][data-tip-placement="top"]::before { border-top-color: #0f17
  *
  * 缓动：cubic-bezier(0.22, 0.61, 0.36, 1)
  */
+/*
+ * 并行过渡（不再用 out-in 串行等待，从原理上避免「transitionend 漏发 → slot 永远不释放 → 全局卡死」）
+ *   - leave 元素：absolute 悬浮在 transition-buffer 容器内（容器已设 position: relative），
+ *     pointer-events:none 防止淡出过程中误触旧按钮；inset-0+width:100% 保持原位置不跳位；
+ *     200ms 后完全透明 + 轻微上移，视觉干净利落。
+ *   - enter 元素：留在文档流正常占位，透明 + 下方 14px → 250ms 淡入 + 回正。
+ *   - 不会造成"两页堆叠高度错乱"（串行 out-in 最大的痛点）：
+ *     leave 已 absolute 脱离文档流 → 容器高度 = enter 元素的正常高度，完全稳定。
+ */
 .page-leave-active {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  pointer-events: none;
   transition:
     opacity 200ms cubic-bezier(0.22, 0.61, 0.36, 1),
     transform 200ms cubic-bezier(0.22, 0.61, 0.36, 1);

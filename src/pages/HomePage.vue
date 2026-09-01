@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 /**
  * HomePage · 首页（Hero 终端 + 3D/2D 背景 + 滚动揭示动效 + 数字统计 + 最近作品 + 最近博客）。
  *
@@ -40,6 +40,8 @@ import { useAboutStore } from '@/stores/about'
 import { useTerminal, type TerminalStep } from '@/composables/useTerminal'
 import { useVantaBackground } from '@/composables/useVantaBackground'
 import { useScrollReveal } from '@/composables/useScrollReveal'
+
+defineOptions({ name: 'HomePage' })
 
 /* ---------------- About 数据 ---------------- */
 

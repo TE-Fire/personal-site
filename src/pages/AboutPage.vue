@@ -17,6 +17,8 @@ import { useAuthStore } from '@/stores/auth'
 import ContributionHeatmap from '@/components/ContributionHeatmap.vue'
 import type { SkillGroup, HeatmapSource } from '@/lib/api-types'
 
+defineOptions({ name: 'AboutPage' })
+
 const aboutStore = useAboutStore()
 const authStore = useAuthStore()
 

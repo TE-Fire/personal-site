@@ -21,6 +21,8 @@ import {
 import { Github, ExternalLink, X } from 'lucide-vue-next'
 import { useScrollReveal } from '@/composables/useScrollReveal'
 
+defineOptions({ name: 'PortfolioPage' })
+
 /** 分类筛选（空串或「全部」= 不过滤） */
 const activeCategory = ref<ProjectCategory>('全部')
 /** 标签筛选（null = 不筛选；点击某个 tag 启用） */

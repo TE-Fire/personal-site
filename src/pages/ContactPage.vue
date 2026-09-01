@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 /**
  * ContactPage · 联系方式 + 前端校验表单（完整填充）。
  * - 左侧：contactChannels 列表 + 复制邮箱 支持
@@ -33,6 +33,8 @@ import {
   MessageSquarePlus,
   X
 } from 'lucide-vue-next'
+
+defineOptions({ name: 'ContactPage' })
 
 /** 复制反馈：每个 channel 都可能正在复制或已复制（用于 UI 反馈） */
 const copiedId = ref<string | null>(null)

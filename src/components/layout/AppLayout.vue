@@ -19,6 +19,25 @@ const route = useRoute()
 
 /** 是否是登录页：登录页独占全屏，不套全局 Header/Footer/悬浮窗/容器 */
 const isLoginPage = computed(() => route.path === '/login')
+
+/**
+ * 需要 KeepAlive 缓存的页面（按组件 name 匹配）。
+ * 从这些页面跳转出去再回来时，onActivated 替代 onMounted 触发，
+ * DOM 状态（滚动位置/Tab 选择/输入框）都保留，而且 leave 阶段不再销毁 →
+ * 从根本上避开了 Transition out-in "leave 不结束 → 全局卡死" 这个问题。
+ * ⚠️ 对应的页面组件必须通过 defineOptions({ name: 'XxxPage' }) 声明同名。
+ */
+const cacheablePages = computed(() => [
+  'HomePage',
+  'LifePage',
+  'BlogPage',
+  'BlogTagsPage',
+  'LifeAlbumsPage',
+  'PortfolioPage',
+  'AboutPage',
+  'ContactPage',
+  'TimelinePage',
+])
 </script>
 
 <template>
@@ -47,9 +66,17 @@ const isLoginPage = computed(() => route.path === '/login')
               串行通过一个内联骨架遮罩 (.buffer) 填满空窗 225ms，
               视觉上依然"连贯不断档"，同时 100% 稳定不卡。
             -->
+            <!--
+              ⚠️ 必须是 relative：旧页面 leave 期间会 absolute 悬浮在容器里淡出不占流，
+                 新页面 enter 正常挂载，二者并行 —— 不再有 out-in 的「leave 不结束永远不挂 enter」死锁。
+              历史教训：out-in 串行过渡，只要 transitionend 漏一次（fragment 根/CSS 冲突/before-leave 阻止），
+                 slot 永远不释放 → 任何路由跳转后 <main> 全白，后端请求连 onMounted 都进不去，必须整页刷新。
+            -->
             <div class="transition-buffer relative">
-              <Transition name="page" mode="out-in">
-                <component :is="Component" :key="r.name" />
+              <Transition name="page" :duration="{ leave: 220, enter: 260 }">
+                <KeepAlive :include="cacheablePages">
+                  <component :is="Component" :key="r.name" />
+                </KeepAlive>
               </Transition>
             </div>
           </RouterView>
@@ -70,7 +97,7 @@ const isLoginPage = computed(() => route.path === '/login')
         <RouterView v-slot="{ Component, route: r }">
           <div class="transition-buffer">
             <!-- 登录页轻过渡：只做 opacity，避免与左右分栏/全屏布局冲突 -->
-            <Transition name="page-login" mode="out-in">
+            <Transition name="page-login" mode="out-in" :duration="{ leave: 260, enter: 260 }">
               <component :is="Component" :key="r.name" />
             </Transition>
           </div>
