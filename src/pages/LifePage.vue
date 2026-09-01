@@ -11,7 +11,7 @@ import { fetchLifeMoments } from '@/api/life'
 import type { LifeMomentVo, LifeMomentTypeDto } from '@/lib/api-types'
 import { moodEmoji, type Mood } from '@/data/life'
 import { useScrollReveal } from '@/composables/useScrollReveal'
-import { RefreshCcw, Home } from 'lucide-vue-next'
+import { RefreshCcw, Home, Edit3, FilePlus2 } from 'lucide-vue-next'
 
 const rootRef = ref<HTMLElement | null>(null)
 const { refresh: refreshReveal } = useScrollReveal(rootRef)
@@ -210,6 +210,15 @@ function goHome() {
           <span class="font-mono text-xl font-bold text-text">✍️ {{ stats.essays }}</span>
           <span class="text-xs text-text-muted">篇随笔</span>
         </div>
+        <!-- 发布碎片入口 -->
+        <button
+          type="button"
+          class="inline-flex items-center gap-2 rounded-lg border border-brand/40 bg-brand/10 px-4 py-2.5 text-sm font-medium text-brand hover:bg-brand/20 hover:border-brand/60 transition-colors"
+          @click="router.push('/life/new')"
+        >
+          <FilePlus2 class="size-4" />
+          发布碎片
+        </button>
       </div>
     </header>
 
@@ -322,6 +331,15 @@ function goHome() {
           <div class="surprise-emoji absolute inset-0 flex items-center justify-center pointer-events-none">
             <span class="surprise-text">{{ surpriseEmoji[photo.mood ?? ''] }}</span>
           </div>
+          <!-- hover 编辑按钮 -->
+          <button
+            type="button"
+            class="absolute top-3 right-12 size-7 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 hover:bg-white/40 z-10"
+            title="编辑碎片"
+            @click.stop="router.push(`/life/${photo.id}/edit`)"
+          >
+            <Edit3 class="size-3.5 text-white" />
+          </button>
           <!-- hover 放大提示 -->
           <div class="absolute top-3 right-3 size-7 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
             <span class="text-xs text-white">🔍</span>
@@ -368,6 +386,15 @@ function goHome() {
           <span class="shrink-0 text-[11px] text-text-muted px-2 py-1 rounded-full bg-surface-muted/50">
             {{ emojiOf(song.mood) }} {{ song.mood }}
           </span>
+          <!-- 编辑按钮 -->
+          <button
+            type="button"
+            class="shrink-0 size-7 rounded-lg text-text-muted hover:text-brand hover:bg-brand/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+            title="编辑碎片"
+            @click.prevent.stop="router.push(`/life/${song.id}/edit`)"
+          >
+            <Edit3 class="size-3.5" />
+          </button>
         </a>
       </div>
     </section>
@@ -389,6 +416,15 @@ function goHome() {
             : undefined
           "
         >
+          <!-- 编辑按钮 -->
+          <button
+            type="button"
+            class="absolute top-3 right-3 size-7 rounded-lg text-text-muted hover:text-brand hover:bg-brand/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10"
+            title="编辑碎片"
+            @click.stop="router.push(`/life/${essay.id}/edit`)"
+          >
+            <Edit3 class="size-3.5" />
+          </button>
           <!-- 渐变装饰条 -->
           <div
             v-if="essay.gradientFrom && essay.gradientTo"
@@ -420,6 +456,15 @@ function goHome() {
           :key="fp.id"
           class="group relative overflow-hidden rounded-xl border border-border/60 p-5 transition-all duration-200 hover:border-brand/30 hover:shadow-md"
         >
+          <!-- 编辑按钮 -->
+          <button
+            type="button"
+            class="absolute top-3 right-3 size-7 rounded-lg text-text-muted hover:text-brand hover:bg-brand/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10"
+            title="编辑碎片"
+            @click.stop="router.push(`/life/${fp.id}/edit`)"
+          >
+            <Edit3 class="size-3.5" />
+          </button>
           <div class="flex items-center gap-2 mb-2">
             <span class="text-base">📍</span>
             <p class="m-0 text-sm font-semibold text-text truncate">{{ fp.locationName || '未知地点' }}</p>
@@ -446,6 +491,15 @@ function goHome() {
           :key="bn.id"
           class="group relative overflow-hidden rounded-xl border border-border/60 p-5 transition-all duration-200 hover:border-brand/30 hover:shadow-md"
         >
+          <!-- 编辑按钮 -->
+          <button
+            type="button"
+            class="absolute top-3 right-3 size-7 rounded-lg text-text-muted hover:text-brand hover:bg-brand/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10"
+            title="编辑碎片"
+            @click.stop="router.push(`/life/${bn.id}/edit`)"
+          >
+            <Edit3 class="size-3.5" />
+          </button>
           <div class="flex items-center gap-2 mb-2">
             <span class="text-[11px] px-2 py-0.5 rounded-full bg-brand/10 text-brand font-medium shrink-0">
               {{ bn.bookType === '影' ? '🎬 影' : '📖 书' }}
