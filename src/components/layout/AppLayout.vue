@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 /**
  * AppLayout · 全局布局壳。
  * 职责：
@@ -49,7 +49,7 @@ const isLoginPage = computed(() => route.path === '/login')
             -->
             <div class="transition-buffer relative">
               <Transition name="page" mode="out-in">
-                <component :is="Component" :key="r.fullPath" />
+                <component :is="Component" :key="r.name" />
               </Transition>
             </div>
           </RouterView>
@@ -71,7 +71,7 @@ const isLoginPage = computed(() => route.path === '/login')
           <div class="transition-buffer">
             <!-- 登录页轻过渡：只做 opacity，避免与左右分栏/全屏布局冲突 -->
             <Transition name="page-login" mode="out-in">
-              <component :is="Component" :key="r.fullPath" />
+              <component :is="Component" :key="r.name" />
             </Transition>
           </div>
         </RouterView>
