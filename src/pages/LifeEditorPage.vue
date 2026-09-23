@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 /**
  * LifeEditorPage.vue · 生活碎片发布/编辑器
  *
@@ -36,6 +36,8 @@ const router = useRouter()
 const toast = useToast()
 
 const rootRef = ref<HTMLElement | null>(null)
+const lifeEditorWrapperRef = ref<HTMLElement | null>(null)
+defineOptions({ name: 'LifeEditorPage', inheritAttrs: false })
 useScrollReveal(rootRef)
 
 /* ---------- 模式判断 ---------- */
@@ -331,15 +333,16 @@ const labelClass = 'block text-xs font-medium text-text-muted mb-1.5'
 </script>
 
 <template>
-  <div ref="rootRef" class="max-w-4xl mx-auto py-8 px-4">
-    <!-- 共享文件 input -->
-    <input
-      ref="fileInputRef"
-      type="file"
-      accept="image/*"
-      class="hidden"
-      @change="onFileChange"
-    />
+  <div ref="lifeEditorWrapperRef" class="life-editor-wrapper">
+    <div ref="rootRef" class="max-w-4xl mx-auto py-8 px-4">
+      <!-- 共享文件 input -->
+      <input
+        ref="fileInputRef"
+        type="file"
+        accept="image/*"
+        class="hidden"
+        @change="onFileChange"
+      />
 
     <!-- 加载态 -->
     <div v-if="loading" class="flex items-center justify-center py-20 text-text-muted">
@@ -754,21 +757,22 @@ const labelClass = 'block text-xs font-medium text-text-muted mb-1.5'
   </div>
 
   <!-- 删除确认弹窗 -->
-  <Teleport to="body">
-    <Transition name="fade">
-      <div v-if="deleteDialogOpen" class="fixed inset-0 z-[9999] bg-black/50 flex items-center justify-center" @click.self="deleteDialogOpen = false">
-        <div class="bg-surface border border-border rounded-xl shadow-xl w-full max-w-sm mx-4 p-5 space-y-4" @click.stop>
-          <div class="space-y-1">
-            <h3 class="text-base font-semibold text-text">删除碎片</h3>
-            <p class="text-sm text-text-muted">确定要删除「{{ form.title || '未命名碎片' }}」吗？</p>
-            <p class="text-xs text-danger">删除后碎片将移入回收站，可在后台恢复。</p>
-          </div>
-          <div class="flex justify-end gap-2 pt-1">
-            <button class="px-3 py-1.5 rounded-lg border border-border text-sm text-text-muted hover:text-text hover:border-brand/40 transition-colors" @click="deleteDialogOpen = false">取消</button>
-            <button class="px-3 py-1.5 rounded-lg bg-danger text-white text-sm font-medium hover:opacity-90 transition-opacity" @click="confirmDelete">删除</button>
+    <Teleport to="body">
+      <Transition name="fade">
+        <div v-if="deleteDialogOpen" class="fixed inset-0 z-[9999] bg-black/50 flex items-center justify-center" @click.self="deleteDialogOpen = false">
+          <div class="bg-surface border border-border rounded-xl shadow-xl w-full max-w-sm mx-4 p-5 space-y-4" @click.stop>
+            <div class="space-y-1">
+              <h3 class="text-base font-semibold text-text">删除碎片</h3>
+              <p class="text-sm text-text-muted">确定要删除「{{ form.title || '未命名碎片' }}」吗？</p>
+              <p class="text-xs text-danger">删除后碎片将移入回收站，可在后台恢复。</p>
+            </div>
+            <div class="flex justify-end gap-2 pt-1">
+              <button class="px-3 py-1.5 rounded-lg border border-border text-sm text-text-muted hover:text-text hover:border-brand/40 transition-colors" @click="deleteDialogOpen = false">取消</button>
+              <button class="px-3 py-1.5 rounded-lg bg-danger text-white text-sm font-medium hover:opacity-90 transition-opacity" @click="confirmDelete">删除</button>
+            </div>
           </div>
         </div>
-      </div>
-    </Transition>
-  </Teleport>
+      </Transition>
+    </Teleport>
+  </div>
 </template>
