@@ -20,6 +20,12 @@ export enum PortfolioBizError {
   VOCAB_SAVE_FAILED = 7005,
   /** 分类仍被作品引用，不能直接删除（请先合并到其他分类） */
   VOCAB_CATEGORY_IN_USE = 7006,
+  /** 封面图体积超限（>10MB） */
+  FILE_TOO_LARGE = 7007,
+  /** 封面图格式不支持（非 jpg/png/webp/gif） */
+  UNSUPPORTED_MEDIA = 7008,
+  /** 未收到上传文件 */
+  NO_FILE = 7009,
 }
 
 const PORTFOLIO_ERROR_MSG: Record<PortfolioBizError, string> = {
@@ -29,6 +35,9 @@ const PORTFOLIO_ERROR_MSG: Record<PortfolioBizError, string> = {
   [PortfolioBizError.VOCAB_DUPLICATE]: '该词条已存在',
   [PortfolioBizError.VOCAB_SAVE_FAILED]: '词条操作失败',
   [PortfolioBizError.VOCAB_CATEGORY_IN_USE]: '该分类仍被作品引用，请先合并到其他分类',
+  [PortfolioBizError.FILE_TOO_LARGE]: '图片大小不能超过 10MB',
+  [PortfolioBizError.UNSUPPORTED_MEDIA]: '仅支持 jpg/jpeg/png/webp/gif 图片',
+  [PortfolioBizError.NO_FILE]: '未收到上传文件',
 };
 
 export function getPortfolioErrorInfo(err: PortfolioBizError): IErrorInfo {

@@ -56,11 +56,20 @@ export class CreateWorkDto {
   @IsString()
   description: string;
 
-  @ApiPropertyOptional({ example: 'from-brand/30 via-accent/30 to-chart-c1/30', maxLength: 500 })
+  @ApiPropertyOptional({ example: 'linear-gradient(135deg, #4B3FE3 0%, #27D2BF 100%)', maxLength: 500 })
   @IsOptional()
   @IsString()
   @MaxLength(500)
   cover?: string;
+
+  @ApiPropertyOptional({
+    example: '/uploads/works/1730000000-a1b2c3.png',
+    description: '封面图 URL（本地上传或外链）；为空则用 cover 渐变兜底',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  coverImage?: string | null;
 
   @ApiProperty({ example: ['Vue 3', 'Tailwind', 'Vite'], description: '技术标签数组' })
   @IsArray()
@@ -168,6 +177,7 @@ export class WorkRsp {
   summary: string;
   description: string;
   cover: string;
+  coverImage: string | null;
   tags: string[];
   category: string;
   links: WorkLinks;

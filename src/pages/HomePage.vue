@@ -379,9 +379,16 @@ useScrollReveal(pageRoot)
           @keydown.enter.prevent="openWork(p)"
         >
           <div
-            :style="{ backgroundImage: p.cover || 'none' }"
-            class="aspect-[16/10] border-b border-border/60 relative"
+            :style="p.coverImage ? undefined : { backgroundImage: p.cover || 'none' }"
+            class="aspect-[16/10] border-b border-border/60 relative overflow-hidden"
           >
+            <img
+              v-if="p.coverImage"
+              :src="p.coverImage"
+              :alt="p.title"
+              loading="lazy"
+              class="absolute inset-0 size-full object-cover"
+            />
             <div class="absolute top-3 left-3">
               <Badge variant="outline" class="backdrop-blur bg-surface-elevated/70">{{ p.category }}</Badge>
             </div>

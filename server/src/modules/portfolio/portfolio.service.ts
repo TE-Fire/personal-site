@@ -20,6 +20,7 @@ import {
   WorkMetaRsp,
   VocabKind,
 } from './dto/portfolio.dto';
+import { WorkCoverStorageService } from './work-cover-storage.service';
 
 /** Prisma Work 行类型（用于 mapRowToRsp 入参类型收窄） */
 type WorkRow = {
@@ -29,6 +30,7 @@ type WorkRow = {
   summary: string;
   description: string;
   cover: string;
+  coverImage: string | null;
   tags: Prisma.JsonValue;
   category: string;
   links: Prisma.JsonValue;
@@ -54,6 +56,7 @@ export class PortfolioService {
   private readonly logger = new Logger(PortfolioService.name);
 
   constructor(
+    private readonly storageService: WorkCoverStorageService,
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
   ) {}
@@ -182,6 +185,7 @@ export class PortfolioService {
           summary: dto.summary ?? '',
           description: dto.description,
           cover: dto.cover ?? '',
+          coverImage: dto.coverImage ?? null,
           tags: dto.tags,
           category: dto.category ?? '独立项目',
           links: dto.links ?? {},
@@ -230,6 +234,7 @@ export class PortfolioService {
     if (dto.summary !== undefined) data.summary = dto.summary;
     if (dto.description !== undefined) data.description = dto.description;
     if (dto.cover !== undefined) data.cover = dto.cover;
+    if (dto.coverImage !== undefined) data.coverImage = dto.coverImage;
     if (dto.tags !== undefined) data.tags = dto.tags;
     if (dto.category !== undefined) data.category = dto.category;
     if (dto.links !== undefined) data.links = dto.links;
@@ -251,7 +256,16 @@ export class PortfolioService {
       );
     }
 
-    // ③ 删列表 + 详情缓存（旧 slug + 新 slug，slug 未变时只删一次）
+    // ③ 封面图被替换/清空 → 清理旧文件（外链由 storageService 自行跳过）
+    if (
+      dto.coverImage !== undefined &&
+      existing.coverImage &&
+      existing.coverImage !== dto.coverImage
+    ) {
+      this.storageService.delete(existing.coverImage);
+    }
+
+    // ④ 删列表 + 详情缓存（旧 slug + 新 slug，slug 未变时只删一次）
     await this.invalidateListCache();
     await this.invalidateDetailCache(oldSlug);
     if (dto.slug && dto.slug !== oldSlug) {
@@ -271,7 +285,7 @@ export class PortfolioService {
     // ① 查旧记录
     const existing = (await this.prisma.work.findUnique({
       where: { id },
-      select: { slug: true },
+      select: { slug: true, coverImage: true },
     }));
     if (!existing) {
       throw new BusinessException(
@@ -289,7 +303,12 @@ export class PortfolioService {
       );
     }
 
-    // ③ 删列表 + 详情缓存
+    // ③ 清理封面图本地文件（外链由 storageService 自行跳过）
+    if (existing.coverImage) {
+      this.storageService.delete(existing.coverImage);
+    }
+
+    // ④ 删列表 + 详情缓存
     await this.invalidateListCache();
     await this.invalidateDetailCache(existing.slug);
   }
@@ -560,6 +579,7 @@ export class PortfolioService {
       summary: row.summary || '',
       description: row.description || '',
       cover: row.cover || '',
+      coverImage: row.coverImage || null,
       tags: this.safeStringArray(row.tags),
       category: row.category || '独立项目',
       links: this.safeLinks(row.links),

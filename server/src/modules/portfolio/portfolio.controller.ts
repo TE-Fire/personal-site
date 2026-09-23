@@ -8,9 +8,15 @@ import {
   Post,
   Put,
   Res,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import { existsSync, mkdirSync } from 'fs';
+import { extname, join } from 'path';
 import type { Response } from 'express';
 import { Result } from '@/common/result';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -26,6 +32,27 @@ import {
   WorkMetaRsp,
   VocabKind,
 } from './dto/portfolio.dto';
+import { WorkCoverStorageService } from './work-cover-storage.service';
+
+/* ---------- 作品封面图上传 Multer 配置 ---------- */
+const WORK_UPLOAD_DIR = join(process.cwd(), 'public', 'uploads', 'works');
+/** 上传硬上限 12MB（存储服务二次校验到 10MB 并给出友好提示） */
+const WORK_UPLOAD_MAX_SIZE = 12 * 1024 * 1024;
+
+const workCoverStorage = diskStorage({
+  destination: (_req, _file, cb) => {
+    if (!existsSync(WORK_UPLOAD_DIR)) {
+      mkdirSync(WORK_UPLOAD_DIR, { recursive: true });
+    }
+    cb(null, WORK_UPLOAD_DIR);
+  },
+  filename: (_req, file, cb) => {
+    const stamp = Date.now();
+    const rand = Math.random().toString(36).slice(2, 8);
+    const ext = extname(file.originalname).toLowerCase() || '.bin';
+    cb(null, `${stamp}-${rand}${ext}`);
+  },
+});
 
 /**
  * Portfolio 模块 Controller
@@ -46,7 +73,30 @@ import {
 @ApiTags('作品集 Portfolio')
 @Controller('portfolio')
 export class PortfolioController {
-  constructor(private readonly portfolioService: PortfolioService) {}
+  constructor(
+    private readonly portfolioService: PortfolioService,
+    private readonly storageService: WorkCoverStorageService,
+  ) {}
+
+  /* ========== POST /api/portfolio/upload —— 管理员，上传封面图 ========== */
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Post('upload')
+  @ApiOperation({ summary: '上传作品封面图（需登录，jpg/png/webp/gif ≤10MB）' })
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: workCoverStorage,
+      limits: { fileSize: WORK_UPLOAD_MAX_SIZE },
+    }),
+  )
+  async uploadCover(
+    @UploadedFile() file: Express.Multer.File,
+  ): Promise<Result<{ url: string }>> {
+    // storageService 二次校验：图片 ≤ 10MB + 格式白名单
+    return Result.ok(this.storageService.upload(file), '上传成功');
+  }
 
   /* ========== GET /api/portfolio —— 公开，列表 ========== */
 

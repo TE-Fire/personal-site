@@ -149,12 +149,18 @@ async function handleDelete(w: WorkData) {
     <div v-else class="space-y-3">
       <Card v-for="w in sortedWorks" :key="w.id" class="overflow-hidden">
         <CardContent class="flex flex-wrap items-center gap-4 p-4">
-          <!-- 左侧渐变小封面 -->
+          <!-- 左侧小封面：有图显示图，否则渐变兜底 -->
           <div
-            :style="{ backgroundImage: w.cover || 'none' }"
-            class="hidden sm:flex shrink-0 size-14 rounded-lg items-center justify-center"
+            :style="w.coverImage ? undefined : { backgroundImage: w.cover || 'none' }"
+            class="hidden sm:flex shrink-0 size-14 rounded-lg overflow-hidden items-center justify-center"
           >
-            <Briefcase class="size-5 text-text-muted/70" />
+            <img
+              v-if="w.coverImage"
+              :src="w.coverImage"
+              :alt="w.title"
+              class="size-full object-cover"
+            />
+            <Briefcase v-else class="size-5 text-text-muted/70" />
           </div>
 
           <!-- 中间信息 -->

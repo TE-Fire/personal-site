@@ -20,6 +20,7 @@ import {
   getAdminWorks,
   createWork,
   updateWork,
+  uploadWorkCover,
   type WorkData,
   type WorkMeta,
 } from '@/api/portfolio'
@@ -35,6 +36,8 @@ import {
   Tags,
   FileText,
   Settings2,
+  ImagePlus,
+  Trash2,
 } from 'lucide-vue-next'
 
 defineOptions({ name: 'PortfolioEditorPage' })
@@ -96,6 +99,7 @@ interface DraftForm {
   summary: string
   description: string
   cover: string
+  coverImage: string | null
   category: string
   tags: string[]
   homepage: string
@@ -114,6 +118,7 @@ function emptyDraft(): DraftForm {
     summary: '',
     description: '',
     cover: coverPresets[0],
+    coverImage: null,
     category: '',
     tags: [],
     homepage: '',
@@ -134,6 +139,7 @@ function hydrateDraft(w: WorkData) {
   draft.summary = w.summary
   draft.description = w.description
   draft.cover = normalizeCover(w.cover)
+  draft.coverImage = w.coverImage || null
   draft.category = w.category
   draft.tags = [...(w.tags || [])]
   draft.homepage = w.links?.homepage ?? ''
@@ -171,6 +177,43 @@ onMounted(async () => {
   }
 })
 
+/* ---------- 封面图上传 ---------- */
+const uploading = ref(false)
+const fileInput = ref<HTMLInputElement | null>(null)
+
+/** Input 不接受 null，用计算属性代理「空串 ⇄ null」 */
+const coverImageInput = computed<string>({
+  get: () => draft.coverImage ?? '',
+  set: (v: string) => {
+    draft.coverImage = v
+  },
+})
+
+function pickCoverFile() {
+  fileInput.value?.click()
+}
+
+async function onCoverFileChange(e: Event) {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+  uploading.value = true
+  try {
+    const url = await uploadWorkCover(file)
+    draft.coverImage = url
+    toast.success('封面图已上传', file.name)
+  } catch (err: any) {
+    toast.danger('上传失败', err?.message || '请确认图片为 jpg/png/webp/gif 且不超过 10MB')
+  } finally {
+    uploading.value = false
+    input.value = '' // 允许重复选同一文件
+  }
+}
+
+function clearCoverImage() {
+  draft.coverImage = null
+}
+
 /* ---------- 标签多选 ---------- */
 function toggleTag(tag: string) {
   const idx = draft.tags.indexOf(tag)
@@ -202,6 +245,7 @@ function buildPayload(): Partial<WorkData> {
     summary: draft.summary.trim(),
     description: draft.description,
     cover: draft.cover.trim(),
+    coverImage: draft.coverImage?.trim() || null,
     tags: [...draft.tags],
     category: draft.category,
     links,
@@ -404,8 +448,66 @@ const noVocab = computed(
             封面
           </h2>
 
+          <!-- 封面图：有图优先展示，无图回落到下面的渐变 -->
           <div class="space-y-2">
-            <Label class="text-sm font-medium">预设渐变</Label>
+            <Label class="text-sm font-medium">封面图</Label>
+            <div class="flex items-start gap-4">
+              <div
+                class="size-24 shrink-0 rounded-lg border border-border/60 overflow-hidden bg-surface-muted/30 flex items-center justify-center"
+                :style="draft.coverImage ? undefined : { backgroundImage: draft.cover }"
+              >
+                <img
+                  v-if="draft.coverImage"
+                  :src="draft.coverImage"
+                  alt="封面预览"
+                  class="size-full object-cover"
+                />
+                <span v-else class="text-xs text-text-muted">无图</span>
+              </div>
+              <div class="space-y-2 flex-1 min-w-0">
+                <div class="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    class="btn-spec-b btn-spec-b--outline"
+                    :disabled="uploading"
+                    @click="pickCoverFile"
+                  >
+                    <Loader2 v-if="uploading" class="btn-spec-b__icon animate-spin" />
+                    <ImagePlus v-else class="btn-spec-b__icon" />
+                    <span>{{ uploading ? '上传中…' : '上传图片' }}</span>
+                  </button>
+                  <button
+                    v-if="draft.coverImage"
+                    type="button"
+                    class="btn-spec-b btn-spec-b--toolbar btn-spec-b--toolbar-danger"
+                    @click="clearCoverImage"
+                  >
+                    <Trash2 class="btn-spec-b__icon" />
+                    <span>移除</span>
+                  </button>
+                  <input
+                    ref="fileInput"
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/gif"
+                    class="hidden"
+                    @change="onCoverFileChange"
+                  />
+                </div>
+                <Input
+                  v-model="coverImageInput"
+                  placeholder="或直接粘贴图片外链 https://…"
+                  class="font-mono text-xs"
+                />
+                <p class="m-0 text-xs text-text-muted">
+                  支持 jpg / png / webp / gif，≤ 10MB。有封面图时列表与详情页显示图片，
+                  下面的渐变作为无图/加载失败时的兜底。
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div class="space-y-2">
+            <Label class="text-sm font-medium">预设渐变（兜底）</Label>
             <div class="flex flex-wrap gap-2.5">
               <button
                 v-for="preset in coverPresets"

@@ -175,11 +175,17 @@ const crumbTitle = computed(() => work.value?.title || '作品不存在')
         class="rounded-2xl overflow-hidden border border-border/60 shadow-lg"
         data-reveal
       >
-        <!-- 渐变封面（与列表卡片同风格） -->
+        <!-- 封面：有封面图则显示图片，否则用渐变兜底 -->
         <div
-          :style="{ backgroundImage: work.cover || 'none' }"
-          class="aspect-[16/9] relative flex flex-col items-center justify-center text-text-muted"
+          :style="work.coverImage ? undefined : { backgroundImage: work.cover || 'none' }"
+          class="aspect-[16/9] relative overflow-hidden flex flex-col items-center justify-center text-text-muted"
         >
+          <img
+            v-if="work.coverImage"
+            :src="work.coverImage"
+            :alt="work.title"
+            class="absolute inset-0 size-full object-cover"
+          />
           <!-- 顶部 Badge 区 -->
           <div class="absolute top-4 left-4 flex gap-2">
             <Badge variant="outline" class="backdrop-blur bg-surface-elevated/70">

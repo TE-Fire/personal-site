@@ -22,8 +22,10 @@ export interface WorkData {
   title: string;
   summary: string;
   description: string;
-  /** 封面渐变（Tailwind from-via-to 表达式，写入 bg-gradient-to-br class） */
+  /** 封面渐变（CSS linear-gradient 表达式）；无封面图时作为兜底展示 */
   cover: string;
+  /** 封面图 URL（本地上传 /uploads/works/… 或外链 http(s)://）；null 表示无图，用 cover 渐变 */
+  coverImage: string | null;
   tags: string[];
   /** 项目类型，用于筛选 */
   category: string;
@@ -89,6 +91,22 @@ export async function deleteWork(id: number): Promise<void> {
     method: 'DELETE',
     url: `/portfolio/${id}`,
   });
+}
+
+/**
+ * 上传作品封面图（需登录）→ 返回可访问 URL
+ * 对应后端 POST /api/portfolio/upload，限制 jpg/png/webp/gif ≤ 10MB。
+ */
+export async function uploadWorkCover(file: File): Promise<string> {
+  const formData = new FormData();
+  formData.append('file', file);
+  const res = await request<{ url: string }>({
+    method: 'POST',
+    url: '/portfolio/upload',
+    data: formData,
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return res.url;
 }
 
 /** 管理端：批量排序 */

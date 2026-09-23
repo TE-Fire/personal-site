@@ -310,8 +310,10 @@ model Work {
   summary     String    @default("") @db.VarChar(500)
   /// 详细描述
   description String    @db.Text
-  /// 封面渐变表达式（Tailwind from-via-to）或图片 URL
+  /// 封面渐变表达式（CSS linear-gradient，无封面图时兜底展示）
   cover       String    @default("") @db.VarChar(500)
+  /// 封面图 URL（本地上传 /uploads/works/xxx.jpg 或外链 http(s)://；为空则用 cover 渐变）
+  coverImage  String?   @db.VarChar(500) @map("cover_image")
   /// 技术标签 → JSON string[]
   tags        Json      @default("[]")
   /// 项目分类

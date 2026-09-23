@@ -1461,7 +1461,8 @@ model Work {
   title       String     @db.VarChar(200)
   summary     String     @default("") @db.VarChar(500)
   description String     @db.Text
-  cover       String     @default("") @db.VarChar(500) // Tailwind from-via-to 渐变表达式
+  cover       String     @default("") @db.VarChar(500) // CSS linear-gradient 表达式，无封面图时兜底
+  coverImage  String?    @db.VarChar(500) @map("cover_image") // 封面图 URL（本地上传或外链）
   tags        Json       @default("[]")               // string[]
   category    String     @default("独立项目") @db.VarChar(50)
   links       Json       @default("{}")               // { homepage?, repo?, demo? }
@@ -1487,6 +1488,7 @@ model Work {
 | GET | `/api/portfolio` | 公开 | 已发布作品列表（走 Redis 缓存） |
 | GET | `/api/portfolio/:slug` | 公开 | 单个作品详情 |
 | GET | `/api/portfolio/admin/list` | JWT | 管理端列表（含草稿/归档） |
+| POST | `/api/portfolio/upload` | JWT | 上传封面图（jpg/png/webp/gif ≤10MB），返回 `{ url }` |
 | POST | `/api/portfolio` | JWT | 新建作品 |
 | PUT | `/api/portfolio/:id` | JWT | 更新作品 |
 | DELETE | `/api/portfolio/:id` | JWT | 删除作品 |
@@ -1507,11 +1509,17 @@ REDIS_TTL.PORTFOLIO_PUBLIC = 60                              // 1 分钟
 
 | 文件 | 说明 |
 |------|------|
-| `src/api/portfolio.ts` | API 封装 + `WorkData` 类型（7 个方法） |
+| `src/api/portfolio.ts` | API 封装 + `WorkData` 类型（8 个方法，含 `uploadWorkCover`） |
 | `src/pages/PortfolioPage.vue` | Mock → 接口；分类 tab + 标签 chips 双维筛选；**卡片点击进详情**；登录后显示「管理作品集」入口 |
-| `src/pages/PortfolioDetailPage.vue` | 新建：Hero 渐变封面 + 描述 + 标签 + 链接区，loading/error/ok 三态 |
-| `src/pages/PortfolioManagePage.vue` | 新建：列表 + 新建/编辑/删除/排序 |
+| `src/pages/PortfolioDetailPage.vue` | 新建：Hero 封面（封面图优先 / 渐变兜底）+ 描述 + 标签 + 链接区，loading/error/ok 三态 |
+| `src/pages/PortfolioManagePage.vue` | 新建：列表 + 新建/编辑/删除/排序；小封面同样「图优先 + 渐变兜底」 |
+| `src/pages/PortfolioEditorPage.vue` | 新建/编辑独立页：封面图上传 + 外链输入 + 渐变预设，分类/标签选择式输入 |
 | `src/pages/HomePage.vue` | 「最近作品」改调 `getWorks()`，失败回退静态 Mock |
+
+**封面展示规则**：`coverImage` 非空 → `<img>` 铺满（`object-cover`）；为空 → 用 `cover` 的 CSS 渐变兜底。
+列表/详情/管理/首页四处统一。上传走 `POST /api/portfolio/upload`（落 `server/public/uploads/works/`，
+经 `useStaticAssets` 以 `/uploads/works/…` 访问）；删除作品或替换封面时 Service 层清理旧文件，
+外链（http(s)://）跳过不删。
 | `src/router/index.ts` | 追加 `/portfolio/:slug`、`/admin/portfolio` |
 
 **兜底约定**：`PortfolioPage` / `HomePage` 接口失败时回退 `projects` 静态数据，但静态数据**没有 `slug` 字段**，
