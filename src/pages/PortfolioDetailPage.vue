@@ -82,6 +82,11 @@ function goBackPortfolio() {
   router.push('/portfolio')
 }
 
+/** 新窗口打开外链（模板作用域里拿不到 window，必须经 script 暴露） */
+function openLink(url?: string) {
+  if (url) window.open(url, '_blank')
+}
+
 /* ---------- 顶部面包屑：作品标题 ---------- */
 const crumbTitle = computed(() => work.value?.title || '作品不存在')
 </script>
@@ -276,7 +281,7 @@ const crumbTitle = computed(() => work.value?.title || '作品不存在')
           <Button
             v-if="work.links?.repo"
             variant="outline"
-            @click="() => work?.links?.repo && window.open(work.links.repo, '_blank')"
+            @click="openLink(work?.links?.repo)"
           >
             <Github class="size-4" />
             源码仓库
@@ -284,7 +289,7 @@ const crumbTitle = computed(() => work.value?.title || '作品不存在')
           <Button
             v-if="work.links?.demo"
             variant="default"
-            @click="() => work?.links?.demo && window.open(work.links.demo, '_blank')"
+            @click="openLink(work?.links?.demo)"
           >
             <ExternalLink class="size-4" />
             在线 Demo
@@ -292,7 +297,7 @@ const crumbTitle = computed(() => work.value?.title || '作品不存在')
           <Button
             v-if="work.links?.homepage"
             variant="secondary"
-            @click="() => work?.links?.homepage && window.open(work.links.homepage, '_blank')"
+            @click="openLink(work?.links?.homepage)"
           >
             <Home class="size-4" />
             项目主页
