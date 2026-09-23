@@ -378,7 +378,10 @@ useScrollReveal(pageRoot)
           @click="openWork(p)"
           @keydown.enter.prevent="openWork(p)"
         >
-          <div :class="['aspect-[16/10] bg-gradient-to-br border-b border-border/60 relative', p.cover]">
+          <div
+            :style="{ backgroundImage: p.cover || 'none' }"
+            class="aspect-[16/10] border-b border-border/60 relative"
+          >
             <div class="absolute top-3 left-3">
               <Badge variant="outline" class="backdrop-blur bg-surface-elevated/70">{{ p.category }}</Badge>
             </div>

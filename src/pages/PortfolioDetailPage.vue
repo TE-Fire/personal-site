@@ -177,10 +177,8 @@ const crumbTitle = computed(() => work.value?.title || '作品不存在')
       >
         <!-- 渐变封面（与列表卡片同风格） -->
         <div
-          :class="[
-            'aspect-[16/9] bg-gradient-to-br relative flex flex-col items-center justify-center text-text-muted',
-            work.cover
-          ]"
+          :style="{ backgroundImage: work.cover || 'none' }"
+          class="aspect-[16/9] relative flex flex-col items-center justify-center text-text-muted"
         >
           <!-- 顶部 Badge 区 -->
           <div class="absolute top-4 left-4 flex gap-2">

@@ -198,10 +198,8 @@ onMounted(async () => {
         @keydown.enter.prevent="openWork(p)"
       >
         <div
-          :class="[
-            'aspect-[16/10] bg-gradient-to-br border-b border-border/60 relative flex items-center justify-center text-text-muted',
-            p.cover
-          ]"
+          :style="{ backgroundImage: p.cover || 'none' }"
+          class="aspect-[16/10] border-b border-border/60 relative flex items-center justify-center text-text-muted"
         >
           <div class="absolute top-3 left-3 flex gap-2">
             <Badge variant="outline" class="backdrop-blur bg-surface-elevated/70">

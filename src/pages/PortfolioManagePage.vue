@@ -151,10 +151,8 @@ async function handleDelete(w: WorkData) {
         <CardContent class="flex flex-wrap items-center gap-4 p-4">
           <!-- 左侧渐变小封面 -->
           <div
-            :class="[
-              'hidden sm:flex shrink-0 size-14 rounded-lg bg-gradient-to-br items-center justify-center',
-              w.cover
-            ]"
+            :style="{ backgroundImage: w.cover || 'none' }"
+            class="hidden sm:flex shrink-0 size-14 rounded-lg items-center justify-center"
           >
             <Briefcase class="size-5 text-text-muted/70" />
           </div>

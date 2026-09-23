@@ -53,21 +53,41 @@ const meta = ref<WorkMeta>({ categories: [], tags: [] })
 const workId = computed(() => (props.id ? Number(props.id) : null))
 const isCreate = computed(() => workId.value == null)
 
-/** 封面渐变预设（与 mock 数据同色系，Tailwind 类已在 projects.ts 中被扫描到） */
+/**
+ * 封面渐变预设 · 标准 CSS gradient 表达式
+ * 颜色取自 tokens.css（brand #4B3FE3 / accent #27D2BF / chart 系列），
+ * 透明度 0.30-0.45 叠加在页面底色上，与卡片风格一致。
+ */
 const coverPresets = [
-  'from-brand/30 via-accent/30 to-chart-c1/30',
-  'from-chart-c2/30 via-brand/30 to-surface-muted',
-  'from-chart-c3/30 via-accent/30 to-chart-c4/30',
-  'from-chart-c5/30 via-brand/30 to-chart-c2/30',
-  'from-chart-c1/30 via-chart-c4/30 to-chart-c3/30',
-  'from-accent/30 via-chart-c5/30 to-brand/30',
+  'linear-gradient(135deg, rgba(75,63,227,0.35), rgba(39,210,191,0.35), rgba(34,165,247,0.35))',
+  'linear-gradient(135deg, rgba(169,174,255,0.45), rgba(75,63,227,0.30), rgba(203,213,225,0.40))',
+  'linear-gradient(135deg, rgba(60,46,202,0.35), rgba(39,210,191,0.35), rgba(111,111,255,0.35))',
+  'linear-gradient(135deg, rgba(34,165,247,0.40), rgba(75,63,227,0.30), rgba(169,174,255,0.40))',
+  'linear-gradient(135deg, rgba(60,46,202,0.30), rgba(34,165,247,0.40), rgba(111,111,255,0.35))',
+  'linear-gradient(135deg, rgba(39,210,191,0.40), rgba(34,165,247,0.30), rgba(75,63,227,0.35))',
 ]
 
-const statusOptions: Array<'DRAFT' | 'PUBLISHED' | 'ARCHIVED'> = [
-  'DRAFT',
-  'PUBLISHED',
-  'ARCHIVED',
-]
+/** 兼容旧数据：历史封面存的是 Tailwind 类名（从未渲染成功），映射到对应预设 */
+const LEGACY_COVER_MAP: Record<string, string> = {
+  'from-brand/30 via-accent/30 to-chart-c1/30': coverPresets[0],
+  'from-chart-c2/30 via-brand/30 to-surface-muted': coverPresets[1],
+  'from-chart-c3/30 via-accent/30 to-chart-c4/30': coverPresets[2],
+  'from-chart-c5/30 via-brand/30 to-chart-c2/30': coverPresets[3],
+  'from-chart-c1/30 via-chart-c4/30 to-chart-c3/30': coverPresets[4],
+  'from-accent/30 via-chart-c5/30 to-brand/30': coverPresets[5],
+}
+
+function normalizeCover(cover?: string | null): string {
+  if (!cover) return coverPresets[0]
+  if (LEGACY_COVER_MAP[cover]) return LEGACY_COVER_MAP[cover]
+  return cover
+}
+
+const statusOptions = [
+  { value: 'DRAFT', label: '草稿（仅自己可见）' },
+  { value: 'PUBLISHED', label: '已发布（公开可见）' },
+  { value: 'ARCHIVED', label: '已归档（下线隐藏）' },
+] as const
 
 /* ---------- 表单 ---------- */
 interface DraftForm {
@@ -113,7 +133,7 @@ function hydrateDraft(w: WorkData) {
   draft.title = w.title
   draft.summary = w.summary
   draft.description = w.description
-  draft.cover = w.cover || coverPresets[0]
+  draft.cover = normalizeCover(w.cover)
   draft.category = w.category
   draft.tags = [...(w.tags || [])]
   draft.homepage = w.links?.homepage ?? ''
@@ -164,6 +184,8 @@ function validate(): string | null {
   if (!/^[a-z0-9-]+$/.test(draft.slug)) return 'slug 只能包含小写字母、数字和短横线'
   if (!draft.title.trim()) return '标题不能为空'
   if (!draft.category) return '请选择分类'
+  if (draft.cover && !/gradient\(/.test(draft.cover))
+    return '封面渐变应为 CSS gradient() 表达式，例如 linear-gradient(135deg, #4B3FE3, #27D2BF)'
   if (draft.finishedAt && !/^\d{4}-\d{2}$/.test(draft.finishedAt))
     return '完成时间格式应为 YYYY-MM'
   return null
@@ -277,7 +299,7 @@ const noVocab = computed(
       <Card>
         <CardContent class="p-5 md:p-6 space-y-5">
           <h2 class="m-0 text-base font-semibold text-text flex items-center gap-2">
-            <FileText class="size-4 text-brand" />
+            <FileText class="size-5 text-brand" />
             基础信息
           </h2>
 
@@ -288,9 +310,12 @@ const noVocab = computed(
 
           <div class="flex flex-col md:flex-row gap-4">
             <div class="flex-1 space-y-1.5">
-              <Label class="text-sm font-medium">Slug <span class="text-danger">*</span></Label>
+              <Label class="text-sm font-medium">Slug（网址标识） <span class="text-danger">*</span></Label>
               <Input v-model="draft.slug" placeholder="url 标识，如 my-project" class="font-mono" />
-              <p class="m-0 text-xs text-text-muted">小写字母 / 数字 / 短横线，作为详情页 URL 末段。</p>
+              <p class="m-0 text-xs text-text-muted">
+                作品详情页网址的最后一段：…/#/portfolio/<b>my-project</b>。
+                只能小写字母、数字、短横线，保存后不建议修改。
+              </p>
             </div>
             <div class="w-full md:w-36 space-y-1.5">
               <Label class="text-sm font-medium">排序号</Label>
@@ -325,7 +350,7 @@ const noVocab = computed(
         <CardContent class="p-5 md:p-6 space-y-5">
           <div class="flex items-center justify-between gap-3">
             <h2 class="m-0 text-base font-semibold text-text flex items-center gap-2">
-              <Tags class="size-4 text-brand" />
+              <Tags class="size-5 text-brand" />
               分类与标签
             </h2>
             <router-link
@@ -375,7 +400,7 @@ const noVocab = computed(
       <Card>
         <CardContent class="p-5 md:p-6 space-y-5">
           <h2 class="m-0 text-base font-semibold text-text flex items-center gap-2">
-            <Palette class="size-4 text-brand" />
+            <Palette class="size-5 text-brand" />
             封面
           </h2>
 
@@ -386,23 +411,28 @@ const noVocab = computed(
                 v-for="preset in coverPresets"
                 :key="preset"
                 type="button"
-                class="size-12 rounded-lg bg-gradient-to-br border transition"
-                :class="[preset, draft.cover === preset ? 'border-brand ring-2 ring-brand/30' : 'border-border/60 hover:border-border']"
-                :aria-label="`选择渐变 ${preset}`"
+                class="size-12 rounded-lg border transition"
+                :style="{ backgroundImage: preset }"
+                :class="draft.cover === preset ? 'border-brand ring-2 ring-brand/30' : 'border-border/60 hover:border-border'"
+                :aria-label="`选择渐变预设`"
                 @click="draft.cover = preset"
               />
             </div>
           </div>
 
           <div class="space-y-1.5">
-            <Label class="text-sm font-medium">自定义渐变表达式</Label>
+            <Label class="text-sm font-medium">自定义渐变（CSS）</Label>
             <Input
               v-model="draft.cover"
-              placeholder="from-xxx/30 via-yyy/30 to-zzz/30"
+              placeholder="linear-gradient(135deg, #4B3FE3 0%, #27D2BF 100%)"
               class="font-mono text-xs"
             />
+            <p class="m-0 text-xs text-text-muted">
+              一段标准 CSS 渐变表达式（linear / radial-gradient 均可），不熟悉可直接用上面的预设。
+            </p>
             <div
-              :class="['h-16 rounded-lg bg-gradient-to-br border border-border/60', draft.cover || 'from-surface-muted via-surface-muted to-surface-muted']"
+              class="h-16 rounded-lg border border-border/60"
+              :style="{ backgroundImage: draft.cover || 'none' }"
             />
           </div>
         </CardContent>
@@ -412,7 +442,7 @@ const noVocab = computed(
       <Card>
         <CardContent class="p-5 md:p-6 space-y-4">
           <h2 class="m-0 text-base font-semibold text-text flex items-center gap-2">
-            <Link2 class="size-4 text-brand" />
+            <Link2 class="size-5 text-brand" />
             相关链接
           </h2>
           <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -436,7 +466,7 @@ const noVocab = computed(
       <Card>
         <CardContent class="p-5 md:p-6 space-y-5">
           <h2 class="m-0 text-base font-semibold text-text flex items-center gap-2">
-            <Settings2 class="size-4 text-brand" />
+            <Settings2 class="size-5 text-brand" />
             发布设置
           </h2>
 
@@ -447,9 +477,11 @@ const noVocab = computed(
                 v-model="draft.status"
                 class="flex h-10 w-full rounded-md border border-border bg-surface-elevated px-3 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
               >
-                <option v-for="s in statusOptions" :key="s" :value="s">{{ s }}</option>
+                <option v-for="s in statusOptions" :key="s.value" :value="s.value">
+                  {{ s.label }}
+                </option>
               </select>
-              <p class="m-0 text-xs text-text-muted">仅 PUBLISHED 会在公开页展示。</p>
+              <p class="m-0 text-xs text-text-muted">仅「已发布」会出现在公开的作品集页面。</p>
             </div>
             <div class="flex-1 space-y-1.5">
               <Label class="text-sm font-medium">完成时间</Label>
