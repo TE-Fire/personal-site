@@ -41,3 +41,9 @@ Thumbs.db
 
 # 临时参考资料（Trae 经验召回缓存）
 skill/
+
+# Vite 加载 TS 配置时生成的临时转译产物
+vite.config.ts.timestamp-*
+
+# WorkBuddy 项目记忆（工具数据，非项目源码）
+.workbuddy/
