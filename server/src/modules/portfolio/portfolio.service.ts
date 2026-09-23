@@ -17,6 +17,8 @@ import {
   UpdateWorkDto,
   WorkRsp,
   WorkLinks,
+  WorkMetaRsp,
+  VocabKind,
 } from './dto/portfolio.dto';
 
 /** Prisma Work 行类型（用于 mapRowToRsp 入参类型收窄） */
@@ -308,6 +310,219 @@ export class PortfolioService {
 
     // 删列表缓存
     await this.invalidateListCache();
+  }
+
+  /* ============================== 词库（分类/标签候选值） ============================== */
+
+  /** 校验词库类型参数合法（URL 路径参数不可信） */
+  private assertKind(kind: VocabKind): void {
+    if (kind !== 'CATEGORY' && kind !== 'TAG') {
+      throw new BusinessException(
+        getPortfolioErrorInfo(PortfolioBizError.VOCAB_SAVE_FAILED),
+      );
+    }
+  }
+
+  /**
+   * 获取词库（管理端编辑器/管理弹窗用）
+   * 返回 = 词库表词条 ∪ 作品表实际用到的值（并集去重排序）。
+   * 并集的好处：历史作品里手输过的值自动进入候选；词库表则承载「提前新增的空词条」。
+   */
+  async getAdminMeta(): Promise<WorkMetaRsp> {
+    const [vocabRows, works] = await Promise.all([
+      this.prisma.workVocab.findMany({ orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }] }),
+      this.prisma.work.findMany({ select: { category: true, tags: true } }),
+    ]);
+
+    const categories = new Set<string>();
+    const tags = new Set<string>();
+    for (const v of vocabRows) {
+      if (v.kind === 'CATEGORY') categories.add(v.name);
+      else tags.add(v.name);
+    }
+    for (const w of works) {
+      if (w.category) categories.add(w.category);
+      for (const t of this.safeStringArray(w.tags)) tags.add(t);
+    }
+
+    const sortCn = (a: string, b: string) => a.localeCompare(b, 'zh-Hans-CN');
+    return {
+      categories: Array.from(categories).sort(sortCn),
+      tags: Array.from(tags).sort(sortCn),
+    };
+  }
+
+  /** 新增词条（同类型内重名 → 报错） */
+  async addVocab(kind: VocabKind, name: string): Promise<void> {
+    this.assertKind(kind);
+    const trimmed = name.trim();
+    if (!trimmed) {
+      throw new BusinessException(
+        getPortfolioErrorInfo(PortfolioBizError.VOCAB_SAVE_FAILED),
+      );
+    }
+    const dup = await this.prisma.workVocab.findFirst({
+      where: { kind, name: trimmed },
+    });
+    if (dup) {
+      throw new BusinessException(
+        getPortfolioErrorInfo(PortfolioBizError.VOCAB_DUPLICATE),
+      );
+    }
+    const maxSort = await this.prisma.workVocab.aggregate({
+      where: { kind },
+      _max: { sortOrder: true },
+    });
+    try {
+      await this.prisma.workVocab.create({
+        data: { kind, name: trimmed, sortOrder: (maxSort._max.sortOrder ?? 0) + 1 },
+      });
+    } catch (err) {
+      this.logger.error(`addVocab Prisma failed: ${(err as Error).message}`);
+      throw new BusinessException(
+        getPortfolioErrorInfo(PortfolioBizError.VOCAB_SAVE_FAILED),
+      );
+    }
+    // 新词条不影响已有作品的展示值，无需清缓存
+  }
+
+  /**
+   * 重命名/合并词条。
+   *   · 分类：批量 update work.category（from → to），词库表同步改名或删除重复项
+   *   · 标签：逐条改写 work.tags 数组（移除 from，并入 to，去重），词库表同上
+   * 合并语义：to 已存在时，from 词条删除，作品全部归并到 to。
+   */
+  async renameVocab(kind: VocabKind, from: string, to: string): Promise<void> {
+    this.assertKind(kind);
+    const fromTrimmed = from.trim();
+    const toTrimmed = to.trim();
+    if (!fromTrimmed || !toTrimmed) {
+      throw new BusinessException(
+        getPortfolioErrorInfo(PortfolioBizError.VOCAB_SAVE_FAILED),
+      );
+    }
+    if (fromTrimmed === toTrimmed) return; // 无变化
+
+    // 找到所有受影响的作品（用于逐条改写 tags / 清详情缓存）
+    const affected =
+      kind === 'CATEGORY'
+        ? await this.prisma.work.findMany({
+            where: { category: fromTrimmed },
+            select: { id: true, slug: true, tags: true },
+          })
+        : await this.prisma.work.findMany({
+            select: { id: true, slug: true, tags: true },
+          });
+
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        if (kind === 'CATEGORY') {
+          if (affected.length > 0) {
+            await tx.work.updateMany({
+              where: { category: fromTrimmed },
+              data: { category: toTrimmed },
+            });
+          }
+        } else {
+          // 标签：数组里 from → to，去重
+          for (const w of affected) {
+            const tags = this.safeStringArray(w.tags);
+            if (!tags.includes(fromTrimmed)) continue;
+            const next = Array.from(
+              new Set(tags.map((t) => (t === fromTrimmed ? toTrimmed : t))),
+            );
+            await tx.work.update({ where: { id: w.id }, data: { tags: next } });
+          }
+        }
+
+        // 词库表：to 不存在 → 改名；已存在 → 删除 from（合并）
+        const target = await tx.workVocab.findFirst({
+          where: { kind, name: toTrimmed },
+        });
+        const source = await tx.workVocab.findFirst({
+          where: { kind, name: fromTrimmed },
+        });
+        if (source) {
+          if (target) {
+            await tx.workVocab.delete({ where: { id: source.id } });
+          } else {
+            await tx.workVocab.update({
+              where: { id: source.id },
+              data: { name: toTrimmed },
+            });
+          }
+        }
+      });
+    } catch (err) {
+      this.logger.error(`renameVocab Prisma failed: ${(err as Error).message}`);
+      throw new BusinessException(
+        getPortfolioErrorInfo(PortfolioBizError.VOCAB_SAVE_FAILED),
+      );
+    }
+
+    // 清缓存：列表 + 受影响作品的详情
+    await this.invalidateListCache();
+    for (const w of affected) {
+      await this.invalidateDetailCache(w.slug);
+    }
+  }
+
+  /**
+   * 删除词条。
+   *   · 标签：从所有作品的 tags 数组中移除（标签是轻量描述，直接剥离）
+   *   · 分类：仍被作品引用时拒绝删除（提示先合并），未引用才允许删
+   */
+  async deleteVocab(kind: VocabKind, name: string): Promise<void> {
+    this.assertKind(kind);
+    const trimmed = name.trim();
+    if (!trimmed) {
+      throw new BusinessException(
+        getPortfolioErrorInfo(PortfolioBizError.VOCAB_SAVE_FAILED),
+      );
+    }
+
+    let affected: Array<{ id: number; slug: string; tags: Prisma.JsonValue }> = [];
+
+    if (kind === 'CATEGORY') {
+      const inUse = await this.prisma.work.count({ where: { category: trimmed } });
+      if (inUse > 0) {
+        throw new BusinessException(
+          getPortfolioErrorInfo(PortfolioBizError.VOCAB_CATEGORY_IN_USE),
+        );
+      }
+    } else {
+      affected = await this.prisma.work.findMany({
+        select: { id: true, slug: true, tags: true },
+      });
+    }
+
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        if (kind === 'TAG') {
+          for (const w of affected) {
+            const tags = this.safeStringArray(w.tags);
+            if (!tags.includes(trimmed)) continue;
+            await tx.work.update({
+              where: { id: w.id },
+              data: { tags: tags.filter((t) => t !== trimmed) },
+            });
+          }
+        }
+        await tx.workVocab.deleteMany({ where: { kind, name: trimmed } });
+      });
+    } catch (err) {
+      this.logger.error(`deleteVocab Prisma failed: ${(err as Error).message}`);
+      throw new BusinessException(
+        getPortfolioErrorInfo(PortfolioBizError.VOCAB_SAVE_FAILED),
+      );
+    }
+
+    if (affected.length > 0) {
+      await this.invalidateListCache();
+      for (const w of affected) {
+        await this.invalidateDetailCache(w.slug);
+      }
+    }
   }
 
   /* ============================== 内部：缓存失效 ============================== */

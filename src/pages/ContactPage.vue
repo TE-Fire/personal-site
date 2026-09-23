@@ -9,7 +9,7 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { contactChannels } from '@/data'
 import { getContact, type ContactData } from '@/api/contact'
-import { Button, Card, CardContent } from '@/components/ui'
+import { Card, CardContent } from '@/components/ui'
 import { Copy, Check, ExternalLink, ChevronDown, Lightbulb, Pencil } from 'lucide-vue-next'
 
 defineOptions({ name: 'ContactPage' })
@@ -99,16 +99,15 @@ async function copyToClipboard(id: string, value: string) {
         <p class="m-0 text-xs font-mono text-brand uppercase tracking-wider">/ contact</p>
         <div class="flex flex-wrap items-center justify-between gap-4">
           <h1 class="m-0 text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight leading-tight">联系我</h1>
-          <Button
+          <button
             v-if="authStore.isLoggedIn"
-            variant="outline"
-            size="sm"
-            class="h-8"
+            type="button"
+            class="btn-spec-b btn-spec-b--outline"
             @click="router.push('/admin/contact')"
           >
-            <Pencil class="size-3.5" />
+            <Pencil class="btn-spec-b__icon" />
             <span>编辑联系方式</span>
-          </Button>
+          </button>
         </div>
         <p class="m-0 text-base md:text-lg text-text-muted leading-relaxed max-w-2xl">
           不管是合作、约稿、技术咨询、或者单纯想交个朋友，都欢迎。点击下方任意卡片展开联系方式，获取我的详细联系信息。

@@ -98,16 +98,15 @@ onMounted(async () => {
       <p class="m-0 text-xs font-mono text-brand uppercase tracking-wider">/ portfolio</p>
       <div class="flex flex-wrap items-center justify-between gap-4">
         <h1 class="m-0 text-3xl md:text-4xl font-bold tracking-tight">作品集</h1>
-        <Button
+        <button
           v-if="authStore.isLoggedIn"
-          variant="outline"
-          size="sm"
-          class="h-8"
+          type="button"
+          class="btn-spec-b btn-spec-b--outline"
           @click="router.push('/admin/portfolio')"
         >
-          <Pencil class="size-3.5" />
+          <Pencil class="btn-spec-b__icon" />
           <span>管理作品集</span>
-        </Button>
+        </button>
       </div>
       <p class="m-0 text-base md:text-lg text-text-muted leading-relaxed">
         挑了一些最近 2 年里做得比较用心、或者对我影响最大的项目。可以按「项目类型」或「技术标签」来筛选。

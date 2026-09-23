@@ -335,3 +335,30 @@ model Work {
   @@index([sortOrder])
   @@map("work")
 }
+
+/// 作品集词库类型（分类 / 标签）
+enum WorkVocabKind {
+  CATEGORY
+  TAG
+}
+
+/// 作品集词库表 —— 分类与标签的「候选值」由管理端统一维护，
+/// 编辑作品时只从词库中选择（不手输），避免同一含义出现多种写法。
+/// 词库与 work 表是弱关联：work.category / work.tags 仍存纯字符串，
+/// 词库重命名/删除时由 Service 层批量回写 work 表。
+model WorkVocab {
+  /// 主键
+  id        Int           @id @default(autoincrement())
+  /// 词库类型（CATEGORY=项目分类 / TAG=技术标签）
+  kind      WorkVocabKind
+  /// 词库名称（同类型内唯一）
+  name      String        @db.VarChar(50)
+  /// 排序号（越小越靠前）
+  sortOrder Int           @default(0) @map("sort_order")
+
+  createdAt DateTime      @default(now()) @map("created_at")
+  updatedAt DateTime      @updatedAt @map("updated_at")
+
+  @@unique([kind, name])
+  @@map("work_vocab")
+}

@@ -20,7 +20,11 @@ import {
   CreateWorkDto,
   UpdateWorkDto,
   ReorderWorksDto,
+  CreateVocabDto,
+  RenameVocabDto,
   WorkRsp,
+  WorkMetaRsp,
+  VocabKind,
 } from './dto/portfolio.dto';
 
 /**
@@ -72,6 +76,54 @@ export class PortfolioController {
   async getAdminWorks(): Promise<Result<WorkRsp[]>> {
     const data = await this.portfolioService.getAdminWorks();
     return Result.ok(data);
+  }
+
+  /* ========== 词库（分类/标签候选值）管理 —— 均为 JWT ========== */
+  /* 注意：必须声明在 GET :slug / PUT :id / DELETE :id 之前，避免 "admin" 被通配解析。 */
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Get('admin/meta')
+  @ApiOperation({ summary: '获取分类/标签词库（去重并集，admin 用）' })
+  async getAdminMeta(): Promise<Result<WorkMetaRsp>> {
+    const data = await this.portfolioService.getAdminMeta();
+    return Result.ok(data);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Post('admin/meta/:kind')
+  @ApiOperation({ summary: '新增词条（kind=CATEGORY|TAG，需登录）' })
+  async addVocab(
+    @Param('kind') kind: VocabKind,
+    @Body() dto: CreateVocabDto,
+  ): Promise<Result<null>> {
+    await this.portfolioService.addVocab(kind, dto.name);
+    return Result.ok(null, '词条已新增');
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Put('admin/meta/:kind')
+  @ApiOperation({ summary: '重命名/合并词条（from → to，需登录）' })
+  async renameVocab(
+    @Param('kind') kind: VocabKind,
+    @Body() dto: RenameVocabDto,
+  ): Promise<Result<null>> {
+    await this.portfolioService.renameVocab(kind, dto.from, dto.to);
+    return Result.ok(null, '词条已更新');
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Delete('admin/meta/:kind/:name')
+  @ApiOperation({ summary: '删除词条（标签会从所有作品中剥离；分类被引用时拒绝，需登录）' })
+  async deleteVocab(
+    @Param('kind') kind: VocabKind,
+    @Param('name') name: string,
+  ): Promise<Result<null>> {
+    await this.portfolioService.deleteVocab(kind, decodeURIComponent(name));
+    return Result.ok(null, '词条已删除');
   }
 
   /* ========== GET /api/portfolio/:slug —— 公开，单个详情 ========== */

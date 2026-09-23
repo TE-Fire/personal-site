@@ -259,3 +259,52 @@
 - 本地 commit，**不 push**（远端推送依赖凭据，留给你执行）。
 - `docs/Vue3-*-Quick-Start.md` 7 个学习笔记未纳入本次提交。
 
+---
+
+## 2026-09-23（晚）· 作品集 UI 走查四项整改
+
+> 用户截图反馈作品集 4 个问题：① 按钮 UI 与 icon 大小不匹配；② 新建/编辑不应在弹窗里；
+> ③ 分类/标签不要手输，改为选择；④ 分类和标签需要编辑管理。
+
+### 整改方案与落地
+
+1. **按钮规范统一（btn-spec-b 体系）**
+   - 公开页「管理作品集」/ ContactPage「编辑联系方式」：`btn-spec-b--outline`（44px · 1px 细边 · 图标 65%）
+   - 管理页行内「查看/编辑/删除」：`btn-spec-b--toolbar`（40px · 0.75px 极浅边）+ `--toolbar-danger`（删除红字不画红框）
+   - 管理页「新建项目」：`btn-spec-b--primary` 实心主色
+   - 根因回顾：此前用 shadcn Button `size="sm"`（32px）塞 14px 图标 + 12px 文字，与全站 B 类规范脱节
+
+2. **新建/编辑改为独立编辑器页**（对齐博客/生活碎片模式）
+   - 新增 `PortfolioEditorPage.vue` + 路由 `/admin/portfolio/new`、`/admin/portfolio/:id/edit`（props 传 id）
+   - 页面分区：基础信息 / 分类与标签 / 封面（6 个渐变预设色板 + 自定义表达式 + 实时预览）/ 相关链接 / 发布设置 / 底部 sticky 保存条
+   - 编辑模式数据源：`getAdminWorks()` 按 id 查找（无单条 admin 接口，列表量小可接受）
+   - 管理页退化为「列表 + 删除 + 跳转」，删除原 Teleport 弹窗表单（约 300 行）
+
+3. **分类/标签改选择式输入**
+   - 编辑器：分类 = 下拉单选；标签 = 词库 chips 多选（点击选中/取消）
+   - 新增后端 `GET /api/portfolio/admin/meta`：词库表 ∪ 作品实际使用值（并集去重，中文排序）
+
+4. **词库管理（新增 WorkVocab 表）**
+   - Prisma 新增 `work_vocab` 表（kind: CATEGORY|TAG，kind+name 唯一），`prisma db push` 已应用
+   - 后端接口（均 JWT，声明在 :slug/:id 通配之前）：
+     `GET admin/meta`、`POST admin/meta/:kind`（新增）、`PUT admin/meta/:kind`（重命名/合并）、
+     `DELETE admin/meta/:kind/:name`（删除）
+   - 语义：重命名到已有名 = **合并**（作品批量回写）；删标签 = 从所有作品 tags 数组剥离；
+     删分类 = 被引用时拒绝（7006，提示先合并）
+   - 缓存：词库改动后失效列表 + 受影响作品详情缓存
+   - 前端新增 `WorkVocabDialog.vue`（Tab 切换分类/标签，内联重命名/删除确认/新增，参照 CategoryManageDialog）
+
+### 验证
+
+- 前端 `vue-tsc -b --force` 0 错误；`vite build` 通过
+- 后端 `tsc -p tsconfig.build.json --noEmit` 0 错误
+- **端到端 11/11 通过**（`server/scripts/verify-portfolio-vocab.mjs`，登录走滑块验证码 Redis 读 targetX）：
+  词库并集 / 新增 / 重名拒绝(7004) / 重命名同步作品 / 删标签剥离 / 被引用分类拒绝(7006) /
+  合并同步 / 公开列表缓存读到新值 / 清理回归
+
+### 涉及文件
+
+- 后端：schema.prisma（+WorkVocab）、portfolio.dto/service/controller/biz-error、scripts/verify-portfolio-vocab.mjs（新增）
+- 前端：api/portfolio.ts、pages/PortfolioEditorPage.vue（新增）、PortfolioManagePage.vue（重构）、
+  PortfolioPage.vue、ContactPage.vue、components/WorkVocabDialog.vue（新增）、router/index.ts
+

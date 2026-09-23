@@ -99,3 +99,52 @@ export async function reorderWorks(ids: number[]): Promise<void> {
     data: { ids },
   });
 }
+
+/* ==================== 词库（分类/标签候选值） ==================== */
+
+/** 词库类型 */
+export type VocabKind = 'CATEGORY' | 'TAG';
+
+/** 词库响应：分类与标签候选值（后端已去重排序） */
+export interface WorkMeta {
+  categories: string[];
+  tags: string[];
+}
+
+/** 获取词库（管理端用） */
+export async function getWorkMeta(): Promise<WorkMeta> {
+  return request<WorkMeta>({
+    method: 'GET',
+    url: '/portfolio/admin/meta',
+  });
+}
+
+/** 新增词条 */
+export async function addVocab(kind: VocabKind, name: string): Promise<void> {
+  return request<void>({
+    method: 'POST',
+    url: `/portfolio/admin/meta/${kind}`,
+    data: { name },
+  });
+}
+
+/** 重命名/合并词条（to 已存在时即合并） */
+export async function renameVocab(
+  kind: VocabKind,
+  from: string,
+  to: string,
+): Promise<void> {
+  return request<void>({
+    method: 'PUT',
+    url: `/portfolio/admin/meta/${kind}`,
+    data: { from, to },
+  });
+}
+
+/** 删除词条（标签会从所有作品中剥离；分类被引用时后端拒绝） */
+export async function deleteVocab(kind: VocabKind, name: string): Promise<void> {
+  return request<void>({
+    method: 'DELETE',
+    url: `/portfolio/admin/meta/${kind}/${encodeURIComponent(name)}`,
+  });
+}

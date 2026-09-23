@@ -124,6 +124,40 @@ export class ReorderWorksDto {
 }
 
 /* ============================================================
+ *  4.x 词库（分类/标签候选值）管理 DTO
+ * ============================================================ */
+
+/** 词库类型 */
+export type VocabKind = 'CATEGORY' | 'TAG';
+
+/** 新增词条 DTO */
+export class CreateVocabDto {
+  @ApiProperty({ example: 'Web 应用', maxLength: 50 })
+  @IsString()
+  @MaxLength(50)
+  name: string;
+}
+
+/** 重命名/合并词条 DTO：to 为已有词条时即合并 */
+export class RenameVocabDto {
+  @ApiProperty({ example: '独立项目', maxLength: 50 })
+  @IsString()
+  @MaxLength(50)
+  from: string;
+
+  @ApiProperty({ example: '开源协作', maxLength: 50 })
+  @IsString()
+  @MaxLength(50)
+  to: string;
+}
+
+/** 词库响应 VO：分类与标签候选值（已去重排序） */
+export class WorkMetaRsp {
+  categories: string[];
+  tags: string[];
+}
+
+/* ============================================================
  *  5. 响应 VO（Service 层统一把 Prisma 实体转成这个再返回）
  * ============================================================ */
 

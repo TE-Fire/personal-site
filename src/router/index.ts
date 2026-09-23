@@ -78,6 +78,19 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '作品集管理', requiresAuth: true }
   },
   {
+    path: '/admin/portfolio/new',
+    name: 'PortfolioNew',
+    component: () => import('@/pages/PortfolioEditorPage.vue'),
+    meta: { title: '新建作品', requiresAuth: true }
+  },
+  {
+    path: '/admin/portfolio/:id/edit',
+    name: 'PortfolioEdit',
+    component: () => import('@/pages/PortfolioEditorPage.vue'),
+    meta: { title: '编辑作品', requiresAuth: true },
+    props: true
+  },
+  {
     path: '/blog/new',
     name: 'BlogNew',
     component: () => import('@/pages/BlogEditorPage.vue'),

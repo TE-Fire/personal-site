@@ -14,12 +14,21 @@ export enum PortfolioBizError {
   SAVE_FAILED = 7002,
   /** 删除作品失败（Prisma delete 抛错） */
   DELETE_FAILED = 7003,
+  /** 词条已存在（同类型词库中重名） */
+  VOCAB_DUPLICATE = 7004,
+  /** 词库操作失败（Prisma 抛错 / 词条不存在） */
+  VOCAB_SAVE_FAILED = 7005,
+  /** 分类仍被作品引用，不能直接删除（请先合并到其他分类） */
+  VOCAB_CATEGORY_IN_USE = 7006,
 }
 
 const PORTFOLIO_ERROR_MSG: Record<PortfolioBizError, string> = {
   [PortfolioBizError.DATA_MISSING]: '作品不存在或已下线',
   [PortfolioBizError.SAVE_FAILED]: '作品保存失败',
   [PortfolioBizError.DELETE_FAILED]: '作品删除失败',
+  [PortfolioBizError.VOCAB_DUPLICATE]: '该词条已存在',
+  [PortfolioBizError.VOCAB_SAVE_FAILED]: '词条操作失败',
+  [PortfolioBizError.VOCAB_CATEGORY_IN_USE]: '该分类仍被作品引用，请先合并到其他分类',
 };
 
 export function getPortfolioErrorInfo(err: PortfolioBizError): IErrorInfo {
