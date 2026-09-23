@@ -9,7 +9,7 @@
  *   5. 公开列表缓存失效后能读到 coverImage
  *   6. 删除作品 → 本地封面文件被清理
  */
-import { existsSync, writeFileSync, readdirSync, rmSync } from 'fs';
+import { existsSync, readdirSync } from 'fs';
 import { join } from 'path';
 
 const BASE = 'http://127.0.0.1:3000/api';
@@ -65,9 +65,7 @@ async function main() {
   report('登录获取 JWT', !!token, token ? '' : JSON.stringify(loginRes.json).slice(0, 150));
   if (!token) return;
 
-  /* 2. 上传合法 PNG */
-  const file = join(process.cwd(), `__e2e_cover_${stamp}.png`);
-  writeFileSync(file, Buffer.from(PNG_B64, 'base64'));
+  /* 2. 上传合法 PNG（直接用内存 Blob，不落盘，避免污染仓库） */
   let fd = new FormData();
   fd.append('file', new Blob([Buffer.from(PNG_B64, 'base64')], { type: 'image/png' }), 'cover.png');
   const up = await fetch(`${BASE}/portfolio/upload`, {
@@ -142,7 +140,6 @@ async function main() {
   const diskPath = join(worksDir, coverUrl.split('/').pop());
   report('封面文件已随作品删除清理', !existsSync(diskPath), diskPath);
 
-  rmSync(file, { force: true });
   const pass = results.filter(Boolean).length;
   console.log(`\n${pass}/${results.length} 通过`);
 }
