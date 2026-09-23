@@ -16,6 +16,8 @@
 | 5 | Category 分类 | 📝 本章节含 | Post 章节内一并设计（严格关系模型独立表） |
 | 6 | Tag 标签 | 📝 本章节含 | Post 章节内一并设计（全局唯一 + 多对多中间表） |
 | 7 | Life 生活碎片 | 📝 本章节分析 | 照片 / 音乐 / 随笔 + 新增足迹/书影；全栈 CRUD + MinIO/OSS 预留 |
+| 8 | **Portfolio 作品集** | ✅ 已实现 | 写死 Mock → 全栈 CRUD。新增 `Work` 表 + `WorkStatus` 枚举；公开列表/详情走 Redis 缓存，管理端 `/admin/portfolio` 增删改 + 拖拽排序；种子数据 `seed-works.mjs`（6 条）。**代码先行，本章为事后补齐** |
+| 9 | **Contact 联系方式** | ✅ 已实现 | 写死 Mock → 后端动态化。`user` 表扩 8 个 `contact_*` 列（邮箱/GitHub/微信，含二维码）；公开 `GET /api/contact` 60s 缓存，`/admin/contact` 编辑。**代码先行，本章为事后补齐** |
 
 ---
 
@@ -1428,3 +1430,154 @@ server/src/modules/life/
 | Phase 8 | Build 验证 + commit | ✅ 完成 |
 
 > **架构遵循**：本模块严格遵循 [NestJS-Architecture-Guide.md](./NestJS-Architecture-Guide.md) 的分层架构（Controller → Service → Prisma，不抽 Repository）、StorageService 接口化设计（本地存储当前可用，MinIO/OSS 未来通过 .env 切换无缝接入）。
+
+---
+
+## 模块八：Portfolio 作品集
+
+> 补齐说明：本模块于 2026-09 以「代码先行」方式完成（后端 + 前端 + 建表 + 种子数据均已落地），
+> 本章为事后按实际代码反推补齐的规格记录，用于归档与后续维护。
+
+### 8.1 需求概述
+
+把 `PortfolioPage` 里写死的 `@/data/projects.ts` 静态 Mock 换成后端动态数据，并提供博主自己的管理后台：
+
+- 公开侧：作品列表（分类/标签双维筛选）、作品详情（`/portfolio/:slug`）
+- 管理侧：`/admin/portfolio` 增删改 + 排序 + 草稿/发布/归档状态
+- 首页「最近作品」复用同一接口取 `highlight` 前 3 条（与精选博客一致）
+
+### 8.2 数据模型（Prisma Schema）
+
+```prisma
+enum WorkStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+model Work {
+  id          Int        @id @default(autoincrement())
+  slug        String     @unique @db.VarChar(200)   // URL 友好标识，前端详情路由用
+  title       String     @db.VarChar(200)
+  summary     String     @default("") @db.VarChar(500)
+  description String     @db.Text
+  cover       String     @default("") @db.VarChar(500) // Tailwind from-via-to 渐变表达式
+  tags        Json       @default("[]")               // string[]
+  category    String     @default("独立项目") @db.VarChar(50)
+  links       Json       @default("{}")               // { homepage?, repo?, demo? }
+  finishedAt  String     @default("") @db.VarChar(20) // YYYY-MM
+  highlight   Boolean    @default(false)
+  sortOrder   Int        @default(0)
+  status      WorkStatus @default(PUBLISHED)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@index([status]) @@index([category]) @@index([sortOrder])
+  @@map("work")
+}
+```
+
+**设计取舍**：`tags` / `links` 用 `Json` 而非关联表——作品数量级在几十条，`tags` 只做展示与前端筛选，
+不需要像 Post 的 Tag 那样全局唯一 + 多对多统计，用 Json 避免两张多余的中间表。
+
+### 8.3 接口设计
+
+| 方法 | 路径 | 鉴权 | 说明 |
+|------|------|------|------|
+| GET | `/api/portfolio` | 公开 | 已发布作品列表（走 Redis 缓存） |
+| GET | `/api/portfolio/:slug` | 公开 | 单个作品详情 |
+| GET | `/api/portfolio/admin/list` | JWT | 管理端列表（含草稿/归档） |
+| POST | `/api/portfolio` | JWT | 新建作品 |
+| PUT | `/api/portfolio/:id` | JWT | 更新作品 |
+| DELETE | `/api/portfolio/:id` | JWT | 删除作品 |
+| PUT | `/api/portfolio/reorder` | JWT | 批量排序（传 `ids[]`） |
+
+> 路由顺序注意：`admin/list` 必须声明在 `:slug` **之前**，否则会被通配参数路由吃掉。
+
+### 8.4 Redis Key & 缓存
+
+```ts
+PORTFOLIO_LIST_KEY = 'personal_site:portfolio:public:list'  // WorkRsp[] JSON
+REDIS_TTL.PORTFOLIO_PUBLIC = 60                              // 1 分钟
+```
+
+失效时机：管理端增/改/删/排序成功后主动删除该 key。Redis 读写失败时直接查 DB，不影响业务。
+
+### 8.5 前端改造
+
+| 文件 | 说明 |
+|------|------|
+| `src/api/portfolio.ts` | API 封装 + `WorkData` 类型（7 个方法） |
+| `src/pages/PortfolioPage.vue` | Mock → 接口；分类 tab + 标签 chips 双维筛选；**卡片点击进详情**；登录后显示「管理作品集」入口 |
+| `src/pages/PortfolioDetailPage.vue` | 新建：Hero 渐变封面 + 描述 + 标签 + 链接区，loading/error/ok 三态 |
+| `src/pages/PortfolioManagePage.vue` | 新建：列表 + 新建/编辑/删除/排序 |
+| `src/pages/HomePage.vue` | 「最近作品」改调 `getWorks()`，失败回退静态 Mock |
+| `src/router/index.ts` | 追加 `/portfolio/:slug`、`/admin/portfolio` |
+
+**兜底约定**：`PortfolioPage` / `HomePage` 接口失败时回退 `projects` 静态数据，但静态数据**没有 `slug` 字段**，
+因此跳转详情前统一判断 `if (!w?.slug) return`，避免产生 `/portfolio/undefined`。
+
+### 8.6 开发进度
+
+| 阶段 | 任务 | 状态 |
+|------|------|------|
+| Phase 1 | Prisma schema — `WorkStatus` 枚举 + `Work` 模型 | ✅ 完成 |
+| Phase 2 | 建表 + `seed-works.mjs` 种子数据（6 条） | ✅ 完成 |
+| Phase 3 | DTO — Create/Update/Query + `WorkRsp` | ✅ 完成 |
+| Phase 4 | Service + Controller + Module + `app.module.ts` 注册 + Redis 缓存 | ✅ 完成 |
+| Phase 5 | 前端 `api/portfolio.ts` + 三个页面 + 路由 | ✅ 完成 |
+| Phase 6 | 首页精选作品接入接口 + 卡片详情跳转 + 管理入口 | ✅ 完成 |
+
+---
+
+## 模块九：Contact 联系方式
+
+> 补齐说明：同模块八，2026-09 代码先行完成后补记。
+
+### 9.1 需求概述
+
+`ContactPage` 原本是写死的静态卡片，改为后端可编辑：邮箱 / GitHub / 微信三个渠道的值与文案由博主在
+`/admin/contact` 维护，前台手风琴卡片实时同步。
+
+### 9.2 数据模型
+
+复用 `user` 表扩列（个人站只有 1 个博主账号，不单独建表）：
+
+```prisma
+contact_email          String  @default("hello@trae.dev") @db.VarChar(100)
+contact_email_hint     String  @db.VarChar(200)
+contact_github_url     String  @db.VarChar(500)
+contact_github_label   String  @db.VarChar(100)
+contact_github_hint    String  @db.VarChar(200)
+contact_wechat_id      String  @db.VarChar(100)
+contact_wechat_qr      String? @db.VarChar(500)   // 二维码图片路径，可为空
+contact_wechat_hint    String  @db.VarChar(200)
+```
+
+### 9.3 接口设计
+
+| 方法 | 路径 | 鉴权 | 说明 |
+|------|------|------|------|
+| GET | `/api/contact` | 公开 | 返回 `{ email, github, wechat }` 三段结构（走 Redis 缓存） |
+| PUT | `/api/contact` | JWT | 更新联系方式，成功后删缓存 |
+| POST | `/api/contact/upload-qr` | JWT | 上传微信二维码图片 |
+
+### 9.4 Redis Key & 缓存
+
+```ts
+CONTACT_PUBLIC_KEY = 'personal_site:contact:public'   // ContactRsp JSON
+REDIS_TTL.CONTACT_PUBLIC = 60                          // 1 分钟
+```
+
+### 9.5 前端改造
+
+| 文件 | 说明 |
+|------|------|
+| `src/api/contact.ts` | `getContact()` / `updateContact()` + `ContactData` 类型 |
+| `src/pages/ContactPage.vue` | 重写为「静态结构（图标/顺序）+ API 动态值」合并模式；手风琴展开 + 复制 + 二维码；接口失败保持静态兜底 |
+| `src/pages/ContactManagePage.vue` | 新建：三个渠道分区编辑 + 二维码上传 |
+| `src/router/index.ts` | 追加 `/admin/contact`（`requiresAuth`） |
+
+**合并策略说明**：图标、渠道顺序、卡片骨架属于前端静态资产（`src/data/contact.ts`），
+后端只存「值 + 文案」，前端按 `ch.id`（`email` / `github` / `wechat`）做映射合并。
+好处是后端不必存 icon 字段，前端也不必为后端数据再画一套 UI。

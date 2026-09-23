@@ -74,6 +74,24 @@ model User {
   /// 博主 GitHub 主页链接
   aboutGithubLink          String   @default("https://github.com/TE-Fire") @db.VarChar(500) @map("about_github_link")
 
+  // ===== Contact 联系方式（ContactPage 公开展示 / ProfilePage 编辑） =====
+  /// 联系邮箱（ContactPage 展示）
+  contactEmail         String   @default("hello@trae.dev") @db.VarChar(100)  @map("contact_email")
+  /// 联系邮箱说明
+  contactEmailHint     String   @default("工作日 24h 内回复，推荐用于合作 / 咨询") @db.VarChar(200)  @map("contact_email_hint")
+  /// GitHub 主页链接
+  contactGithubUrl     String   @default("https://github.com/TE-Fire") @db.VarChar(500) @map("contact_github_url")
+  /// GitHub 展示文字
+  contactGithubLabel   String   @default("github.com/TE-Fire") @db.VarChar(100) @map("contact_github_label")
+  /// GitHub 说明
+  contactGithubHint    String   @default("看代码、提 Issue、PR 协作都欢迎") @db.VarChar(200) @map("contact_github_hint")
+  /// 微信号
+  contactWechatId      String   @default("TE-Fire") @db.VarChar(100) @map("contact_wechat_id")
+  /// 微信二维码图片路径（可为空）
+  contactWechatQr      String?  @db.VarChar(500) @map("contact_wechat_qr")
+  /// 微信说明
+  contactWechatHint    String   @default("扫码添加，注明来意通过更快") @db.VarChar(200) @map("contact_wechat_hint")
+
   // ===== Post 模块关联 =====
   posts       Post[]
   categories  Category[]
@@ -267,4 +285,53 @@ model LifeMoment {
   @@index([date])
   @@index([albumId])
   @@map("life_moment")
+}
+
+// ============================================================
+// 模块八：Portfolio 作品集
+// ============================================================
+
+/// 作品集发布状态
+enum WorkStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+/// 作品/项目表
+model Work {
+  /// 主键
+  id          Int       @id @default(autoincrement())
+  /// URL 友好 slug（唯一，前端路由用）
+  slug        String    @unique @db.VarChar(200)
+  /// 标题
+  title       String    @db.VarChar(200)
+  /// 一句话摘要
+  summary     String    @default("") @db.VarChar(500)
+  /// 详细描述
+  description String    @db.Text
+  /// 封面渐变表达式（Tailwind from-via-to）或图片 URL
+  cover       String    @default("") @db.VarChar(500)
+  /// 技术标签 → JSON string[]
+  tags        Json      @default("[]")
+  /// 项目分类
+  category    String    @default("独立项目") @db.VarChar(50)
+  /// 链接（homepage/repo/demo）→ JSON
+  links       Json      @default("{}")
+  /// 完成时间（YYYY-MM 格式）
+  finishedAt  String    @default("") @db.VarChar(20) @map("finished_at")
+  /// 精选项目（首页/列表高亮）
+  highlight   Boolean   @default(false)
+  /// 排序号（越小越靠前）
+  sortOrder   Int       @default(0) @map("sort_order")
+  /// 发布状态
+  status      WorkStatus @default(PUBLISHED)
+
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@index([status])
+  @@index([category])
+  @@index([sortOrder])
+  @@map("work")
 }

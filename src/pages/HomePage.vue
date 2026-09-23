@@ -12,6 +12,7 @@
  *          游客模式后端会强制 status=published，软删除(ARCHIVED) / 草稿(DRAFT) 的文章不会出现
  */
 import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import {
   ArrowRight,
   BookOpen,
@@ -32,9 +33,9 @@ import {
 } from '@/components/ui'
 import {
   projects,
-  type Project,
 } from '@/data'
 import { fetchPosts } from '@/api/post'
+import { getWorks, type WorkData } from '@/api/portfolio'
 import type { PostVo } from '@/lib/api-types'
 import { useAboutStore } from '@/stores/about'
 import { useTerminal, type TerminalStep } from '@/composables/useTerminal'
@@ -42,6 +43,8 @@ import { useVantaBackground } from '@/composables/useVantaBackground'
 import { useScrollReveal } from '@/composables/useScrollReveal'
 
 defineOptions({ name: 'HomePage' })
+
+const router = useRouter()
 
 /* ---------------- About 数据 ---------------- */
 
@@ -54,13 +57,31 @@ onMounted(async () => {
   }
   // 首页精选（真实接口，游客自动过滤 archived/draft）
   await loadFeaturedPosts()
+  // 首页精选作品（真实接口，与精选博客一致；失败回退静态 mock）
+  await loadFeaturedProjects()
 })
 
 /* ---------------- 数据 ---------------- */
 
-const featuredProjects = computed<Project[]>(() =>
-  projects.filter((p) => p.highlight).slice(0, 3)
-)
+/* ---------- 首页精选作品（后端接口，失败回退静态 mock） ---------- */
+const featuredProjects = ref<WorkData[]>([])
+
+async function loadFeaturedProjects() {
+  try {
+    const list = await getWorks()
+    const picked = list.filter((w) => w.highlight).slice(0, 3)
+    // 后端还没有精选作品时，退回「取前 3 条」，避免首页这一块空白
+    featuredProjects.value = picked.length ? picked : list.slice(0, 3)
+  } catch {
+    featuredProjects.value = projects.filter((p) => p.highlight).slice(0, 3) as unknown as WorkData[]
+  }
+}
+
+/** 打开作品详情（静态兜底数据没有 slug 时不跳转） */
+function openWork(w: WorkData) {
+  if (!w?.slug) return
+  router.push(`/portfolio/${w.slug}`)
+}
 
 /* ---------- 首页精选博客（后端接口，响应式） ---------- */
 const featuredPosts = ref<PostVo[]>([])
@@ -349,9 +370,13 @@ useScrollReveal(pageRoot)
       <div class="grid gap-5 grid-cols-1 md:grid-cols-3">
         <Card
           v-for="(p, i) in featuredProjects"
-          :key="p.id"
+          :key="p.slug || p.id"
           :data-reveal="String(0.04 * i)"
           class="group overflow-hidden flex flex-col hover:-translate-y-0.5 hover:shadow-md transition"
+          :class="p.slug ? 'cursor-pointer' : ''"
+          :tabindex="p.slug ? 0 : undefined"
+          @click="openWork(p)"
+          @keydown.enter.prevent="openWork(p)"
         >
           <div :class="['aspect-[16/10] bg-gradient-to-br border-b border-border/60 relative', p.cover]">
             <div class="absolute top-3 left-3">

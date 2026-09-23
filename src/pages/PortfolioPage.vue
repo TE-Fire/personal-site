@@ -1,8 +1,10 @@
 <script setup lang="ts">
 /**
  * PortfolioPage · 作品集（完整填充 + 分类/标签 双维度筛选器）。
+ * 数据从后端 API 拉取，失败时回退到静态 mock 数据。
  */
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import {
   Badge,
   Button,
@@ -12,29 +14,46 @@ import {
   CardTitle,
   CardDescription
 } from '@/components/ui'
-import {
-  projects,
-  projectCategories,
-  type ProjectCategory,
-  listProjectTags
-} from '@/data'
-import { Github, ExternalLink, X } from 'lucide-vue-next'
+import { projects } from '@/data'
+import { getWorks, type WorkData } from '@/api/portfolio'
+import { Github, ExternalLink, X, Pencil } from 'lucide-vue-next'
+import { useAuthStore } from '@/stores/auth'
 import { useScrollReveal } from '@/composables/useScrollReveal'
 
 defineOptions({ name: 'PortfolioPage' })
 
+const router = useRouter()
+const authStore = useAuthStore()
+
+/** 作品列表（从后端拉取，失败时回退到静态 mock 数据） */
+const works = ref<WorkData[]>([])
+/** 加载状态 */
+const loading = ref(true)
+
 /** 分类筛选（空串或「全部」= 不过滤） */
-const activeCategory = ref<ProjectCategory>('全部')
+const activeCategory = ref<string>('全部')
 /** 标签筛选（null = 不筛选；点击某个 tag 启用） */
 const activeTag = ref<string | null>(null)
 
 const rootRef = ref<HTMLElement | null>(null)
 useScrollReveal(rootRef)
 
-const allTags = listProjectTags()
+/** 从数据动态提取所有标签（去重 + 排序） */
+const allTags = computed(() => {
+  const set = new Set<string>()
+  works.value.forEach(p => p.tags.forEach(t => set.add(t)))
+  return Array.from(set).sort()
+})
+
+/** 从数据动态提取分类（"全部" + 数据中出现的所有 category） */
+const categories = computed(() => {
+  const set = new Set<string>()
+  works.value.forEach(p => set.add(p.category))
+  return ['全部', ...Array.from(set)]
+})
 
 const filtered = computed(() => {
-  return projects.filter(p => {
+  return works.value.filter(p => {
     const byCategory = activeCategory.value === '全部' || p.category === activeCategory.value
     const byTag = !activeTag.value || p.tags.includes(activeTag.value)
     return byCategory && byTag
@@ -49,6 +68,27 @@ function resetAll() {
 
 /** 是否激活了任何筛选条件 */
 const hasActiveFilter = computed(() => activeCategory.value !== '全部' || activeTag.value !== null)
+
+/**
+ * 打开作品详情。
+ * 静态兜底数据没有 slug（详情页走的是后端 slug 路由），此时不跳转，避免出现 /portfolio/undefined。
+ */
+function openWork(w: WorkData) {
+  if (!w?.slug) return
+  router.push(`/portfolio/${w.slug}`)
+}
+
+onMounted(async () => {
+  try {
+    works.value = await getWorks()
+  } catch (e) {
+    // API 失败时用静态 mock 数据兜底
+    console.error('[PortfolioPage] 拉取作品列表失败，回退到静态数据', e)
+    works.value = projects as unknown as WorkData[]
+  } finally {
+    loading.value = false
+  }
+})
 </script>
 
 <template>
@@ -56,7 +96,19 @@ const hasActiveFilter = computed(() => activeCategory.value !== '全部' || acti
     <!-- 头部 -->
     <header class="space-y-3 max-w-3xl" data-reveal>
       <p class="m-0 text-xs font-mono text-brand uppercase tracking-wider">/ portfolio</p>
-      <h1 class="m-0 text-3xl md:text-4xl font-bold tracking-tight">作品集</h1>
+      <div class="flex flex-wrap items-center justify-between gap-4">
+        <h1 class="m-0 text-3xl md:text-4xl font-bold tracking-tight">作品集</h1>
+        <Button
+          v-if="authStore.isLoggedIn"
+          variant="outline"
+          size="sm"
+          class="h-8"
+          @click="router.push('/admin/portfolio')"
+        >
+          <Pencil class="size-3.5" />
+          <span>管理作品集</span>
+        </Button>
+      </div>
       <p class="m-0 text-base md:text-lg text-text-muted leading-relaxed">
         挑了一些最近 2 年里做得比较用心、或者对我影响最大的项目。可以按「项目类型」或「技术标签」来筛选。
       </p>
@@ -68,7 +120,7 @@ const hasActiveFilter = computed(() => activeCategory.value !== '全部' || acti
         <!-- 分类 tab -->
         <div class="flex flex-wrap gap-2">
           <Button
-            v-for="c in projectCategories"
+            v-for="c in categories"
             :key="c"
             size="default"
             :variant="activeCategory === c ? 'default' : 'ghost'"
@@ -78,8 +130,8 @@ const hasActiveFilter = computed(() => activeCategory.value !== '全部' || acti
             <span
               v-if="c !== '全部'"
               class="ml-1 text-xs opacity-80"
-            >({{ projects.filter(p => p.category === c).length }})</span>
-            <span v-else class="ml-1 text-xs opacity-80">({{ projects.length }})</span>
+            >({{ works.filter(p => p.category === c).length }})</span>
+            <span v-else class="ml-1 text-xs opacity-80">({{ works.length }})</span>
           </Button>
         </div>
         <Button
@@ -111,13 +163,22 @@ const hasActiveFilter = computed(() => activeCategory.value !== '全部' || acti
       </div>
 
       <p class="m-0 text-xs text-text-muted">
-        当前筛选结果：<strong class="text-text">{{ filtered.length }}</strong> / {{ projects.length }} 个项目
+        当前筛选结果：<strong class="text-text">{{ filtered.length }}</strong> / {{ works.length }} 个项目
       </p>
     </section>
 
+    <!-- 加载中 -->
+    <div
+      v-if="loading"
+      class="rounded-lg border border-dashed border-border/70 bg-surface-muted/20 py-16 flex flex-col items-center justify-center gap-3 text-center"
+      data-reveal="0.1"
+    >
+      <p class="m-0 text-text-muted text-sm">正在加载…</p>
+    </div>
+
     <!-- 空状态 -->
     <div
-      v-if="filtered.length === 0"
+      v-else-if="filtered.length === 0"
       class="rounded-lg border border-dashed border-border/70 bg-surface-muted/20 py-16 flex flex-col items-center justify-center gap-3 text-center"
       data-reveal="0.1"
     >
@@ -129,9 +190,13 @@ const hasActiveFilter = computed(() => activeCategory.value !== '全部' || acti
     <div v-else class="grid gap-5 grid-cols-1 md:grid-cols-2 lg:grid-cols-3" data-reveal="0.1">
       <Card
         v-for="(p, i) in filtered"
-        :key="p.id"
+        :key="p.slug || p.id"
         :data-reveal="String(0.05 * i)"
         class="group overflow-hidden flex flex-col hover:-translate-y-0.5 hover:shadow-md transition"
+        :class="p.slug ? 'cursor-pointer' : ''"
+        :tabindex="p.slug ? 0 : undefined"
+        @click="openWork(p)"
+        @keydown.enter.prevent="openWork(p)"
       >
         <div
           :class="[
@@ -155,6 +220,7 @@ const hasActiveFilter = computed(() => activeCategory.value !== '全部' || acti
               rel="noopener noreferrer"
               aria-label="项目仓库"
               class="inline-flex size-7 items-center justify-center rounded-full bg-surface-elevated/70 backdrop-blur text-text-muted hover:text-brand hover:bg-surface-elevated/90 transition"
+              @click.stop
             >
               <Github class="size-3.5" />
             </a>
@@ -165,6 +231,7 @@ const hasActiveFilter = computed(() => activeCategory.value !== '全部' || acti
               rel="noopener noreferrer"
               aria-label="在线 Demo"
               class="inline-flex size-7 items-center justify-center rounded-full bg-surface-elevated/70 backdrop-blur text-text-muted hover:text-brand hover:bg-surface-elevated/90 transition"
+              @click.stop
             >
               <ExternalLink class="size-3.5" />
             </a>

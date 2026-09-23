@@ -1,86 +1,78 @@
 /**
- * contact.ts · 联系方式 Mock 数据（Email/GitHub/Gitee/Telegram/微信/掘金等）。
+ * contact.ts · 联系方式数据（Email/GitHub/微信）。
+ * 每个渠道点击后展开详细面板，展示具体联系信息。
  */
-import { Mail, Github, MessageCircle, GripVertical, Coffee } from 'lucide-vue-next'
+import { Mail, Github, Coffee } from 'lucide-vue-next'
 import type { Component } from 'vue'
+
+export type ContactChannelDetail = {
+  /** 展开后显示的主要内容（邮箱地址 / GitHub 链接 / 微信号等） */
+  value: string
+  /** 内容的描述说明 */
+  description: string
+  /** 可复制的值（若提供，展示"复制"按钮） */
+  copyValue?: string
+  /** 可跳转的链接（若提供，展示"访问"按钮） */
+  linkUrl?: string
+  /** 链接按钮文字 */
+  linkText?: string
+  /** 二维码图片路径（微信用，后续可上传） */
+  qrCode?: string | null
+}
 
 export type ContactChannel = {
   id: string
   /** 对外展示名称 */
   label: string
-  /** 次级文案（比如邮箱地址 / @ 用户名 / 二维码说明） */
+  /** 次级文案 */
   hint: string
-  /** 跳转 href；若为 null 表示需要点击后展开二维码 / 复制号码 */
-  href: string | null
-  /** 是否需要点击后「复制到剪贴板」（替代 href 跳转） */
-  copyValue?: string
   /** Lucide 图标组件 */
   icon: Component
-  /** 展示顺序（从 1 开始递增） */
+  /** 展示顺序 */
   order: number
+  /** 展开后显示的详细信息 */
+  detail: ContactChannelDetail
 }
 
 export const contactChannels: ContactChannel[] = [
   {
     id: 'email',
     label: 'Email',
-    hint: 'hello@trae.dev（推荐，工作日 24h 内回复）',
-    href: 'mailto:hello@trae.dev',
-    copyValue: 'hello@trae.dev',
+    hint: '工作日 24h 内回复，推荐用于合作 / 咨询',
     icon: Mail,
-    order: 1
+    order: 1,
+    detail: {
+      value: 'hello@trae.dev',
+      description: '发邮件给我，工作日通常 24 小时内回复。适合合作洽谈、技术咨询等需要归档的场景。',
+      copyValue: 'hello@trae.dev',
+      linkUrl: 'mailto:hello@trae.dev',
+      linkText: '发送邮件',
+    },
   },
   {
     id: 'github',
     label: 'GitHub',
-    hint: '@TE-Fire · 看代码、提 Issue、PR 协作都欢迎',
-    href: 'https://github.com/TE-Fire',
+    hint: '看代码、提 Issue、PR 协作都欢迎',
     icon: Github,
-    order: 2
-  },
-  {
-    id: 'gitee',
-    label: 'Gitee',
-    hint: '@TE-Fire · 国内镜像仓库 + 学习打卡项目主仓',
-    href: 'https://gitee.com/TE-Fire',
-    icon: GripVertical,
-    order: 3
-  },
-  {
-    id: 'telegram',
-    label: 'Telegram',
-    hint: '@trae_dev · 优先用于即时讨论',
-    href: 'https://t.me/trae_dev',
-    icon: MessageCircle,
-    order: 4
+    order: 2,
+    detail: {
+      value: 'github.com/TE-Fire',
+      description: '我的开源项目和个人代码仓库都在这里，欢迎 Star、提 Issue 或直接 PR。',
+      linkUrl: 'https://github.com/TE-Fire',
+      linkText: '访问主页',
+    },
   },
   {
     id: 'wechat',
     label: '微信',
-    hint: '扫码添加 · T05 之后补二维码（附来意通过更快）',
-    href: null,
-    order: 5,
-    icon: Coffee
-  }
+    hint: '扫码添加，注明来意通过更快',
+    icon: Coffee,
+    order: 3,
+    detail: {
+      value: 'TE-Fire',
+      description: '扫码或搜索微信号添加好友。请务必备注来意（如"合作咨询"、"技术交流"），会更快通过。',
+      copyValue: 'TE-Fire',
+      qrCode: null,
+    },
+  },
 ] as const
-
-export type ContactFormField = 'name' | 'email' | 'message'
-
-export type ContactFormErrors = Partial<Record<ContactFormField, string>>
-
-/** 简单校验（T05 不接后端，仅做前端友好提示） */
-export function validateContactForm(values: Record<ContactFormField, string>): ContactFormErrors {
-  const errors: ContactFormErrors = {}
-  if (!values.name.trim()) errors.name = '请填写你的称呼或姓名'
-  if (!values.email.trim()) {
-    errors.email = '请填写邮箱，我才能回复你～'
-  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email.trim())) {
-    errors.email = '邮箱格式看起来不太对，检查一下？'
-  }
-  if (!values.message.trim()) {
-    errors.message = '说点什么吧，哪怕只是一个 Hi 👋'
-  } else if (values.message.trim().length < 6) {
-    errors.message = '消息太短啦，多写两句？（至少 6 个字符）'
-  }
-  return errors
-}

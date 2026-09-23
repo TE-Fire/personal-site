@@ -214,3 +214,48 @@
 - 预留：StorageService 接口，后续可无缝切换 MinIO/OSS
 - 图片上传时用 sharp 压缩生成缩略图
 
+---
+
+## 2026-09-23 · Portfolio / Contact 收尾（WorkBuddy 接手）
+
+> 接手背景：项目此前由 traework 开发，HEAD 停在 2026-09-01 `c198d4c`。
+> Portfolio（模块八）+ Contact（模块九）两个全栈模块代码已完成、库表已建、seed 已跑，
+> 但**一步未提交**，且存在若干「页面建好了却没入口」的断裂点。本轮为收尾。
+
+### 现状核查（先验证再动手）
+
+| 检查项 | 方法 | 结果 |
+|---|---|---|
+| 前端类型 | `npm run typecheck` | 0 错误 |
+| 后端类型 | `npx tsc -p tsconfig.build.json --noEmit` | 0 错误 |
+| 库表 | 直连 MySQL `SHOW TABLES` | `work` 表已建；`user` 有 8 个 `contact_*` 列 |
+| 种子数据 | `p.work.count()` | 6 条 —— db push + seed 均已执行 |
+| 服务 | `netstat` | MySQL 3306 / Redis 6379 在线，后端 3000 未启动 |
+
+> ⚠️ 踩坑：验证后端**不要**用 `nest build`，它会删掉 `server/dist`（本次被沙箱拦截）。
+> 改用 `npx tsc -p tsconfig.build.json --noEmit`，只读、不产出。
+
+### 修复项
+
+1. **PortfolioDetailPage 孤儿页** → `PortfolioPage` 卡片加 `@click="openWork(p)"` + `cursor-pointer` + Enter 键支持；
+   封面上的 GitHub / Demo 外链加 `@click.stop`，避免点外链时误触发跳转。
+2. **`/admin/portfolio` 无 UI 入口** → 标题行右侧加「管理作品集」按钮（`v-if="authStore.isLoggedIn"`），
+   与 `ContactPage` 的「编辑联系方式」按钮保持同一形态。
+3. **首页精选作品未接接口** → `HomePage` 的 `featuredProjects` 由静态 `computed` 改为
+   `getWorks()` 取 `highlight` 前 3（无精选时退回前 3），失败回退静态 Mock；同时移除因此不再使用的 `type Project` import（TS6133）。
+4. **文档未同步** → `Development-Spec.md` 模块表补 8/9 两行，并追加「模块八 Portfolio / 模块九 Contact」两章
+   （数据模型 + 接口 + Redis key + 前端文件 + 进度表）。
+
+### 关键约定（后续照此执行）
+
+- **静态兜底数据没有 `slug`**：`src/data/projects.ts` 的 `Project` 只有 `id`，详情页走的是后端 `slug` 路由。
+  因此所有跳转前统一 `if (!w?.slug) return`，杜绝 `/portfolio/undefined`。
+- 后端路由顺序：`GET /portfolio/admin/list` 必须声明在 `GET /portfolio/:slug` 之前。
+
+### 提交
+
+- 两个模块**合并为 1 个 commit**：`schema.prisma`（Work 模型 + contact_* 扩列）、`app.module.ts`（两个 Module 注册）、
+  `redis-keys.ts`（两组 key + TTL）都是共享文件，按模块拆成两个 commit 会导致中间态编译不过，故不拆。
+- 本地 commit，**不 push**（远端推送依赖凭据，留给你执行）。
+- `docs/Vue3-*-Quick-Start.md` 7 个学习笔记未纳入本次提交。
+

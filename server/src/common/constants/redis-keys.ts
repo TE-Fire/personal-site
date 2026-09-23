@@ -26,10 +26,12 @@ export const REDIS_MODULE = {
   CAPTCHA: 'captcha',
   AUTH: 'auth',
   ABOUT: 'about',
+  CONTACT: 'contact',
   CACHE: 'cache',
   SESSION: 'session',
   LOCK: 'lock',
   CONTRIBUTION: 'contribution',
+  PORTFOLIO: 'portfolio',
 } as const;
 
 /* ============================================================
@@ -40,6 +42,8 @@ export const REDIS_TTL = {
   CAPTCHA: 5 * 60,
   /** About 公开展示数据：1 分钟（公开读缓存，admin PUT 后删） */
   ABOUT_PUBLIC: 60,
+  /** Contact 公开展示数据：1 分钟（公开读缓存，admin PUT 后删） */
+  CONTACT_PUBLIC: 60,
   /** Refresh Token 黑名单：7 天 */
   AUTH_REFRESH: 7 * 24 * 60 * 60,
   /** 文章列表缓存：10 分钟 */
@@ -54,6 +58,8 @@ export const REDIS_TTL = {
   CONTRIB_GITHUB: 1 * 3600,
   /** 贡献热力图 · 合并视图：6 小时（跟随 SITE/GitHub 更新，失效时双源合并重算） */
   CONTRIB_MERGED: 6 * 3600,
+  /** Portfolio 公开作品列表/详情：1 分钟（公开读缓存，admin 改完删） */
+  PORTFOLIO_PUBLIC: 60,
 } as const;
 
 /* ============================================================
@@ -90,6 +96,40 @@ export function AUTH_REFRESH_KEY(jti: string): string {
  */
 export const ABOUT_PUBLIC_KEY =
   `${REDIS_PREFIX}:${REDIS_MODULE.ABOUT}:public` as const;
+
+/**
+ * Contact 公开展示缓存（个人博客只有 1 个博主，无动态参数）
+ *   personal_site:contact:public
+ * value: ContactRsp JSON
+ * TTL: 1 分钟（REDIS_TTL.CONTACT_PUBLIC）
+ * 失效时机：admin 调 PUT /api/contact 成功后主动删除
+ * 降级：Redis 读/写失败时直接查 DB，不影响业务
+ */
+export const CONTACT_PUBLIC_KEY =
+  `${REDIS_PREFIX}:${REDIS_MODULE.CONTACT}:public` as const;
+
+/**
+ * Portfolio 公开作品列表缓存
+ *   personal_site:portfolio:public:list
+ * value: WorkRsp[] JSON
+ * TTL: 1 分钟（REDIS_TTL.PORTFOLIO_PUBLIC）
+ * 失效时机：admin 增/改/删/排序作品后主动删除
+ * 降级：Redis 读/写失败时直接查 DB，不影响业务
+ */
+export const PORTFOLIO_LIST_KEY =
+  `${REDIS_PREFIX}:${REDIS_MODULE.PORTFOLIO}:public:list` as const;
+
+/**
+ * Portfolio 公开作品详情缓存
+ *   personal_site:portfolio:public:detail:{slug}
+ * value: WorkRsp JSON
+ * TTL: 1 分钟（REDIS_TTL.PORTFOLIO_PUBLIC）
+ * 失效时机：admin 改/删对应 slug 作品后主动删除
+ * 降级：Redis 读/写失败时直接查 DB，不影响业务
+ */
+export function PORTFOLIO_DETAIL_KEY(slug: string): string {
+  return `${REDIS_PREFIX}:${REDIS_MODULE.PORTFOLIO}:public:detail:${slug}`;
+}
 
 /**
  * 文章列表分页缓存
@@ -168,6 +208,13 @@ export const REDIS_KEY_SUMMARY = {
   ],
   about: [
     { pattern: 'ABOUT_PUBLIC_KEY', example: ABOUT_PUBLIC_KEY, ttl: REDIS_TTL.ABOUT_PUBLIC },
+  ],
+  contact: [
+    { pattern: 'CONTACT_PUBLIC_KEY', example: CONTACT_PUBLIC_KEY, ttl: REDIS_TTL.CONTACT_PUBLIC },
+  ],
+  portfolio: [
+    { pattern: 'PORTFOLIO_LIST_KEY', example: PORTFOLIO_LIST_KEY, ttl: REDIS_TTL.PORTFOLIO_PUBLIC },
+    { pattern: PORTFOLIO_DETAIL_KEY.name, example: PORTFOLIO_DETAIL_KEY('p-personal-site-2026'), ttl: REDIS_TTL.PORTFOLIO_PUBLIC },
   ],
   cache: [
     { pattern: CACHE_POST_LIST_KEY.name, example: CACHE_POST_LIST_KEY(1, 10), ttl: REDIS_TTL.CACHE_POST_LIST },

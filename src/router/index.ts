@@ -48,6 +48,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '作品集', icon: 'Briefcase' }
   },
   {
+    path: '/portfolio/:slug',
+    name: 'PortfolioDetail',
+    component: () => import('@/pages/PortfolioDetailPage.vue'),
+    meta: { title: '作品详情' }
+  },
+  {
     path: '/blog',
     name: 'Blog',
     component: () => import('@/pages/BlogPage.vue'),
@@ -58,6 +64,18 @@ const routes: RouteRecordRaw[] = [
     name: 'Profile',
     component: () => import('@/pages/ProfilePage.vue'),
     meta: { title: '个人资料', requiresAuth: true }
+  },
+  {
+    path: '/admin/contact',
+    name: 'ContactManage',
+    component: () => import('@/pages/ContactManagePage.vue'),
+    meta: { title: '联系方式管理', requiresAuth: true }
+  },
+  {
+    path: '/admin/portfolio',
+    name: 'PortfolioManage',
+    component: () => import('@/pages/PortfolioManagePage.vue'),
+    meta: { title: '作品集管理', requiresAuth: true }
   },
   {
     path: '/blog/new',

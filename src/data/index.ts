@@ -27,10 +27,8 @@ export {
 } from './timeline'
 export {
   contactChannels,
-  validateContactForm,
   type ContactChannel,
-  type ContactFormField,
-  type ContactFormErrors
+  type ContactChannelDetail
 } from './contact'
 export {
   photoMoments,
