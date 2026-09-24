@@ -29,10 +29,12 @@ import { fetchCategories } from '@/api/category'
 import type { PostVo, CategoryVo } from '@/lib/api-types'
 import CategoryManageDialog from '@/components/CategoryManageDialog.vue'
 import BlogSkeleton from '@/components/BlogSkeleton.vue'
+import { useAuthStore } from '@/stores/auth'
 
 defineOptions({ name: 'BlogPage' })
 
 const router = useRouter()
+const authStore = useAuthStore()
 
 const posts = ref<PostVo[]>([])
 const categories = ref<CategoryVo[]>([])
@@ -117,7 +119,7 @@ function onCategoryDialogClose() {
             写下来才能明白。这里收集一些工程笔记、踩坑复盘、读书摘要，偶尔也会写生活。合计 <span class="font-bold text-text-secondary">{{ posts.length }}</span> 篇。
           </p>
         </div>
-        <div class="flex flex-wrap items-center gap-2">
+        <div v-if="authStore.isLoggedIn" class="flex flex-wrap items-center gap-2">
           <button
             type="button"
             class="btn-playful compact"
@@ -164,6 +166,7 @@ function onCategoryDialogClose() {
           <span>清除筛选</span>
         </button>
         <button
+          v-if="authStore.isLoggedIn"
           type="button"
           class="btn-spec-b btn-spec-b--outline"
           @click="categoryDialogOpen = true"
@@ -172,6 +175,7 @@ function onCategoryDialogClose() {
           <span>分类管理</span>
         </button>
         <button
+          v-if="authStore.isLoggedIn"
           type="button"
           class="btn-spec-b btn-spec-b--outline"
           @click="router.push('/blog/tags')"

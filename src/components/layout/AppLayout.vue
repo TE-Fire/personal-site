@@ -14,8 +14,10 @@ import Footer from './Footer.vue'
 import DraggableCharacter from '@/components/DraggableCharacter.vue'
 import DraggableStatsWidget from '@/components/DraggableStatsWidget.vue'
 import AppToaster from '@/components/AppToaster.vue'
+import { useAuthStore } from '@/stores/auth'
 
 const route = useRoute()
+const authStore = useAuthStore()
 
 /** 是否是登录页：登录页独占全屏，不套全局 Header/Footer/悬浮窗/容器 */
 const isLoginPage = computed(() => route.path === '/login')
@@ -87,8 +89,8 @@ const cacheablePages = computed(() => [
 
       <!-- 右下角可拖动的虚拟形象 -->
       <DraggableCharacter />
-      <!-- 左上角可拖动的博客数据面板 -->
-      <DraggableStatsWidget />
+      <!-- 左上角可拖动的博客数据面板（仅登录用户可见，游客隐藏） -->
+      <DraggableStatsWidget v-if="authStore.isLoggedIn" />
     </template>
 
     <!-- ========= 登录页：直接渲染 RouterView，独占全屏 ========= -->
