@@ -234,20 +234,20 @@ async function copyToClipboard(id: string, value: string) {
 
       <!-- 二维码放大弹窗 -->
       <Dialog v-model:open="qrDialogOpen">
-        <DialogContent class="max-w-sm">
+        <DialogContent class="max-w-md sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>微信二维码</DialogTitle>
             <DialogDescription>使用微信扫一扫，添加好友</DialogDescription>
           </DialogHeader>
-          <div class="flex justify-center py-2">
+          <div class="flex items-center justify-center rounded-2xl border border-border/60 bg-surface-muted/30 p-5 shadow-inner">
             <img
               v-if="currentQrCode"
               :src="currentQrCode"
               alt="微信二维码"
-              class="max-h-80 w-auto rounded-xl border border-border object-contain"
+              class="w-full max-h-80 rounded-xl bg-white p-2 shadow-sm object-contain"
             />
           </div>
-          <div class="mt-4 flex justify-end">
+          <div class="mt-2 flex justify-end">
             <DialogClose as-child>
               <Button type="button" variant="outline" size="sm">关闭</Button>
             </DialogClose>

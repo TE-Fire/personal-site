@@ -317,13 +317,13 @@ function clearQr() {
               <div v-if="draft.contactWechatQr" class="flex items-start gap-4">
                 <button
                   type="button"
-                  class="group relative shrink-0 overflow-hidden rounded-xl border border-border bg-surface p-1 transition hover:border-brand/40 focus:outline-none focus:ring-2 focus:ring-brand"
+                  class="group relative shrink-0 overflow-hidden rounded-xl border border-border bg-surface p-1.5 transition hover:border-brand/40 focus:outline-none focus:ring-2 focus:ring-brand"
                   @click="qrPreviewOpen = true"
                 >
                   <img
                     :src="draft.contactWechatQr"
                     alt="微信二维码"
-                    class="block size-28 object-contain rounded-lg"
+                    class="block size-36 object-contain rounded-lg"
                   />
                   <span class="absolute inset-0 flex items-center justify-center rounded-xl bg-black/0 transition group-hover:bg-black/5">
                     <ZoomIn class="size-6 text-text opacity-0 transition group-hover:opacity-100" />
@@ -355,19 +355,19 @@ function clearQr() {
 
                 <!-- 二维码放大预览（编辑页） -->
                 <Dialog v-model:open="qrPreviewOpen">
-                  <DialogContent class="max-w-sm">
+                  <DialogContent class="max-w-md sm:max-w-lg">
                     <DialogHeader>
                       <DialogTitle>微信二维码预览</DialogTitle>
                       <DialogDescription>保存前可点击放大查看实际效果</DialogDescription>
                     </DialogHeader>
-                    <div class="flex justify-center py-2">
+                    <div class="flex items-center justify-center rounded-2xl border border-border/60 bg-surface-muted/30 p-5 shadow-inner">
                       <img
                         :src="draft.contactWechatQr"
                         alt="微信二维码"
-                        class="max-h-72 w-auto rounded-xl border border-border object-contain"
+                        class="w-full max-h-80 rounded-xl bg-white p-2 shadow-sm object-contain"
                       />
                     </div>
-                    <div class="mt-4 flex justify-end">
+                    <div class="mt-2 flex justify-end">
                       <DialogClose as-child>
                         <Button type="button" variant="outline" size="sm">关闭</Button>
                       </DialogClose>
@@ -381,11 +381,11 @@ function clearQr() {
                 v-else
                 type="button"
                 :disabled="uploadingQr"
-                class="flex h-24 w-full flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-surface/50 text-text-muted transition hover:border-brand hover:text-brand disabled:opacity-50"
+                class="flex h-32 w-full flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-surface/50 text-text-muted transition hover:border-brand hover:text-brand disabled:opacity-50"
                 @click="pickQrFile"
               >
-                <Loader2 v-if="uploadingQr" class="size-6 animate-spin" />
-                <ImagePlus v-else class="size-6" />
+                <Loader2 v-if="uploadingQr" class="size-8 animate-spin" />
+                <ImagePlus v-else class="size-8" />
                 <span class="text-sm">{{ uploadingQr ? '上传中…' : '上传二维码' }}</span>
               </button>
 
