@@ -3,7 +3,7 @@
  */
 
 export const aboutMe = {
-  name: 'Trae',
+  name: 'TE-Fire',
   shortBio:
     '一个热爱构建的前端工程师，专注 Vue 3 / TypeScript / Tailwind / AI 辅助开发工作流。喜欢把「设计感」和「工程化」拧在一起，也喜欢在长期开源项目里一点点打磨细节。',
   longBio: [

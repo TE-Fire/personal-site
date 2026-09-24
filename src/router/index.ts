@@ -297,7 +297,7 @@ export function sanitizeLoginRedirect(raw: unknown, fallback = '/'): string {
  * afterEach 钩子：自动把 document.title 改成「页面名 · 站点名」。
  * 空值或非字符串 meta.title 时回退默认标题。
  */
-const SITE_NAME = 'Trae · 个人作品集'
+const SITE_NAME = 'TE-Fire · 个人作品集'
 router.afterEach((to) => {
   const title = (to.meta?.title as string | undefined)?.trim()
   document.title = title ? `${title} · ${SITE_NAME}` : SITE_NAME

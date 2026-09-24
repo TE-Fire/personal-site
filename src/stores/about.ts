@@ -82,7 +82,7 @@ export const useAboutStore = defineStore('about', () => {
 
   const displayName = computed(() => {
     const a = safeAbout.value;
-    // name 兜底：若后端 DB nickname 还空 → 再兜底 authStore 里的账号昵称 → 再兜底 'Trae'
+    // name 兜底：若后端 DB nickname 还空 → 再兜底 authStore 里的账号昵称 → 再兜底 'TE-Fire'
     if (a.name?.trim()) return a.name.trim();
     const auth = useAuthStore();
     return auth.user?.nickname?.trim() || fallback.name;

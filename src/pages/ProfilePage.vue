@@ -702,7 +702,7 @@ function resetAccount() {
                 <!-- displayName · inline -->
                 <div class="flex items-center gap-4 py-2">
                   <Label class="w-28 shrink-0 text-sm font-medium text-text">展示名称</Label>
-                  <Input v-model="aboutDraft.displayName" maxlength="40" placeholder="比如：Trae" class="flex-1" />
+                  <Input v-model="aboutDraft.displayName" maxlength="40" placeholder="比如：TE-Fire" class="flex-1" />
                   <span class="shrink-0 text-[11px] text-text-muted/70">与账号昵称同步</span>
                 </div>
 

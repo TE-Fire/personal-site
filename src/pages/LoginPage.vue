@@ -125,7 +125,7 @@ function onCaptchaCancelled() {
                 <path d="M12 2l2.39 7.36H22l-6.2 4.5L18.18 22 12 17.27 5.82 22l2.38-8.14L2 9.36h7.61z"/>
               </svg>
             </div>
-            <div class="text-lg font-bold tracking-tight text-text">Trae · 作品集</div>
+            <div class="text-lg font-bold tracking-tight text-text">TE-Fire · 作品集</div>
           </div>
 
           <!-- 登录卡片 -->

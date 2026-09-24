@@ -193,7 +193,7 @@ const script = computed<TerminalStep[]>(() => {
     {
       type: 'output',
       lines: [
-        '>> 欢迎，我是 Trae 的个人站点助手 🤖',
+        '>> 欢迎，我是 TE-Fire 的个人站点助手 🤖',
         '>> 左侧可以直接跳到作品页或发邮件；祝你今天有愉快的 1 分钟浏览 ~'
       ],
       pauseMs: 280

@@ -42,7 +42,7 @@ function scrollTop() {
       <div class="flex flex-col gap-1 text-sm text-text-muted">
         <p class="m-0">
           © {{ year }}
-          <span class="text-text font-medium ml-1">Trae</span>
+          <span class="text-text font-medium ml-1">TE-Fire</span>
           <span class="mx-1.5 opacity-50">·</span>
           <span>Built with Vue 3 + Vite + Tailwind CSS</span>
         </p>

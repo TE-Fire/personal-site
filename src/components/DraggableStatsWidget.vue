@@ -100,7 +100,7 @@ const authorInitial = computed(() =>
 )
 /** 作者显示名 */
 const authorName = computed(() =>
-  aboutStore.displayName || authStore.user?.nickname || 'Trae',
+  aboutStore.displayName || authStore.user?.nickname || 'TE-Fire',
 )
 /** 位置（展开卡副标题显示） */
 const authorLocation = computed(() => aboutStore.safeAbout.location || '')

@@ -132,8 +132,7 @@ function closeMenu() { menuOpen.value = false }
           <Sparkles class="size-5" :stroke-width="2" />
         </span>
         <span class="font-semibold tracking-tight text-[17px] leading-none">
-          <span class="text-brand text-[18px]">T</span>
-          <span class="text-text">rae</span>
+          <span class="text-brand text-[18px]">TE-Fire</span>
           <span class="text-text-muted text-[13px] font-normal ml-1.5">/ portfolio</span>
         </span>
       </a>
