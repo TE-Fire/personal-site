@@ -4,12 +4,12 @@
  * - 从后端 API 拉取联系方式数据，管理端编辑后前台同步更新
  * - 点击卡片展开详细联系信息（手风琴式）
  */
-import { ref, onMounted, type Component } from 'vue'
+import { ref, computed, onMounted, type Component } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { contactChannels } from '@/data'
 import { getContact, type ContactData } from '@/api/contact'
-import { Card, CardContent } from '@/components/ui'
+import { Card, CardContent, Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogClose } from '@/components/ui'
 import { Copy, Check, ExternalLink, ChevronDown, Lightbulb, Pencil } from 'lucide-vue-next'
 
 defineOptions({ name: 'ContactPage' })
@@ -77,6 +77,23 @@ const expandedId = ref<string | null>('email')
 function toggleExpand(id: string) {
   expandedId.value = expandedId.value === id ? null : id
 }
+
+/** 当前正在查看二维码的卡片 id */
+const qrDialogId = ref<string | null>(null)
+const qrDialogOpen = computed({
+  get: () => qrDialogId.value !== null,
+  set: (v: boolean) => { if (!v) qrDialogId.value = null },
+})
+
+function openQrDialog(id: string) {
+  qrDialogId.value = id
+}
+
+/** 当前对话框展示用的二维码 URL */
+const currentQrCode = computed(() => {
+  if (!qrDialogId.value) return null
+  return channels.value.find(ch => ch.id === qrDialogId.value)?.detail.qrCode ?? null
+})
 
 /** 复制反馈 */
 const copiedId = ref<string | null>(null)
@@ -188,12 +205,25 @@ async function copyToClipboard(id: string, value: string) {
                   <!-- 描述说明 -->
                   <p class="m-0 text-sm text-text-muted leading-relaxed">{{ ch.detail.description }}</p>
 
-                  <!-- 二维码（微信） -->
+                  <!-- 二维码（微信）：点击打开大图弹窗 -->
                   <div v-if="ch.detail.qrCode" class="pt-2">
-                    <div class="inline-flex flex-col items-center gap-2 p-4 rounded-xl border border-border/60 bg-surface-muted/20">
-                      <img :src="ch.detail.qrCode" alt="微信二维码" class="size-40 object-contain rounded-lg" />
-                      <span class="text-xs text-text-muted">扫一扫添加微信</span>
-                    </div>
+                    <button
+                      type="button"
+                      class="group inline-flex items-center gap-3 rounded-xl border border-border/60 bg-surface-muted/20 p-3 text-left transition hover:border-brand/40 hover:bg-brand/[0.04] focus:outline-none focus:ring-2 focus:ring-brand"
+                      @click="openQrDialog(ch.id)"
+                    >
+                      <div class="relative size-16 overflow-hidden rounded-lg border border-border bg-surface">
+                        <img
+                          :src="ch.detail.qrCode"
+                          alt="微信二维码"
+                          class="h-full w-full object-contain p-0.5"
+                        />
+                      </div>
+                      <div class="flex flex-col gap-0.5 pr-2">
+                        <span class="text-sm font-medium text-text">查看二维码</span>
+                        <span class="text-xs text-text-muted">点击放大，微信扫一扫添加</span>
+                      </div>
+                    </button>
                   </div>
                 </div>
               </div>
@@ -201,6 +231,29 @@ async function copyToClipboard(id: string, value: string) {
           </div>
         </CardContent>
       </Card>
+
+      <!-- 二维码放大弹窗 -->
+      <Dialog v-model:open="qrDialogOpen">
+        <DialogContent class="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>微信二维码</DialogTitle>
+            <DialogDescription>使用微信扫一扫，添加好友</DialogDescription>
+          </DialogHeader>
+          <div class="flex justify-center py-2">
+            <img
+              v-if="currentQrCode"
+              :src="currentQrCode"
+              alt="微信二维码"
+              class="max-h-80 w-auto rounded-xl border border-border object-contain"
+            />
+          </div>
+          <div class="mt-4 flex justify-end">
+            <DialogClose as-child>
+              <Button type="button" variant="outline" size="sm">关闭</Button>
+            </DialogClose>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <!-- 温馨提示 -->
       <div class="rounded-xl border border-brand/20 bg-brand/[0.04] p-5 flex gap-4">

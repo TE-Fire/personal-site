@@ -30,8 +30,14 @@ import {
   CardTitle,
   Input,
   Label,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogClose,
 } from '@/components/ui';
-import { Save, Mail, Github, Coffee, Loader2, ImagePlus, X } from 'lucide-vue-next';
+import { Save, Mail, Github, Coffee, Loader2, ImagePlus, X, ZoomIn } from 'lucide-vue-next';
 
 defineOptions({ name: 'ContactManagePage' });
 
@@ -129,9 +135,10 @@ async function handleSave() {
   }
 }
 
-/* ---------- 二维码上传 ---------- */
+/* ---------- 二维码上传 / 预览 ---------- */
 const qrFileInputRef = ref<HTMLInputElement | null>(null);
 const uploadingQr = ref(false);
+const qrPreviewOpen = ref(false);
 
 // 触发隐藏的 file input
 function pickQrFile() {
@@ -307,15 +314,22 @@ function clearQr() {
               />
 
               <!-- 已有二维码：预览 + 更换 + 清除 -->
-              <div v-if="draft.contactWechatQr" class="flex items-center gap-3">
-                <div class="relative size-20 shrink-0 overflow-hidden rounded-lg border border-border bg-surface">
+              <div v-if="draft.contactWechatQr" class="flex items-start gap-4">
+                <button
+                  type="button"
+                  class="group relative shrink-0 overflow-hidden rounded-xl border border-border bg-surface p-1 transition hover:border-brand/40 focus:outline-none focus:ring-2 focus:ring-brand"
+                  @click="qrPreviewOpen = true"
+                >
                   <img
                     :src="draft.contactWechatQr"
                     alt="微信二维码"
-                    class="h-full w-full object-cover"
+                    class="block size-28 object-contain rounded-lg"
                   />
-                </div>
-                <div class="flex flex-col gap-2">
+                  <span class="absolute inset-0 flex items-center justify-center rounded-xl bg-black/0 transition group-hover:bg-black/5">
+                    <ZoomIn class="size-6 text-text opacity-0 transition group-hover:opacity-100" />
+                  </span>
+                </button>
+                <div class="flex flex-col gap-2 pt-1">
                   <Button
                     type="button"
                     variant="outline"
@@ -338,6 +352,28 @@ function clearQr() {
                     <span>清除</span>
                   </Button>
                 </div>
+
+                <!-- 二维码放大预览（编辑页） -->
+                <Dialog v-model:open="qrPreviewOpen">
+                  <DialogContent class="max-w-sm">
+                    <DialogHeader>
+                      <DialogTitle>微信二维码预览</DialogTitle>
+                      <DialogDescription>保存前可点击放大查看实际效果</DialogDescription>
+                    </DialogHeader>
+                    <div class="flex justify-center py-2">
+                      <img
+                        :src="draft.contactWechatQr"
+                        alt="微信二维码"
+                        class="max-h-72 w-auto rounded-xl border border-border object-contain"
+                      />
+                    </div>
+                    <div class="mt-4 flex justify-end">
+                      <DialogClose as-child>
+                        <Button type="button" variant="outline" size="sm">关闭</Button>
+                      </DialogClose>
+                    </div>
+                  </DialogContent>
+                </Dialog>
               </div>
 
               <!-- 无二维码：虚线上传区域 -->

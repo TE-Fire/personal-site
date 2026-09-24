@@ -16,6 +16,15 @@ import Label from './Label.vue'
 import Badge from './Badge.vue'
 import Separator from './Separator.vue'
 import Switch from './Switch.vue'
+import Dialog, {
+  DialogTrigger,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogClose,
+} from './Dialog.vue'
 
 export {
   Button,
@@ -30,4 +39,12 @@ export {
   Badge,
   Separator,
   Switch,
+  Dialog,
+  DialogTrigger,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogClose,
 }
