@@ -45,6 +45,12 @@ http.interceptors.response.use(
     // HTTP 401：Token 过期或无效
     if (error.response?.status === 401) {
       localStorage.removeItem('auth_token');
+      // 同步重置 Pinia 登录态 —— 只清 localStorage 会让 authStore.token
+      // 仍持有旧字符串，isLoggedIn 保持 true，所有管理入口对“幽灵登录”可见
+      // （动态 import 避免与 stores/auth 的模块循环依赖）
+      import('@/stores/auth')
+        .then(({ useAuthStore }) => useAuthStore().logout())
+        .catch(() => {});
       // 跳转登录页（避免在登录页本身跳转导致死循环）
       if (!window.location.hash.includes('/login')) {
         window.location.hash = '#/login';
