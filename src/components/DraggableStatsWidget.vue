@@ -4,7 +4,10 @@
  *
  * 数据来源（About 展示相关）：
  *   · 作者名 / 位置 / 可接单状态 → aboutStore.safeAbout
- *   · 博客数据（文章数/字数/分类/标签）→ useBlogApi（本地 localStorage + 内置）
+ *   · 博客数据（文章数/字数/分类/标签）→ 后端 GET /api/posts（登录态下含草稿/归档）
+ *
+ * 统计口径：面板仅登录后渲染，登录用户请求不带 status 过滤，
+ * 因此「总文章」= 全部文章（含草稿与归档），与博客管理页口径一致。
  *
  * 状态机（三档）：
  *   ① BALL      — 44×44 圆形悬浮球：默认首次进入 / 闲置 6s 自动收球 / 手动折叠 / 点球展开
@@ -21,31 +24,64 @@ import {
   ListTree,
   LayoutPanelLeft
 } from 'lucide-vue-next'
-import { useRouter } from 'vue-router'
-import { readingMinutes } from '@/data'
+import { useRoute, useRouter } from 'vue-router'
+import { fetchPosts } from '@/api/post'
+import type { PostVo } from '@/lib/api-types'
 import { useAboutStore } from '@/stores/about'
 import { useAuthStore } from '@/stores/auth'
 import { useDraggable } from '@/composables/useDraggable'
 import type { AttachedEdge } from '@/composables/useDraggable'
 import { useIdleTimer } from '@/composables/useIdleTimer'
-import { useBlogApi } from '@/composables/useBlogApi'
 import { Badge } from '@/components/ui'
 
+const route = useRoute()
 const router = useRouter()
-const { allPosts } = useBlogApi()
-const posts = computed(() => allPosts.value)
+
+/* -------- 博客统计（真实接口） -------- */
+/** 最多取 100 篇用于聚合；超过时「总文章」仍显示后端返回的 total */
+const STATS_PAGE_SIZE = 100
+/** 两次请求的最小间隔（ms）：路由频繁切换时不重复打接口 */
+const STATS_THROTTLE_MS = 20_000
+
+const posts = ref<PostVo[]>([])
+const postTotal = ref(0)
+let lastStatsAt = 0
+
+/**
+ * 拉取统计数据
+ * 面板是装饰性组件：失败时静默保持空态，不弹 toast 打扰用户
+ */
+async function loadStats(force = false) {
+  if (!force && Date.now() - lastStatsAt < STATS_THROTTLE_MS) return
+  try {
+    const page = await fetchPosts({ page: 1, pageSize: STATS_PAGE_SIZE })
+    posts.value = page.list
+    postTotal.value = page.total
+    lastStatsAt = Date.now()
+  } catch {
+    // 保持上一次的数据；首次失败则显示 0
+  }
+}
 
 /* -------- About 展示信息 + authStore 头像 -------- */
 const aboutStore = useAboutStore()
 const authStore = useAuthStore()
 
 onMounted(async () => {
+  // 统计数据与 About/authStore 并行拉，互不阻塞
+  void loadStats(true)
   try { await aboutStore.fetchAbout() } catch { /* 兜底 */ }
   // 确保 authStore 也拉一次用户资料（拿 avatar URL）
   if (!authStore.user) {
     try { await authStore.fetchProfile() } catch { /* 兜底 */ }
   }
 })
+
+/**
+ * 路由变化时刷新统计（带 20s 节流）
+ * 场景：发完博客 / 删了文章后返回列表，面板数字需要跟上（组件常驻，不会重新挂载）
+ */
+watch(() => route.fullPath, () => { void loadStats() })
 
 /** 头像 URL：优先 authStore.user.avatar，fallback null 让模板显示渐变首字母圆 */
 const authorAvatar = computed<string | null>(() => {
@@ -178,15 +214,25 @@ onBeforeUnmount(() => {
   if (hoverExpandTimer) clearTimeout(hoverExpandTimer)
 })
 
-// ---------- 统计数据 ----------
+// ---------- 统计数据（派生自真实接口数据） ----------
 const allTags = computed(() => {
   const set = new Set<string>()
-  posts.value.forEach((p) => p.tags.forEach((t) => set.add(t)))
+  posts.value.forEach((p) => (p.tags || []).forEach((t) => set.add(t.name)))
   return Array.from(set)
 })
-const categories = computed(() => Array.from(new Set(posts.value.map((p) => p.category))))
-const totalWords = computed(() => posts.value.reduce((acc, p) => acc + p.wordCount, 0))
-const totalReadingMinutes = computed(() => posts.value.reduce((acc, p) => acc + readingMinutes(p.wordCount), 0))
+const categories = computed(() =>
+  Array.from(
+    new Set(
+      posts.value
+        .map((p) => p.category?.name)
+        .filter((name): name is string => Boolean(name)),
+    ),
+  ),
+)
+const totalWords = computed(() => posts.value.reduce((acc, p) => acc + (p.wordCount || 0), 0))
+const totalReadingMinutes = computed(() =>
+  posts.value.reduce((acc, p) => acc + (p.readMinutes || 0), 0),
+)
 
 // ---------- 快捷操作 ----------
 function goNewBlog() { touchActivity(); router.push('/blog/new') }
@@ -396,7 +442,7 @@ watch(visible, (v) => {
                     <BookOpen class="size-3 text-brand" />
                     <span>总文章</span>
                   </div>
-                  <div class="mt-0.5 text-[17px] font-bold text-text leading-none">{{ posts.length }}<span class="ml-0.5 text-[10px] text-text-muted font-normal">篇</span></div>
+                  <div class="mt-0.5 text-[17px] font-bold text-text leading-none">{{ postTotal }}<span class="ml-0.5 text-[10px] text-text-muted font-normal">篇</span></div>
                 </div>
                 <div class="rounded-xl bg-surface px-2.5 py-2 border border-border/50">
                   <div class="flex items-center gap-1 text-[9.5px] text-text-muted uppercase tracking-wider font-medium">
