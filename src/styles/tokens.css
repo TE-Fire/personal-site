@@ -9,22 +9,31 @@
 :root {
   color-scheme: light;
 
-  /* 背景层 */
+  /* 背景层（-rgb 为同色 RGB 通道，供 Tailwind <alpha-value> 透明度修饰符使用） */
   --surface: #F7F7F8;
+  --surface-rgb: 247 247 248;
   --surface-muted: #EFEFF2;
+  --surface-muted-rgb: 239 239 242;
   --surface-elevated: #FFFFFF;
+  --surface-elevated-rgb: 255 255 255;
   --surface-overlay: rgba(255, 255, 255, 0.72);
 
   /* 文字层 */
   --text: #171717;
+  --text-rgb: 23 23 23;
   --text-muted: #52525B;
+  --text-muted-rgb: 82 82 91;
   --text-subtle: #71717A;
+  --text-subtle-rgb: 113 113 122;
   --text-on-brand: #FFFFFF;
 
-  /* 边框 & 分割线 */
+  /* 边框 & 分割线（基色通道 + alpha 内置于 --border/--ring 本体） */
   --border: rgba(23, 23, 23, 0.12);
+  --border-rgb: 23 23 23;
   --border-strong: rgba(23, 23, 23, 0.20);
+  --border-strong-rgb: 23 23 23;
   --ring: rgba(75, 63, 227, 0.35);
+  --ring-rgb: 75 63 227;
 
   /* 品牌色（紫色系） */
   --brand-50:  #F2F7FF;
@@ -34,6 +43,7 @@
   --brand-400: #8B8FFF;
   --brand-500: #6F6FFF;
   --brand:     #4B3FE3;   /* 主色 = 600 */
+  --brand-rgb: 75 63 227;
   --brand-700: #3C2ECA;
   --brand-800: #2D238E;
   --brand-900: #1A1759;
@@ -46,20 +56,29 @@
 
   /* 次强调色（青绿）—— 用于 "健康/完成" 类的差异化视觉，不是常规 A/B 分类 */
   --accent:      #27D2BF;
+  --accent-rgb:  39 210 191;
   --accent-soft: #EAFBF8;
   --accent-text: #0F766E;
 
   /* 语义色（仅用于明确状态） */
-  --success: #1DC981;
-  --warning: #EFAA17;
-  --danger:  #E8463A;
+  --success:     #1DC981;
+  --success-rgb: 29 201 129;
+  --warning:     #EFAA17;
+  --warning-rgb: 239 170 23;
+  --danger:      #E8463A;
+  --danger-rgb:  232 70 58;
 
   /* 图表序列（同维度 A/B/C/D 对比用） */
   --chart-series-1: #3C2ECA;
+  --chart-series-1-rgb: 60 46 202;
   --chart-series-2: #A9AEFF;
+  --chart-series-2-rgb: 169 174 255;
   --chart-series-3: #6F6FFF;
+  --chart-series-3-rgb: 111 111 255;
   --chart-series-4: #22A5F7;
+  --chart-series-4-rgb: 34 165 247;
   --chart-other:    #D3D4DA;
+  --chart-other-rgb: 211 212 218;
 
   /* 贡献热力图 · 5 档色阶（浅色） */
   --heatmap-0: #EFEFF2;
@@ -80,21 +99,31 @@ html.dark {
   color-scheme: dark;
 
   --surface: #0F0F10;
+  --surface-rgb: 15 15 16;
   --surface-muted: #1A1A1D;
+  --surface-muted-rgb: 26 26 29;
   --surface-elevated: #17171A;
+  --surface-elevated-rgb: 23 23 26;
   --surface-overlay: rgba(15, 15, 16, 0.72);
 
   --text: #E5E5E5;
+  --text-rgb: 229 229 229;
   --text-muted: #A1A1AA;
+  --text-muted-rgb: 161 161 170;
   --text-subtle: #71717A;
+  --text-subtle-rgb: 113 113 122;
   --text-on-brand: #FFFFFF;
 
   --border: rgba(229, 229, 229, 0.12);
+  --border-rgb: 229 229 229;
   --border-strong: rgba(229, 229, 229, 0.22);
+  --border-strong-rgb: 229 229 229;
   --ring: rgba(96, 84, 241, 0.45);
+  --ring-rgb: 96 84 241;
 
   /* 深色下品牌色做了对比度增强 */
   --brand:     #6054F1;   /* 主色：略提亮，保证深色可读性 */
+  --brand-rgb: 96 84 241;
   --brand-50:  #1A1759;
   --brand-100: #3C2ECA;
   --brand-200: #4B3FE3;
@@ -110,16 +139,25 @@ html.dark {
   --brand-text: var(--brand-900);
 
   --accent:      #27D2BF;
+  --accent-rgb:  39 210 191;
   --accent-soft: #123F3C;
   --accent-text: #CCFBF1;
 
   /* 语义色保持不变（对比度本身足够） */
+  --success-rgb: 29 201 129;
+  --warning-rgb: 239 170 23;
+  --danger-rgb:  232 70 58;
 
   --chart-series-1: #4B3FE3;
+  --chart-series-1-rgb: 75 63 227;
   --chart-series-2: #A9AEFF;
+  --chart-series-2-rgb: 169 174 255;
   --chart-series-3: #6F6FFF;
+  --chart-series-3-rgb: 111 111 255;
   --chart-series-4: #22A5F7;
+  --chart-series-4-rgb: 34 165 247;
   --chart-other:    #52525B;
+  --chart-other-rgb: 82 82 91;
 
   /* 贡献热力图 · 5 档色阶（深色） */
   --heatmap-0: #27272A;

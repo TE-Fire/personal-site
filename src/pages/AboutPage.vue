@@ -205,7 +205,7 @@ const safeSkillGroups = computed<SkillGroup[]>(() =>
       <div class="flex flex-col md:flex-row md:items-start md:gap-8 gap-6">
         <!-- 头像：有真实图 → 显示图片；null → 首字母渐变圆形 -->
         <div
-          class="shrink-0 size-24 md:size-28 rounded-full ring-4 ring-brand/15 overflow-hidden bg-gradient-to-br from-brand via-accent to-chart-c2 text-white shadow-card flex items-center justify-center"
+          class="shrink-0 size-24 md:size-28 rounded-full ring-4 ring-brand/15 overflow-hidden bg-gradient-to-br from-brand via-accent to-chart-s2 text-white shadow-md flex items-center justify-center"
         >
           <img
             v-if="avatarUrl"
@@ -226,14 +226,14 @@ const safeSkillGroups = computed<SkillGroup[]>(() =>
             {{ a.shortBio }}
           </p>
           <div class="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-text-muted">
-            <span class="inline-flex items-center gap-1.5"><MapPin class="size-4" />{{ a.location }}</span>
-            <span class="inline-flex items-center gap-1.5">
-              <Briefcase class="size-4" />
+            <span class="inline-flex items-center gap-2"><MapPin class="size-5 shrink-0" />{{ a.location }}</span>
+            <span class="inline-flex items-center gap-2">
+              <Briefcase class="size-5 shrink-0" />
               <span v-if="a.available" class="text-success font-medium">可接项目</span>
               <span v-else class="text-text-muted">项目排期满</span>
             </span>
-            <span class="inline-flex items-center gap-1.5"><Coffee class="size-4" />喜欢在 UTC+8 的下午干活</span>
-            <span class="inline-flex items-center gap-1.5"><Heart class="size-4" />长期主义</span>
+            <span class="inline-flex items-center gap-2"><Coffee class="size-5 shrink-0" />喜欢在 UTC+8 的下午干活</span>
+            <span class="inline-flex items-center gap-2"><Heart class="size-5 shrink-0" />长期主义</span>
           </div>
           <!-- 身份标签：横向一排 chip（和 skillGroups 分组不同，tags 是方向关键词） -->
           <div

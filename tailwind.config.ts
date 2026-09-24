@@ -2,8 +2,13 @@ import type { Config } from 'tailwindcss'
 
 /**
  * Tailwind 主题配置 · 与 src/styles/tokens.css + typography.css 中的 CSS 变量一一对应。
- * 颜色直接引用 CSS 变量（不做运行时透明度拆分；如需半透明改用 tokens 中预定义的 *-soft / *-100 等档位，
- * 或用 Tailwind 任意值语法 bg-[var(--brand)/70%]，后者需要浏览器支持 CSS Color Module 5）。
+ *
+ * 透明度支持（重要）：
+ *  - 纯色 token（surface/text/brand/accent/语义色/chart）用 `-rgb` 通道变量 +
+ *    `<alpha-value>`，因此 `bg-brand/30`、`text-text-muted/70` 等修饰符可正常生成。
+ *  - border/ring 本体自带 alpha（如 rgba(23,23,23,0.12)），用函数色处理：
+ *    裸用法（border-border）保持 var() 原样（含默认 alpha），
+ *    带修饰符（border-border/60）改用通道变量乘以修饰符。
  */
 export default {
   darkMode: 'class',
@@ -24,23 +29,32 @@ export default {
       // ---------- 颜色：对应 tokens.css 档位 ----------
       colors: {
         surface: {
-          DEFAULT: 'var(--surface)',
-          muted: 'var(--surface-muted)',
-          elevated: 'var(--surface-elevated)',
+          DEFAULT: 'rgb(var(--surface-rgb) / <alpha-value>)',
+          muted: 'rgb(var(--surface-muted-rgb) / <alpha-value>)',
+          elevated: 'rgb(var(--surface-elevated-rgb) / <alpha-value>)',
           overlay: 'var(--surface-overlay)'
         },
         text: {
-          DEFAULT: 'var(--text)',
-          muted: 'var(--text-muted)',
-          subtle: 'var(--text-subtle)',
+          DEFAULT: 'rgb(var(--text-rgb) / <alpha-value>)',
+          muted: 'rgb(var(--text-muted-rgb) / <alpha-value>)',
+          subtle: 'rgb(var(--text-subtle-rgb) / <alpha-value>)',
           'on-brand': 'var(--text-on-brand)'
         },
         border: {
-          DEFAULT: 'var(--border)',
-          strong: 'var(--border-strong)'
+          DEFAULT: ({ opacityValue }: { opacityValue?: string }) =>
+            opacityValue != null
+              ? `rgb(var(--border-rgb) / ${opacityValue})`
+              : 'var(--border)',
+          strong: ({ opacityValue }: { opacityValue?: string }) =>
+            opacityValue != null
+              ? `rgb(var(--border-strong-rgb) / ${opacityValue})`
+              : 'var(--border-strong)'
         },
         ring: {
-          DEFAULT: 'var(--ring)'
+          DEFAULT: ({ opacityValue }: { opacityValue?: string }) =>
+            opacityValue != null
+              ? `rgb(var(--ring-rgb) / ${opacityValue})`
+              : 'var(--ring)'
         },
 
         // 紫色品牌色（8 档，核心色 = brand = 600）
@@ -51,7 +65,7 @@ export default {
           300: 'var(--brand-300)',
           400: 'var(--brand-400)',
           500: 'var(--brand-500)',
-          DEFAULT: 'var(--brand)',
+          DEFAULT: 'rgb(var(--brand-rgb) / <alpha-value>)',
           700: 'var(--brand-700)',
           800: 'var(--brand-800)',
           900: 'var(--brand-900)',
@@ -64,23 +78,23 @@ export default {
 
         // 次强调色（青绿）
         accent: {
-          DEFAULT: 'var(--accent)',
+          DEFAULT: 'rgb(var(--accent-rgb) / <alpha-value>)',
           soft: 'var(--accent-soft)',
           text: 'var(--accent-text)'
         },
 
         // 语义色
-        success: 'var(--success)',
-        warning: 'var(--warning)',
-        danger: 'var(--danger)',
+        success: 'rgb(var(--success-rgb) / <alpha-value>)',
+        warning: 'rgb(var(--warning-rgb) / <alpha-value>)',
+        danger: 'rgb(var(--danger-rgb) / <alpha-value>)',
 
         // 图表序列
         chart: {
-          s1: 'var(--chart-series-1)',
-          s2: 'var(--chart-series-2)',
-          s3: 'var(--chart-series-3)',
-          s4: 'var(--chart-series-4)',
-          other: 'var(--chart-other)'
+          s1: 'rgb(var(--chart-series-1-rgb) / <alpha-value>)',
+          s2: 'rgb(var(--chart-series-2-rgb) / <alpha-value>)',
+          s3: 'rgb(var(--chart-series-3-rgb) / <alpha-value>)',
+          s4: 'rgb(var(--chart-series-4-rgb) / <alpha-value>)',
+          other: 'rgb(var(--chart-other-rgb) / <alpha-value>)'
         }
       },
 
