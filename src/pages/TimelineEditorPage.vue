@@ -268,20 +268,23 @@ const availableTags = computed(() =>
             基础信息
           </h2>
 
-          <div class="flex flex-col md:flex-row gap-4">
-            <div class="w-full md:w-48 space-y-1.5">
+          <div class="space-y-4">
+            <!-- 节点类型 -->
+            <div class="space-y-2">
               <Label class="text-sm font-medium">节点类型 <span class="text-danger">*</span></Label>
               <select
                 v-model="draft.kind"
-                class="flex h-10 w-full rounded-md border border-border bg-surface-elevated px-3 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                class="flex h-11 w-full max-w-xs rounded-md border border-border bg-surface-elevated px-3 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
               >
                 <option v-for="opt in TIMELINE_KIND_OPTIONS" :key="opt.value" :value="opt.value">
                   {{ opt.label }}
                 </option>
               </select>
-              <p class="m-0 text-xs text-text-muted">决定节点颜色与徽标文案</p>
+              <p class="m-0 text-xs text-text-muted pt-0.5">决定节点颜色与徽标文案</p>
             </div>
-            <div class="flex-1 space-y-1.5">
+
+            <!-- 标题 -->
+            <div class="space-y-2">
               <Label class="text-sm font-medium">标题 <span class="text-danger">*</span></Label>
               <Input v-model="draft.title" placeholder="如：某公司 · 前端工程师" maxlength="200" />
             </div>
