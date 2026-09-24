@@ -317,14 +317,16 @@ function clearQr() {
               <div v-if="draft.contactWechatQr" class="flex items-start gap-4">
                 <button
                   type="button"
-                  class="group relative shrink-0 overflow-hidden rounded-xl border border-border bg-surface p-1.5 transition hover:border-brand/40 focus:outline-none focus:ring-2 focus:ring-brand"
+                  class="group relative shrink-0 overflow-hidden rounded-xl border border-border bg-white p-1 transition hover:border-brand/40 focus:outline-none focus:ring-2 focus:ring-brand"
                   @click="qrPreviewOpen = true"
                 >
-                  <img
-                    :src="draft.contactWechatQr"
-                    alt="微信二维码"
-                    class="block size-36 object-contain rounded-lg"
-                  />
+                  <div class="size-36 overflow-hidden rounded-lg">
+                    <img
+                      :src="draft.contactWechatQr"
+                      alt="微信二维码"
+                      class="h-full w-full object-cover object-center"
+                    />
+                  </div>
                   <span class="absolute inset-0 flex items-center justify-center rounded-xl bg-black/0 transition group-hover:bg-black/5">
                     <ZoomIn class="size-6 text-text opacity-0 transition group-hover:opacity-100" />
                   </span>
@@ -360,12 +362,14 @@ function clearQr() {
                       <DialogTitle>微信二维码预览</DialogTitle>
                       <DialogDescription>保存前可点击放大查看实际效果</DialogDescription>
                     </DialogHeader>
-                    <div class="flex items-center justify-center rounded-2xl border border-border/60 bg-surface-muted/30 p-5 shadow-inner">
-                      <img
-                        :src="draft.contactWechatQr"
-                        alt="微信二维码"
-                        class="w-full max-h-80 rounded-xl bg-white p-2 shadow-sm object-contain"
-                      />
+                    <div class="flex items-center justify-center">
+                      <div class="relative w-full max-w-[420px] aspect-square overflow-hidden rounded-2xl border border-border/60 bg-white shadow-md [image-rendering:pixelated]">
+                        <img
+                          :src="draft.contactWechatQr"
+                          alt="微信二维码"
+                          class="absolute inset-0 h-full w-full object-cover object-center"
+                        />
+                      </div>
                     </div>
                     <div class="mt-2 flex justify-end">
                       <DialogClose as-child>

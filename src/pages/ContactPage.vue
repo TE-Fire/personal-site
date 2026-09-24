@@ -212,11 +212,11 @@ async function copyToClipboard(id: string, value: string) {
                       class="group inline-flex items-center gap-3 rounded-xl border border-border/60 bg-surface-muted/20 p-3 text-left transition hover:border-brand/40 hover:bg-brand/[0.04] focus:outline-none focus:ring-2 focus:ring-brand"
                       @click="openQrDialog(ch.id)"
                     >
-                      <div class="relative size-16 overflow-hidden rounded-lg border border-border bg-surface">
+                      <div class="relative size-16 overflow-hidden rounded-lg border border-border bg-white">
                         <img
                           :src="ch.detail.qrCode"
                           alt="微信二维码"
-                          class="h-full w-full object-contain p-0.5"
+                          class="h-full w-full object-cover object-center [image-rendering:pixelated]"
                         />
                       </div>
                       <div class="flex flex-col gap-0.5 pr-2">
@@ -239,13 +239,15 @@ async function copyToClipboard(id: string, value: string) {
             <DialogTitle>微信二维码</DialogTitle>
             <DialogDescription>使用微信扫一扫，添加好友</DialogDescription>
           </DialogHeader>
-          <div class="flex items-center justify-center rounded-2xl border border-border/60 bg-surface-muted/30 p-5 shadow-inner">
-            <img
-              v-if="currentQrCode"
-              :src="currentQrCode"
-              alt="微信二维码"
-              class="w-full max-h-80 rounded-xl bg-white p-2 shadow-sm object-contain"
-            />
+          <div class="flex items-center justify-center">
+            <div class="relative w-full max-w-[420px] aspect-square overflow-hidden rounded-2xl border border-border/60 bg-white shadow-md [image-rendering:pixelated]">
+              <img
+                v-if="currentQrCode"
+                :src="currentQrCode"
+                alt="微信二维码"
+                class="absolute inset-0 h-full w-full object-cover object-center"
+              />
+            </div>
           </div>
           <div class="mt-2 flex justify-end">
             <DialogClose as-child>
