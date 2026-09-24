@@ -49,6 +49,11 @@ export function useScrollReveal(root: MaybeRef<HTMLElement | null>) {
     if (!nodes.length) return
 
     nodes.forEach((node) => {
+      // 已在本次实例中动画过的元素跳过 —— 数据异步到达后调用 refresh() 重扫时，
+      // 避免对同一元素重复建 tween（会导致已进入视口的元素再次闪一下）
+      if (node.dataset.revealed === '1') return
+      node.dataset.revealed = '1'
+
       const raw = node.getAttribute('data-reveal') ?? '0'
       const delay = Number.isFinite(Number(raw)) ? Math.max(0, Number(raw)) : 0
 

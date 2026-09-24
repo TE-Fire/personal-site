@@ -46,55 +46,55 @@ model User {
 
   // ===== About 公开资料（AboutPage / HomePage / DraggableWidget 公开展示用） =====
   /// 短简介（About 副标题 / Home Hero 简介）
-  aboutShortBio     String   @default("") @db.VarChar(300)  @map("about_short_bio")
+  aboutShortBio       String  @default("") @map("about_short_bio") @db.VarChar(300)
   /// 长文介绍段落数组（About "关于我" section）string[] → JSON
-  aboutLongBio      Json     @default("[]")                 @map("about_long_bio")
+  aboutLongBio        Json    @default("[]") @map("about_long_bio")
   /// 技能分组（proficient / familiar / tools ...）→ SkillGroup[] JSON
-  aboutSkills       Json     @default("[]")                 @map("about_skills")
+  aboutSkills         Json    @default("[]") @map("about_skills")
   /// 4 个高亮数字统计 chip → {label:string, value:string}[] JSON
-  aboutHighlightStats Json  @default("[]")                 @map("about_highlight_stats")
+  aboutHighlightStats Json    @default("[]") @map("about_highlight_stats")
   /// 兴趣标签 chips → string[] JSON
-  aboutInterests    Json     @default("[]")                 @map("about_interests")
+  aboutInterests      Json    @default("[]") @map("about_interests")
   /// Hero 终端"方向：xxx / yyy / ..." → string[] JSON（约定 4 项）
-  aboutTags         Json     @default("[]")                 @map("about_tags")
+  aboutTags           Json    @default("[]") @map("about_tags")
   /// 位置（MapPin 图标显示，如"中国 · 远程协作友好（UTC+8）"）
-  aboutLocation     String   @default("") @db.VarChar(100)  @map("about_location")
+  aboutLocation       String  @default("") @map("about_location") @db.VarChar(100)
   /// 当前是否可接单 → 绿色成功 / 灰色排期满
-  aboutAvailable    Boolean  @default(true)                 @map("about_available")
+  aboutAvailable      Boolean @default(true) @map("about_available")
   /// 现在在做什么 Card 条目数组 → string[] JSON（支持 **粗体** inline markdown 语法）
-  aboutNowDoing     Json     @default("[]")                 @map("about_now_doing")
+  aboutNowDoing       Json    @default("[]") @map("about_now_doing")
 
   // ===== About 热力图配置（Contribution 模块 A/B/D 方案控制用） =====
   /// 默认显示源：SITE 本站 / GITHUB / MERGED（方案 D 三态）
-  aboutHeatmapSource       String   @default("MERGED") @db.VarChar(20)   @map("about_heatmap_source")
+  aboutHeatmapSource       String  @default("MERGED") @map("about_heatmap_source") @db.VarChar(20)
   /// 是否启用 GitHub 贡献（默认 true，游客 About 页可以看到 GitHub Tab）
-  aboutHeatmapEnableGithub Boolean  @default(true)                       @map("about_heatmap_enable_github")
+  aboutHeatmapEnableGithub Boolean @default(true) @map("about_heatmap_enable_github")
   /// 博主 GitHub 用户名（公开，游客 About 页能看到）
-  aboutGithubUsername      String   @default("TE-Fire") @db.VarChar(100) @map("about_github_username")
+  aboutGithubUsername      String  @default("TE-Fire") @map("about_github_username") @db.VarChar(100)
   /// 博主 GitHub 主页链接
-  aboutGithubLink          String   @default("https://github.com/TE-Fire") @db.VarChar(500) @map("about_github_link")
+  aboutGithubLink          String  @default("https://github.com/TE-Fire") @map("about_github_link") @db.VarChar(500)
 
   // ===== Contact 联系方式（ContactPage 公开展示 / ProfilePage 编辑） =====
   /// 联系邮箱（ContactPage 展示）
-  contactEmail         String   @default("hello@trae.dev") @db.VarChar(100)  @map("contact_email")
+  contactEmail       String  @default("hello@trae.dev") @map("contact_email") @db.VarChar(100)
   /// 联系邮箱说明
-  contactEmailHint     String   @default("工作日 24h 内回复，推荐用于合作 / 咨询") @db.VarChar(200)  @map("contact_email_hint")
+  contactEmailHint   String  @default("工作日 24h 内回复，推荐用于合作 / 咨询") @map("contact_email_hint") @db.VarChar(200)
   /// GitHub 主页链接
-  contactGithubUrl     String   @default("https://github.com/TE-Fire") @db.VarChar(500) @map("contact_github_url")
+  contactGithubUrl   String  @default("https://github.com/TE-Fire") @map("contact_github_url") @db.VarChar(500)
   /// GitHub 展示文字
-  contactGithubLabel   String   @default("github.com/TE-Fire") @db.VarChar(100) @map("contact_github_label")
+  contactGithubLabel String  @default("github.com/TE-Fire") @map("contact_github_label") @db.VarChar(100)
   /// GitHub 说明
-  contactGithubHint    String   @default("看代码、提 Issue、PR 协作都欢迎") @db.VarChar(200) @map("contact_github_hint")
+  contactGithubHint  String  @default("看代码、提 Issue、PR 协作都欢迎") @map("contact_github_hint") @db.VarChar(200)
   /// 微信号
-  contactWechatId      String   @default("TE-Fire") @db.VarChar(100) @map("contact_wechat_id")
+  contactWechatId    String  @default("TE-Fire") @map("contact_wechat_id") @db.VarChar(100)
   /// 微信二维码图片路径（可为空）
-  contactWechatQr      String?  @db.VarChar(500) @map("contact_wechat_qr")
+  contactWechatQr    String? @map("contact_wechat_qr") @db.VarChar(500)
   /// 微信说明
-  contactWechatHint    String   @default("扫码添加，注明来意通过更快") @db.VarChar(200) @map("contact_wechat_hint")
+  contactWechatHint  String  @default("扫码添加，注明来意通过更快") @map("contact_wechat_hint") @db.VarChar(200)
 
   // ===== Post 模块关联 =====
-  posts       Post[]
-  categories  Category[]
+  posts      Post[]
+  categories Category[]
 
   @@map("user")
 }
@@ -125,12 +125,12 @@ model Category {
 
 /// 文章标签（严格关系模型：Tag 全局唯一，renameTag 只需要 UPDATE 一行）
 model Tag {
-  id        Int      @id @default(autoincrement())
-  name      String   @unique @db.VarChar(50)
+  id        Int       @id @default(autoincrement())
+  name      String    @unique @db.VarChar(50)
   /// 文章-标签 多对多关联
   posts     PostTag[]
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
 
   @@map("tag")
 }
@@ -138,36 +138,36 @@ model Tag {
 /// 文章表（主体）· 正文存 MySQL TEXT，不额外拆 key-value
 model Post {
   /// 主键
-  id          Int       @id @default(autoincrement())
+  id          Int        @id @default(autoincrement())
   /// 路由用 slug（唯一，URL 友好）
-  slug        String    @unique @db.VarChar(200)
+  slug        String     @unique @db.VarChar(200)
   /// 标题
-  title       String    @db.VarChar(300)
+  title       String     @db.VarChar(300)
   /// 摘要（不填时自动取 content 前 200 字）
-  excerpt     String    @default("") @db.VarChar(500)
+  excerpt     String     @default("") @db.VarChar(500)
   /// Markdown 正文（TEXT 64KB，足够 3000 字的文章 ×20，够用后续 ALTER 成 LONGTEXT）
-  content     String    @db.Text
+  content     String     @db.Text
   /// 封面图 URL（可选；若本地上传使用 DataURL，最长可达 10MB+ 级别，因此使用 LongText）
-  cover       String?   @db.LongText
+  cover       String?    @db.LongText
   /// 首页精选：HomePage / 列表页 highlight 高亮
-  featured    Boolean   @default(false)
+  featured    Boolean    @default(false)
   /// 发布状态（DRAFT 草稿 / PUBLISHED 已发布 / ARCHIVED 软删）
   status      PostStatus @default(DRAFT)
   /// 阅读字数（保存时自动计算，列表 / 详情页展示用）
-  wordCount   Int       @default(0)                    @map("word_count")
+  wordCount   Int        @default(0) @map("word_count")
   /// 预估阅读分钟数（= max(1, ceil(wordCount/500))，保存时自动计算）
-  readMinutes Int       @default(1)                    @map("read_minutes")
+  readMinutes Int        @default(1) @map("read_minutes")
 
   /// 作者
-  authorId   Int        @map("author_id")
-  author     User       @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  authorId Int  @map("author_id")
+  author   User @relation(fields: [authorId], references: [id], onDelete: Cascade)
 
   /// 分类（外键）
-  categoryId Int?       @map("category_id")
-  category   Category?  @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  categoryId Int?      @map("category_id")
+  category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
 
   /// 标签（多对多）
-  tags       PostTag[]
+  tags PostTag[]
 
   /// 创建时间：PUBLISHED 时用于博客发布时间 & 热力图计数
   createdAt DateTime @default(now()) @map("created_at")
@@ -184,10 +184,10 @@ model Post {
 
 /// Post ↔ Tag 多对多中间表（显式定义，方便后续加 tagOrder 这类字段）
 model PostTag {
-  postId    Int
-  tagId     Int
-  post      Post @relation(fields: [postId], references: [id], onDelete: Cascade)
-  tag       Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  postId Int
+  tagId  Int
+  post   Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tag    Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
 
   @@id([postId, tagId])
   @@map("post_tag")
@@ -201,11 +201,11 @@ model PostTag {
 
 /// 生活碎片类型
 enum LifeMomentType {
-  PHOTO       // 照片
-  MUSIC       // 音乐
-  ESSAY       // 随笔
-  FOOTPRINT   // 足迹打卡
-  BOOKNOTE    // 书影笔记
+  PHOTO // 照片
+  MUSIC // 音乐
+  ESSAY // 随笔
+  FOOTPRINT // 足迹打卡
+  BOOKNOTE // 书影笔记
 }
 
 /// 碎片发布状态（同 Post 软删除模式）
@@ -217,13 +217,13 @@ enum LifeStatus {
 
 /// 相册表（为"照片相册/图集"扩展预留）
 model LifeAlbum {
-  id          Int      @id @default(autoincrement())
-  name        String   @db.VarChar(100)
-  description String?  @db.VarChar(500)
-  coverUrl    String?  @db.LongText       @map("cover_url")
-  sortOrder   Int      @default(0)        @map("sort_order")
-  createdAt   DateTime @default(now())    @map("created_at")
-  updatedAt   DateTime @updatedAt          @map("updated_at")
+  id          Int          @id @default(autoincrement())
+  name        String       @db.VarChar(100)
+  description String?      @db.VarChar(500)
+  coverUrl    String?      @map("cover_url") @db.LongText
+  sortOrder   Int          @default(0) @map("sort_order")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
   moments     LifeMoment[]
 
   @@map("life_album")
@@ -231,54 +231,54 @@ model LifeAlbum {
 
 /// 生活碎片表（单表多态）
 model LifeMoment {
-  id          Int             @id @default(autoincrement())
-  type        LifeMomentType
-  status      LifeStatus      @default(PUBLISHED)
+  id     Int            @id @default(autoincrement())
+  type   LifeMomentType
+  status LifeStatus     @default(PUBLISHED)
 
   // ===== 通用字段 =====
-  title       String?         @db.VarChar(200)            // 照片/音乐/足迹标题；随笔可空
-  content     String?         @db.Text                     // 随笔正文 / 照片描述 / 书影短评
-  date        DateTime                                     // 碎片发生日期（用于时间轴排序）
-  mood        String?         @db.VarChar(20)             // 心情标签
-  sortOrder   Int             @default(0)    @map("sort_order")
-  featured    Boolean         @default(false)              // 首页精选
+  title     String?  @db.VarChar(200) // 照片/音乐/足迹标题；随笔可空
+  content   String?  @db.Text // 随笔正文 / 照片描述 / 书影短评
+  date      DateTime // 碎片发生日期（用于时间轴排序）
+  mood      String?  @db.VarChar(20) // 心情标签
+  sortOrder Int      @default(0) @map("sort_order")
+  featured  Boolean  @default(false) // 首页精选
 
   // ===== 媒体字段（本地 public/uploads/life/ 路径，预留 MinIO/OSS）=====
-  mediaUrl    String?         @db.LongText                 // 文件路径（照片/音频）
-  mediaType   String?         @db.VarChar(50)              // MIME type: image/jpeg, audio/mpeg
-  thumbnailUrl String?       @db.LongText    @map("thumbnail_url") // 音乐封面 / 书影封面
+  mediaUrl     String? @db.LongText // 文件路径（照片/音频）
+  mediaType    String? @db.VarChar(50) // MIME type: image/jpeg, audio/mpeg
+  thumbnailUrl String? @map("thumbnail_url") @db.LongText // 音乐封面 / 书影封面
 
   // ===== 渐变色块 fallback（无图时占位）=====
-  gradientFrom String?        @db.VarChar(20) @map("gradient_from")
-  gradientTo   String?        @db.VarChar(20) @map("gradient_to")
-  coverColor   String?        @db.VarChar(20) @map("cover_color")  // 音乐封面色
+  gradientFrom String? @map("gradient_from") @db.VarChar(20)
+  gradientTo   String? @map("gradient_to") @db.VarChar(20)
+  coverColor   String? @map("cover_color") @db.VarChar(20) // 音乐封面色
 
   // ===== 音乐专属 =====
-  artist      String?         @db.VarChar(100)
-  playCount   Int             @default(0)    @map("play_count")
-  externalLink String?        @db.LongText    @map("external_link")  // 网易云/QQ音乐外链
-  comment     String?         @db.VarChar(500)               // 一句话点评
+  artist       String? @db.VarChar(100)
+  playCount    Int     @default(0) @map("play_count")
+  externalLink String? @map("external_link") @db.LongText // 网易云/QQ音乐外链
+  comment      String? @db.VarChar(500) // 一句话点评
 
   // ===== 书影专属 =====
-  bookAuthor  String?         @db.VarChar(100) @map("book_author")
-  rating      Int?                                         // 1~5 星评分
-  bookType    String?         @db.VarChar(10)  @map("book_type") // "book" | "movie"
+  bookAuthor String? @map("book_author") @db.VarChar(100)
+  rating     Int? // 1~5 星评分
+  bookType   String? @map("book_type") @db.VarChar(10) // "book" | "movie"
 
   // ===== 布局字段（照片瀑布流）=====
-  span        Int             @default(1)                   // 1=正常, 2=宽卡
-  heightKey   String          @default("md") @db.VarChar(4) @map("height_key") // sm/md/lg/xl
+  span      Int    @default(1) // 1=正常, 2=宽卡
+  heightKey String @default("md") @map("height_key") @db.VarChar(4) // sm/md/lg/xl
 
   // ===== 扩展预留 =====
-  albumId     Int?            @map("album_id")
-  album       LifeAlbum?      @relation(fields: [albumId], references: [id], onDelete: SetNull)
+  albumId Int?       @map("album_id")
+  album   LifeAlbum? @relation(fields: [albumId], references: [id], onDelete: SetNull)
 
-  geoLat      Float?          @map("geo_lat")               // 纬度（地图足迹）
-  geoLng      Float?          @map("geo_lng")               // 经度（地图足迹）
-  locationName String?        @db.VarChar(200) @map("location_name") // 地名
+  geoLat       Float?  @map("geo_lat") // 纬度（地图足迹）
+  geoLng       Float?  @map("geo_lng") // 经度（地图足迹）
+  locationName String? @map("location_name") @db.VarChar(200) // 地名
 
   // ===== 基础 =====
-  createdAt   DateTime        @default(now())  @map("created_at")
-  updatedAt   DateTime        @updatedAt        @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([type])
   @@index([status])
@@ -301,36 +301,36 @@ enum WorkStatus {
 /// 作品/项目表
 model Work {
   /// 主键
-  id          Int       @id @default(autoincrement())
+  id          Int        @id @default(autoincrement())
   /// URL 友好 slug（唯一，前端路由用）
-  slug        String    @unique @db.VarChar(200)
+  slug        String     @unique @db.VarChar(200)
   /// 标题
-  title       String    @db.VarChar(200)
+  title       String     @db.VarChar(200)
   /// 一句话摘要
-  summary     String    @default("") @db.VarChar(500)
+  summary     String     @default("") @db.VarChar(500)
   /// 详细描述
-  description String    @db.Text
+  description String     @db.Text
   /// 封面渐变表达式（CSS linear-gradient，无封面图时兜底展示）
-  cover       String    @default("") @db.VarChar(500)
+  cover       String     @default("") @db.VarChar(500)
   /// 封面图 URL（本地上传 /uploads/works/xxx.jpg 或外链 http(s)://；为空则用 cover 渐变）
-  coverImage  String?   @db.VarChar(500) @map("cover_image")
+  coverImage  String?    @map("cover_image") @db.VarChar(500)
   /// 技术标签 → JSON string[]
-  tags        Json      @default("[]")
+  tags        Json       @default("[]")
   /// 项目分类
-  category    String    @default("独立项目") @db.VarChar(50)
+  category    String     @default("独立项目") @db.VarChar(50)
   /// 链接（homepage/repo/demo）→ JSON
-  links       Json      @default("{}")
+  links       Json       @default("{}")
   /// 完成时间（YYYY-MM 格式）
-  finishedAt  String    @default("") @db.VarChar(20) @map("finished_at")
+  finishedAt  String     @default("") @map("finished_at") @db.VarChar(20)
   /// 精选项目（首页/列表高亮）
-  highlight   Boolean   @default(false)
+  highlight   Boolean    @default(false)
   /// 排序号（越小越靠前）
-  sortOrder   Int       @default(0) @map("sort_order")
+  sortOrder   Int        @default(0) @map("sort_order")
   /// 发布状态
   status      WorkStatus @default(PUBLISHED)
 
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([status])
   @@index([category])
@@ -358,9 +358,54 @@ model WorkVocab {
   /// 排序号（越小越靠前）
   sortOrder Int           @default(0) @map("sort_order")
 
-  createdAt DateTime      @default(now()) @map("created_at")
-  updatedAt DateTime      @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@unique([kind, name])
   @@map("work_vocab")
+}
+
+/// 经历时间线节点类型（与前端 nodeKindMeta 一一对应，决定配色/图标/标签文案）
+enum TimelineKind {
+  /// 工作经历
+  WORK
+  /// 教育背景
+  EDUCATION
+  /// 开源项目
+  OPEN_SOURCE
+  /// 里程碑
+  MILESTONE
+}
+
+/// 经历时间线节点 —— 「经历」页的一条记录。
+/// 排序规则：按 startedAt 倒序（时间线天然由近及远），不再维护 sortOrder。
+model TimelineNode {
+  /// 主键
+  id          Int          @id @default(autoincrement())
+  /// 节点类型
+  kind        TimelineKind
+  /// 标题（如「自由开发者 · 远程协作」）
+  title       String       @db.VarChar(200)
+  /// 副标题（如「独立接项目 + 产品化咨询」，可为空）
+  subTitle    String       @default("") @map("sub_title") @db.VarChar(300)
+  /// 开始时间（YYYY-MM 格式，字符串存储便于原样展示）
+  startedAt   String       @map("started_at") @db.VarChar(20)
+  /// 结束时间（YYYY-MM 格式；ongoing=true 时忽略，可为空）
+  endedAt     String       @default("") @map("ended_at") @db.VarChar(20)
+  /// 是否仍在进行中（前端显示「进行中」标签 + 「至今」）
+  ongoing     Boolean      @default(false)
+  /// 详细描述（写清「扮演什么角色」+「具体产出」）
+  description String       @db.Text
+  /// 标签 → JSON string[]
+  tags        Json         @default("[]")
+  /// 是否在公开页展示（false = 仅管理端可见，用于暂存草稿）
+  visible     Boolean      @default(true)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([kind])
+  @@index([visible])
+  @@index([startedAt])
+  @@map("timeline_node")
 }

@@ -18,6 +18,7 @@
 | 7 | Life 生活碎片 | 📝 本章节分析 | 照片 / 音乐 / 随笔 + 新增足迹/书影；全栈 CRUD + MinIO/OSS 预留 |
 | 8 | **Portfolio 作品集** | ✅ 已实现 | 写死 Mock → 全栈 CRUD。新增 `Work` 表 + `WorkStatus` 枚举；公开列表/详情走 Redis 缓存，管理端 `/admin/portfolio` 增删改 + 拖拽排序；种子数据 `seed-works.mjs`（6 条）。**代码先行，本章为事后补齐** |
 | 9 | **Contact 联系方式** | ✅ 已实现 | 写死 Mock → 后端动态化。`user` 表扩 8 个 `contact_*` 列（邮箱/GitHub/微信，含二维码）；公开 `GET /api/contact` 60s 缓存，`/admin/contact` 编辑。**代码先行，本章为事后补齐** |
+| 10 | **Timeline 经历时间线** | ✅ 已实现 | 写死 Mock → 全栈 CRUD。新增 `TimelineNode` 表 + `TimelineKind` 枚举（工作/教育/开源/里程碑）；公开 `GET /api/timeline` 60s 缓存（按开始时间倒序），`/admin/timeline` 列表 + 独立编辑器页；种子数据 `seed-timeline.mjs`（6 条） |
 
 ---
 
@@ -1589,3 +1590,125 @@ REDIS_TTL.CONTACT_PUBLIC = 60                          // 1 分钟
 **合并策略说明**：图标、渠道顺序、卡片骨架属于前端静态资产（`src/data/contact.ts`），
 后端只存「值 + 文案」，前端按 `ch.id`（`email` / `github` / `wechat`）做映射合并。
 好处是后端不必存 icon 字段，前端也不必为后端数据再画一套 UI。
+
+---
+
+## 模块十：Timeline 经历时间线
+
+> **状态**：✅ 已实现（2026-09-24）
+> **背景**：`/timeline` 页原来直接消费前端静态文件 `src/data/timeline.ts`（6 条硬编码节点），
+> 改经历必须改代码 + 重新部署。本模块把它后端化，并补上管理端编辑能力。
+>
+> **架构遵循**：本模块严格遵循 [NestJS-Architecture-Guide.md](./NestJS-Architecture-Guide.md)
+> 的分层架构（Controller → Service → Prisma，不抽 Repository），缓存与降级策略与
+> About / Contact / Portfolio 保持一致。
+
+### 10.1 需求概述
+
+| 角色 | 权限 | 说明 |
+|------|------|------|
+| 游客 | 只读 | 浏览 `/timeline` 时间线（仅 `visible=true` 的节点） |
+| 管理员 | 增删改 | `/admin/timeline` 列表管理 + 独立编辑器页新建/编辑；可切换单条节点的展示/隐藏 |
+
+**关键设计取舍**：
+
+| 决策点 | 结论 | 理由 |
+|--------|------|------|
+| 节点类型（kind） | 固定 4 种枚举，不做词库管理 | 类型直接绑定公开页的染色 / 图标 / 徽标文案，属于前端视觉资产，不适合让用户随意增删 |
+| 排序 | 按 `startedAt` 倒序（同月按 id 倒序） | 时间线天然由近及远，无需人工维护 `sortOrder`，也就无需排序 UI |
+| 草稿态 | 用 `visible` 布尔字段，不用 status 枚举 | 时间线没有「归档」语义，只需「公开展示 / 暂存隐藏」两种状态 |
+| 标签 | 候选标签来自全表去重（`admin/meta`），也可现场新增 | 与作品集「不手输」的思路一致，但时间线标签偏个人化，允许直接新增更顺手 |
+| 编辑入口 | 跳转独立编辑器页，不用弹窗表单 | 与博客 / 生活碎片 / 作品集统一（2026-09-23 UI 走查结论） |
+
+### 10.2 数据模型
+
+```prisma
+enum TimelineKind {
+  WORK          // 工作经历
+  EDUCATION     // 教育背景
+  OPEN_SOURCE   // 开源项目
+  MILESTONE     // 里程碑
+}
+
+model TimelineNode {
+  id          Int          @id @default(autoincrement())
+  kind        TimelineKind
+  title       String       @db.VarChar(200)
+  subTitle    String       @default("") @db.VarChar(300) @map("sub_title")
+  startedAt   String       @db.VarChar(20) @map("started_at")   // YYYY-MM
+  endedAt     String       @default("") @db.VarChar(20) @map("ended_at")
+  ongoing     Boolean      @default(false)
+  description String       @db.Text
+  tags        Json         @default("[]")                       // string[]
+  visible     Boolean      @default(true)
+
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  @@index([kind])
+  @@index([visible])
+  @@index([startedAt])
+  @@map("timeline_node")
+}
+```
+
+**时间字段说明**：`startedAt` / `endedAt` 存 `YYYY-MM` 字符串而非 DateTime —— 个人经历常见
+「只记得哪年哪月」，字符串原样存储可避免时区与「补日」带来的展示偏差。
+
+**种子数据**：`server/prisma/seed-timeline.mjs` 把原 `src/data/timeline.ts` 的 6 条节点导入
+（按 `title` 做自然键判重，幂等可重复执行）。
+
+### 10.3 接口设计
+
+| 方法 | 路径 | 鉴权 | 说明 |
+|------|------|------|------|
+| GET | `/api/timeline` | 公开 | 经历列表（`visible=true`，按 `startedAt` 倒序，走 Redis 缓存） |
+| GET | `/api/timeline/admin/list` | JWT | 全部经历（含已隐藏），管理端列表用，不走缓存 |
+| GET | `/api/timeline/admin/meta` | JWT | 候选标签（全表 tags 去重，按频次降序取前 30） |
+| POST | `/api/timeline` | JWT | 新建经历，失败码 8002 |
+| PUT | `/api/timeline/:id` | JWT | 更新经历（PATCH 语义，仅更新传入字段） |
+| DELETE | `/api/timeline/:id` | JWT | 删除经历（物理删除） |
+
+**错误码（码段 8000 ~ 8099）**
+
+| 码 | 枚举 | 含义 |
+|----|------|------|
+| 8001 | `DATA_MISSING` | 经历不存在 |
+| 8002 | `SAVE_FAILED` | 保存失败（Prisma 抛错） |
+| 8003 | `DELETE_FAILED` | 删除失败 |
+| 8004 | `DATE_RANGE_INVALID` | 时间区间非法（格式非 YYYY-MM，或结束早于开始） |
+
+**路由顺序约束**：`GET /admin/list`、`GET /admin/meta` 必须声明在 `PUT/DELETE /:id`
+之前，避免被 `ParseIntPipe` 当作 id 解析。
+
+### 10.4 Redis Key & 缓存
+
+```ts
+TIMELINE_LIST_KEY = 'personal_site:timeline:public:list'   // TimelineNodeRsp[] JSON
+REDIS_TTL.TIMELINE_PUBLIC = 60                             // 1 分钟
+```
+
+失效时机：管理端新建 / 更新 / 删除成功后主动 `del`；Redis 读写异常时降级直连 DB，不影响业务。
+
+### 10.5 前端改造
+
+| 文件 | 说明 |
+|------|------|
+| `src/api/timeline.ts` | API 封装 + `TimelineNodeData` 类型；负责 `WORK ⇄ work` 枚举大小写/kebab 双向转换，并导出 `TIMELINE_KIND_OPTIONS` 下拉选项 |
+| `src/pages/TimelinePage.vue` | 改为消费接口；**请求失败回退静态 mock**（后端未启动也能看）；接口成功但为空时显示空态（不回退 mock，避免删掉的经历又冒出来）；数据就绪后调用 `scrollReveal.refresh()` 让后插入节点播放进入动画；登录后右上角显示「管理经历」入口 |
+| `src/pages/TimelineManagePage.vue` | 新建：列表（类型色点 + 徽标 + 时间区间 + 标签）+ 展示/隐藏快捷开关 + 编辑/删除 + 「查看公开页」 |
+| `src/pages/TimelineEditorPage.vue` | 新建：分区表单（基础信息 / 时间区间 / 标签 / 展示设置）+ `month` 输入框 + 底部 sticky 保存条；标签 chips 点选 + 现场新增 |
+| `src/router/index.ts` | 追加 `/admin/timeline`、`/admin/timeline/new`、`/admin/timeline/:id/edit`（均 `requiresAuth`） |
+| `src/data/timeline.ts` | 保留为静态兜底数据（`nodeKindMeta` 仍被公开页与管理页共用，作为配色单一来源） |
+
+**校验策略**：前端 `validate()` 拦截标题 / 描述 / 时间格式 / 区间先后；后端 `assertDateRange()`
+二次兜底（返回 8004）。`ongoing=true` 时后端强制清空 `endedAt`，避免出现「进行中 + 有结束时间」的矛盾态。
+
+### 10.6 进度
+
+| 项 | 状态 |
+|----|------|
+| Prisma 模型 + db push + 种子（6 条） | ✅ |
+| 后端模块（Controller / Service / DTO / 错误码 / 缓存） | ✅ |
+| 前端接口化 + 管理页 + 编辑器页 + 路由 | ✅ |
+| 端到端验证 `server/scripts/verify-timeline.mjs` | ✅ 16/16 通过 |

@@ -308,3 +308,48 @@
 - 前端：api/portfolio.ts、pages/PortfolioEditorPage.vue（新增）、PortfolioManagePage.vue（重构）、
   PortfolioPage.vue、ContactPage.vue、components/WorkVocabDialog.vue（新增）、router/index.ts
 
+
+---
+
+## 2026-09-24 · 模块十：经历时间线全栈化 + 管理端编辑
+
+### 目标
+
+`/timeline` 页原本读前端静态 `src/data/timeline.ts`（6 条硬编码），改经历要改代码 + 重新部署。
+本次把它后端化，并补上管理端编辑能力 + 前后端联调。
+
+### 设计取舍
+
+- **kind 固定 4 种枚举**（WORK/EDUCATION/OPEN_SOURCE/MILESTONE）：类型直接绑定公开页的
+  染色 / 图标 / 徽标文案，属前端视觉资产，不做词库化管理
+- **排序按 `startedAt` 倒序**：时间线天然由近及远，不维护 `sortOrder`，也就没有排序 UI
+- **草稿态用 `visible` 布尔值**：时间线没有「归档」语义，只需展示/隐藏两态
+- **编辑走独立编辑器页**：与博客 / 生活碎片 / 作品集统一（09-23 UI 走查结论）
+- **`startedAt` / `endedAt` 存 YYYY-MM 字符串**：个人经历常只记得「哪年哪月」，
+  避免 DateTime 时区与「补日」带来的展示偏差
+
+### 涉及文件
+
+- 后端：
+  - `prisma/schema.prisma`（+TimelineKind / TimelineNode）、`prisma/seed-timeline.mjs`（新增，6 条，幂等）
+  - `modules/timeline/`（新增：controller / service / module / dto / enums，错误码 8000 段）
+  - `common/constants/redis-keys.ts`（+TIMELINE_LIST_KEY / TIMELINE_PUBLIC）
+  - `app.module.ts`（注册 TimelineModule）
+  - `scripts/verify-timeline.mjs`（新增，端到端 16 项）
+- 前端：
+  - `api/timeline.ts`（新增，含枚举大小写/kebab 双向转换）
+  - `pages/TimelinePage.vue`（接口化 + 失败回退 mock + 空态 + 管理入口）
+  - `pages/TimelineManagePage.vue`、`pages/TimelineEditorPage.vue`（新增）
+  - `composables/useScrollReveal.ts`（refresh 重扫时跳过已动画元素，避免二次闪动）
+  - `router/index.ts`（+/admin/timeline 三条路由）
+
+### 验证
+
+- 端到端 `node scripts/verify-timeline.mjs` **16/16 通过**：
+  公开列表（免登录，6 条倒序）/ 管理列表 / 候选标签 / 新建（visible=false 不进公开页）/
+  更新（ongoing=true 强清 endedAt）/ 公开列表缓存失效 / 时间区间 8004 双校验 / 删除后条数复原
+- 前端 `vue-tsc -b` 0 错误 + `vite build` 通过；后端 `tsc --noEmit` 0 错误
+
+### 提交
+
+- 待提交（见下）

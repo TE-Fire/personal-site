@@ -32,6 +32,7 @@ export const REDIS_MODULE = {
   LOCK: 'lock',
   CONTRIBUTION: 'contribution',
   PORTFOLIO: 'portfolio',
+  TIMELINE: 'timeline',
 } as const;
 
 /* ============================================================
@@ -60,6 +61,8 @@ export const REDIS_TTL = {
   CONTRIB_MERGED: 6 * 3600,
   /** Portfolio 公开作品列表/详情：1 分钟（公开读缓存，admin 改完删） */
   PORTFOLIO_PUBLIC: 60,
+  /** Timeline 公开经历列表：1 分钟（公开读缓存，admin 改完删） */
+  TIMELINE_PUBLIC: 60,
 } as const;
 
 /* ============================================================
@@ -162,6 +165,17 @@ export function LOCK_KEY(lockKey: string): string {
   return `${REDIS_PREFIX}:${REDIS_MODULE.LOCK}:${lockKey}`;
 }
 
+/**
+ * Timeline 公开经历列表缓存
+ *   personal_site:timeline:public:list
+ * value: TimelineNodeRsp[] JSON
+ * TTL: 1 分钟（REDIS_TTL.TIMELINE_PUBLIC）
+ * 失效时机：admin 增/改/删经历后主动删除
+ * 降级：Redis 读/写失败时直接查 DB，不影响业务
+ */
+export const TIMELINE_LIST_KEY =
+  `${REDIS_PREFIX}:${REDIS_MODULE.TIMELINE}:public:list` as const;
+
 /* ---------- Contribution 贡献热力图缓存 ---------- */
 
 /**
@@ -215,6 +229,9 @@ export const REDIS_KEY_SUMMARY = {
   portfolio: [
     { pattern: 'PORTFOLIO_LIST_KEY', example: PORTFOLIO_LIST_KEY, ttl: REDIS_TTL.PORTFOLIO_PUBLIC },
     { pattern: PORTFOLIO_DETAIL_KEY.name, example: PORTFOLIO_DETAIL_KEY('p-personal-site-2026'), ttl: REDIS_TTL.PORTFOLIO_PUBLIC },
+  ],
+  timeline: [
+    { pattern: 'TIMELINE_LIST_KEY', example: TIMELINE_LIST_KEY, ttl: REDIS_TTL.TIMELINE_PUBLIC },
   ],
   cache: [
     { pattern: CACHE_POST_LIST_KEY.name, example: CACHE_POST_LIST_KEY(1, 10), ttl: REDIS_TTL.CACHE_POST_LIST },

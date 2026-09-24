@@ -91,6 +91,25 @@ const routes: RouteRecordRaw[] = [
     props: true
   },
   {
+    path: '/admin/timeline',
+    name: 'TimelineManage',
+    component: () => import('@/pages/TimelineManagePage.vue'),
+    meta: { title: '经历管理', requiresAuth: true }
+  },
+  {
+    path: '/admin/timeline/new',
+    name: 'TimelineNew',
+    component: () => import('@/pages/TimelineEditorPage.vue'),
+    meta: { title: '新建经历', requiresAuth: true }
+  },
+  {
+    path: '/admin/timeline/:id/edit',
+    name: 'TimelineEdit',
+    component: () => import('@/pages/TimelineEditorPage.vue'),
+    meta: { title: '编辑经历', requiresAuth: true },
+    props: true
+  },
+  {
     path: '/blog/new',
     name: 'BlogNew',
     component: () => import('@/pages/BlogEditorPage.vue'),

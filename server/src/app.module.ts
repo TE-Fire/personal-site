@@ -12,6 +12,7 @@ import { TagModule } from './modules/tag/tag.module';
 import { ContributionModule } from './modules/contribution/contribution.module';
 import { LifeModule } from './modules/life/life.module';
 import { PortfolioModule } from './modules/portfolio/portfolio.module';
+import { TimelineModule } from './modules/timeline/timeline.module';
 import { AppController } from './app.controller';
 
 /**
@@ -41,6 +42,7 @@ import { AppController } from './app.controller';
     ContributionModule,
     LifeModule,
     PortfolioModule,
+    TimelineModule,
   ],
   controllers: [AppController],
   providers: [],
